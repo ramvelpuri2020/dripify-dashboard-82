@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Upload } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ImageUploadProps {
@@ -46,10 +45,10 @@ export const ImageUpload = ({ onImageSelect }: ImageUploadProps) => {
   return (
     <div
       className={cn(
-        "relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg transition-colors",
+        "relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-xl transition-colors",
         dragActive
-          ? "border-drip-primary bg-drip-accent/10"
-          : "border-gray-300 bg-gray-50",
+          ? "border-[#F97316] bg-[#F97316]/10"
+          : "border-white/10 hover:border-white/20 bg-black/20",
         preview && "border-none"
       )}
       onDragEnter={handleDrag}
@@ -68,15 +67,15 @@ export const ImageUpload = ({ onImageSelect }: ImageUploadProps) => {
         <img
           src={preview}
           alt="Preview"
-          className="w-full h-full object-contain rounded-lg"
+          className="w-full h-full object-contain rounded-xl"
         />
       ) : (
         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-          <Upload className="w-10 h-10 mb-3 text-gray-400" />
-          <p className="mb-2 text-sm text-gray-500">
+          <Upload className="w-10 h-10 mb-3 text-[#F97316]" />
+          <p className="mb-2 text-sm text-white">
             <span className="font-semibold">Click to upload</span> or drag and drop
           </p>
-          <p className="text-xs text-gray-500">PNG, JPG or WEBP (MAX. 800x400px)</p>
+          <p className="text-xs text-gray-400">PNG, JPG or WEBP (MAX. 800x400px)</p>
         </div>
       )}
     </div>

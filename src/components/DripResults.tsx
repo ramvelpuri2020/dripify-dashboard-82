@@ -1,7 +1,6 @@
 import { Share2, Instagram, MessageCircle, Send } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { Progress } from "./ui/progress";
 
 interface ScoreBreakdown {
   category: string;
@@ -18,7 +17,7 @@ interface DripResultsProps {
 export const DripResults = ({ totalScore, breakdown, onShare }: DripResultsProps) => {
   return (
     <div className="w-full max-w-md mx-auto animate-fade-in">
-      <Card className="bg-gradient-to-b from-orange-400 to-pink-500 p-6 text-white rounded-3xl">
+      <Card className="bg-gradient-to-br from-[#F97316] to-[#FB923C] p-6 text-white rounded-3xl shadow-xl border border-white/10">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold mb-2">Your Drip Score: {totalScore}/10</h2>
           <p className="text-sm opacity-90">Share and compare with your friends</p>
@@ -26,7 +25,7 @@ export const DripResults = ({ totalScore, breakdown, onShare }: DripResultsProps
 
         <div className="space-y-4">
           {breakdown.map((item) => (
-            <div key={item.category} className="flex items-center justify-between">
+            <div key={item.category} className="flex items-center justify-between bg-black/10 p-3 rounded-xl">
               <div className="flex items-center gap-2">
                 <span className="text-lg">{item.emoji}</span>
                 <span className="font-medium">{item.category}</span>

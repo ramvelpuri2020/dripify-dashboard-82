@@ -46,21 +46,21 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#1A1F2C] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">DripCheck</h1>
-          <p className="text-gray-600">
+          <h1 className="text-4xl font-bold text-white mb-2 animate-fade-in">DripCheck</h1>
+          <p className="text-gray-400">
             Upload your fit and get instant style feedback
           </p>
         </div>
 
         {!showResults ? (
-          <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+          <div className="bg-[#221F26]/50 backdrop-blur-xl rounded-xl shadow-lg border border-white/10 p-6 space-y-6 animate-fade-in">
             <ImageUpload onImageSelect={setSelectedImage} />
             
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 text-center">
+              <h3 className="text-lg font-medium text-white text-center">
                 What's the occasion?
               </h3>
               <StyleSelector selected={selectedStyle} onSelect={setSelectedStyle} />
@@ -70,9 +70,16 @@ const Index = () => {
               <Button
                 onClick={handleAnalyze}
                 disabled={!selectedImage || analyzing}
-                className="bg-drip-primary hover:bg-drip-secondary text-white"
+                className="bg-[#F97316] hover:bg-[#F97316]/90 text-white font-medium px-8 py-2 rounded-full transition-all duration-200 disabled:opacity-50"
               >
-                {analyzing ? "Analyzing..." : "Check Your Drip"}
+                {analyzing ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    Analyzing...
+                  </div>
+                ) : (
+                  "Check Your Drip"
+                )}
               </Button>
             </div>
           </div>
