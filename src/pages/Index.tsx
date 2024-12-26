@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StyleSelector } from "@/components/StyleSelector";
-import { DripScore } from "@/components/DripScore";
+import { DripResults } from "@/components/DripResults";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -9,10 +9,17 @@ const Index = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedStyle, setSelectedStyle] = useState("casual");
   const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<{ score: number; feedback: string } | null>(
-    null
-  );
+  const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
+
+  const mockBreakdown = [
+    { category: "Masculinity", score: 9, emoji: "💪" },
+    { category: "Cheek Bones", score: 6, emoji: "👨" },
+    { category: "Jawline", score: 8, emoji: "—" },
+    { category: "Eyes", score: 7, emoji: "👀" },
+    { category: "Hair", score: 8, emoji: "👱" },
+    { category: "Skin", score: 6, emoji: "🦊" },
+  ];
 
   const handleAnalyze = async () => {
     if (!selectedImage) {
@@ -27,14 +34,15 @@ const Index = () => {
     setAnalyzing(true);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    // Mock result - in real app, this would come from your AI service
-    setResult({
-      score: Math.floor(Math.random() * 30) + 70, // Random score between 70-100
-      feedback:
-        "Your outfit shows great potential! The color coordination is on point, but consider adding some accessories to elevate the look. The fit of your clothes is good, and your style choice works well for the selected category.",
-    });
+    setShowResults(true);
     setAnalyzing(false);
+  };
+
+  const handleShare = () => {
+    toast({
+      title: "Sharing",
+      description: "Opening share dialog...",
+    });
   };
 
   return (
@@ -47,28 +55,34 @@ const Index = () => {
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-          <ImageUpload onImageSelect={setSelectedImage} />
-          
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 text-center">
-              What's the occasion?
-            </h3>
-            <StyleSelector selected={selectedStyle} onSelect={setSelectedStyle} />
-          </div>
+        {!showResults ? (
+          <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+            <ImageUpload onImageSelect={setSelectedImage} />
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 text-center">
+                What's the occasion?
+              </h3>
+              <StyleSelector selected={selectedStyle} onSelect={setSelectedStyle} />
+            </div>
 
-          <div className="flex justify-center">
-            <Button
-              onClick={handleAnalyze}
-              disabled={!selectedImage || analyzing}
-              className="bg-drip-primary hover:bg-drip-secondary text-white"
-            >
-              {analyzing ? "Analyzing..." : "Check Your Drip"}
-            </Button>
+            <div className="flex justify-center">
+              <Button
+                onClick={handleAnalyze}
+                disabled={!selectedImage || analyzing}
+                className="bg-drip-primary hover:bg-drip-secondary text-white"
+              >
+                {analyzing ? "Analyzing..." : "Check Your Drip"}
+              </Button>
+            </div>
           </div>
-
-          {result && <DripScore score={result.score} feedback={result.feedback} />}
-        </div>
+        ) : (
+          <DripResults
+            totalScore={8}
+            breakdown={mockBreakdown}
+            onShare={handleShare}
+          />
+        )}
       </div>
     </div>
   );
