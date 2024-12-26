@@ -1,4 +1,4 @@
-import { Share2, Instagram, Snapchat, MessageCircle } from "lucide-react";
+import { Share2, Instagram, MessageCircle, Send } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
@@ -62,7 +62,7 @@ export const DripResults = ({ totalScore, breakdown, onShare }: DripResultsProps
           className="rounded-full bg-[#FFFC00] hover:bg-[#FFFC00]/90 text-black border-none"
           onClick={onShare}
         >
-          <Snapchat className="w-5 h-5" />
+          <Send className="w-5 h-5" />
         </Button>
       </div>
     </div>
