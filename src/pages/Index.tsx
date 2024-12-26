@@ -13,12 +13,12 @@ const Index = () => {
   const { toast } = useToast();
 
   const mockBreakdown = [
-    { category: "Masculinity", score: 9, emoji: "💪" },
-    { category: "Cheek Bones", score: 6, emoji: "👨" },
-    { category: "Jawline", score: 8, emoji: "—" },
-    { category: "Eyes", score: 7, emoji: "👀" },
-    { category: "Hair", score: 8, emoji: "👱" },
-    { category: "Skin", score: 6, emoji: "🦊" },
+    { category: "Color Coordination", score: 8, emoji: "🎨" },
+    { category: "Fit & Proportion", score: 7, emoji: "📏" },
+    { category: "Style Coherence", score: 9, emoji: "✨" },
+    { category: "Accessories", score: 6, emoji: "💍" },
+    { category: "Outfit Creativity", score: 8, emoji: "🎯" },
+    { category: "Trend Awareness", score: 7, emoji: "🌟" },
   ];
 
   const handleAnalyze = async () => {

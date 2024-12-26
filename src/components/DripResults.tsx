@@ -20,7 +20,7 @@ export const DripResults = ({ totalScore, breakdown, onShare }: DripResultsProps
     <div className="w-full max-w-md mx-auto animate-fade-in">
       <Card className="bg-gradient-to-b from-orange-400 to-pink-500 p-6 text-white rounded-3xl">
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold mb-2">You're a {totalScore}</h2>
+          <h2 className="text-2xl font-bold mb-2">Your Drip Score: {totalScore}/10</h2>
           <p className="text-sm opacity-90">Share and compare with your friends</p>
         </div>
 
