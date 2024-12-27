@@ -12,10 +12,10 @@ export const ScanView = () => {
   const [selectedStyle, setSelectedStyle] = useState("casual");
   const [analyzing, setAnalyzing] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
   const { toast } = useToast();
 
   const analyzeImage = async (imageFile: File) => {
-    // Convert image to base64
     const base64Image = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
@@ -23,36 +23,82 @@ export const ScanView = () => {
       reader.readAsDataURL(imageFile);
     });
 
-    // OpenAI API request would go here
-    // This is a placeholder for the API call
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4-vision-preview",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Analyze this outfit image for the ${selectedStyle} style category. Provide detailed feedback on color coordination, fit, style coherence, and suggestions for improvement.`
-              },
-              {
-                type: "image_url",
-                image_url: base64Image as string
-              }
-            ]
-          }
-        ],
-        max_tokens: 500
-      })
-    });
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4-vision-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Analyze this outfit for the ${selectedStyle} style category. Provide a detailed analysis with scores out of 10 for the following categories:
+                  1. Color Coordination
+                  2. Fit & Proportion
+                  3. Style Coherence
+                  4. Accessories
+                  5. Outfit Creativity
+                  6. Trend Awareness
+                  
+                  Also provide specific feedback and suggestions for improvement.`
+                },
+                {
+                  type: "image_url",
+                  image_url: base64Image as string
+                }
+              ]
+            }
+          ],
+          max_tokens: 1000
+        })
+      });
 
-    return response.json();
+      if (!response.ok) {
+        throw new Error("Failed to analyze image");
+      }
+
+      const data = await response.json();
+      console.log("OpenAI Response:", data);
+      
+      // Parse the response and extract scores
+      const analysis = data.choices[0].message.content;
+      
+      // Simple parsing logic (you might want to make this more robust)
+      const scores = {
+        colorCoordination: parseInt(analysis.match(/Color Coordination:?\s*(\d+)/i)?.[1] || "7"),
+        fitProportion: parseInt(analysis.match(/Fit & Proportion:?\s*(\d+)/i)?.[1] || "7"),
+        styleCoherence: parseInt(analysis.match(/Style Coherence:?\s*(\d+)/i)?.[1] || "7"),
+        accessories: parseInt(analysis.match(/Accessories:?\s*(\d+)/i)?.[1] || "7"),
+        outfitCreativity: parseInt(analysis.match(/Outfit Creativity:?\s*(\d+)/i)?.[1] || "7"),
+        trendAwareness: parseInt(analysis.match(/Trend Awareness:?\s*(\d+)/i)?.[1] || "7")
+      };
+
+      const totalScore = Math.round(
+        Object.values(scores).reduce((acc, curr) => acc + curr, 0) / 6
+      );
+
+      return {
+        totalScore,
+        breakdown: [
+          { category: "Color Coordination", score: scores.colorCoordination, emoji: "🎨" },
+          { category: "Fit & Proportion", score: scores.fitProportion, emoji: "📏" },
+          { category: "Style Coherence", score: scores.styleCoherence, emoji: "✨" },
+          { category: "Accessories", score: scores.accessories, emoji: "💍" },
+          { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🎯" },
+          { category: "Trend Awareness", score: scores.trendAwareness, emoji: "🌟" },
+        ],
+        feedback: analysis
+      };
+    } catch (error) {
+      console.error("Analysis error:", error);
+      throw error;
+    }
   };
 
   const handleAnalyze = async () => {
@@ -67,8 +113,8 @@ export const ScanView = () => {
 
     setAnalyzing(true);
     try {
-      const analysis = await analyzeImage(selectedImage);
-      // Process the analysis response and update the results
+      const results = await analyzeImage(selectedImage);
+      setAnalysisResults(results);
       setShowResults(true);
     } catch (error) {
       toast({
@@ -93,9 +139,10 @@ export const ScanView = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
+      className="px-4"
     >
       {!showResults ? (
-        <Card className="backdrop-blur-xl bg-white/5 border-white/10">
+        <Card className="backdrop-blur-xl bg-black/30 border-white/10">
           <CardContent className="space-y-8 p-8">
             <motion.div
               initial={{ opacity: 0 }}
@@ -147,15 +194,9 @@ export const ScanView = () => {
           transition={{ duration: 0.5 }}
         >
           <DripResults
-            totalScore={8}
-            breakdown={[
-              { category: "Color Coordination", score: 8, emoji: "🎨" },
-              { category: "Fit & Proportion", score: 7, emoji: "📏" },
-              { category: "Style Coherence", score: 9, emoji: "✨" },
-              { category: "Accessories", score: 6, emoji: "💍" },
-              { category: "Outfit Creativity", score: 8, emoji: "🎯" },
-              { category: "Trend Awareness", score: 7, emoji: "🌟" },
-            ]}
+            totalScore={analysisResults.totalScore}
+            breakdown={analysisResults.breakdown}
+            feedback={analysisResults.feedback}
             onShare={handleShare}
           />
         </motion.div>
