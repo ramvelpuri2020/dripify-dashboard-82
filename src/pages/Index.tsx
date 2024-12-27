@@ -32,7 +32,6 @@ const Index = () => {
     }
 
     setAnalyzing(true);
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setShowResults(true);
     setAnalyzing(false);
@@ -46,35 +45,37 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#1A1F2C] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#1A1F2C] to-[#2C1F3D] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-2 animate-fade-in">DripCheck</h1>
-          <p className="text-gray-400">
+        <div className="text-center space-y-4">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-[#F97316] to-[#FB923C] text-transparent bg-clip-text animate-fade-in">
+            DripCheck
+          </h1>
+          <p className="text-gray-400 text-lg">
             Upload your fit and get instant style feedback
           </p>
         </div>
 
         {!showResults ? (
-          <div className="bg-[#221F26]/50 backdrop-blur-xl rounded-xl shadow-lg border border-white/10 p-6 space-y-6 animate-fade-in">
+          <div className="backdrop-blur-xl bg-white/5 rounded-2xl shadow-2xl border border-white/10 p-8 space-y-8 animate-fade-in">
             <ImageUpload onImageSelect={setSelectedImage} />
             
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-white text-center">
+            <div className="space-y-6">
+              <h3 className="text-xl font-medium text-white text-center bg-gradient-to-r from-[#F97316] to-[#FB923C] text-transparent bg-clip-text">
                 What's the occasion?
               </h3>
               <StyleSelector selected={selectedStyle} onSelect={setSelectedStyle} />
             </div>
 
-            <div className="flex justify-center">
+            <div className="flex justify-center pt-4">
               <Button
                 onClick={handleAnalyze}
                 disabled={!selectedImage || analyzing}
-                className="bg-[#F97316] hover:bg-[#F97316]/90 text-white font-medium px-8 py-2 rounded-full transition-all duration-200 disabled:opacity-50"
+                className="bg-gradient-to-r from-[#F97316] to-[#FB923C] hover:from-[#F97316]/90 hover:to-[#FB923C]/90 text-white font-medium px-10 py-6 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:-translate-y-1"
               >
                 {analyzing ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                     Analyzing...
                   </div>
                 ) : (
