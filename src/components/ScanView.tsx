@@ -5,51 +5,27 @@ import { DripResults } from "@/components/DripResults";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedStyle, setSelectedStyle] = useState("casual");
   const [analyzing, setAnalyzing] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [currentSlide, setCurrentSlide] = useState(0);
   const { toast } = useToast();
 
-  const demoResults = [
-    {
-      totalScore: 9.5,
-      breakdown: [
-        { category: "Overall", score: 95, emoji: "🎯" },
-        { category: "Style", score: 90, emoji: "👔" },
-        { category: "Fit", score: 92, emoji: "📏" },
-        { category: "Color", score: 88, emoji: "🎨" },
-        { category: "Accessories", score: 85, emoji: "💍" },
-        { category: "Confidence", score: 98, emoji: "✨" },
-      ],
-      feedback: "Exceptional style! Your outfit shows great attention to detail and perfect color coordination. The fit is tailored perfectly, and your accessory choices elevate the entire look."
-    },
-    {
-      totalScore: 9.0,
-      breakdown: [
-        { category: "Overall", score: 90, emoji: "🎯" },
-        { category: "Innovation", score: 92, emoji: "💫" },
-        { category: "Execution", score: 88, emoji: "✨" },
-        { category: "Uniqueness", score: 95, emoji: "🌟" },
-      ],
-      feedback: "Your style is truly unique! The way you've combined different elements creates a distinctive look that stands out. Keep pushing boundaries!"
-    },
-    {
-      totalScore: 9.8,
-      breakdown: [
-        { category: "Overall", score: 98, emoji: "🎯" },
-        { category: "Presence", score: 95, emoji: "👑" },
-        { category: "Impact", score: 96, emoji: "💥" },
-        { category: "Elegance", score: 99, emoji: "✨" },
-      ],
-      feedback: "Absolutely stunning! Your style commands attention and exhibits a perfect balance of elegance and confidence. A true masterclass in personal style."
-    }
-  ];
+  const demoResult = {
+    totalScore: 9.5,
+    breakdown: [
+      { category: "Overall", score: 95, emoji: "🎯" },
+      { category: "Style", score: 90, emoji: "👔" },
+      { category: "Fit", score: 92, emoji: "📏" },
+      { category: "Color", score: 88, emoji: "🎨" },
+      { category: "Accessories", score: 85, emoji: "💍" },
+      { category: "Confidence", score: 98, emoji: "✨" },
+    ],
+    feedback: "Exceptional style! Your outfit shows great attention to detail and perfect color coordination. The fit is tailored perfectly, and your accessory choices elevate the entire look."
+  };
 
   const handleAnalyze = async () => {
     if (!selectedImage) {
@@ -89,14 +65,6 @@ export const ScanView = () => {
       title: "Saved",
       description: "Your style analysis has been saved!",
     });
-  };
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % demoResults.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + demoResults.length) % demoResults.length);
   };
 
   return (
@@ -153,59 +121,20 @@ export const ScanView = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentSlide}
-              initial={{ opacity: 0, x: 100 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.3 }}
-            >
-              <DripResults
-                totalScore={demoResults[currentSlide].totalScore}
-                breakdown={demoResults[currentSlide].breakdown}
-                feedback={demoResults[currentSlide].feedback}
-                onShare={handleShare}
-                onSave={handleSave}
-              />
-            </motion.div>
-          </AnimatePresence>
-
-          {currentSlide > 0 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute left-0 top-1/2 -translate-y-1/2 text-white hover:bg-white/10"
-              onClick={prevSlide}
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </Button>
-          )}
-
-          {currentSlide < demoResults.length - 1 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-0 top-1/2 -translate-y-1/2 text-white hover:bg-white/10"
-              onClick={nextSlide}
-            >
-              <ChevronRight className="w-6 h-6" />
-            </Button>
-          )}
-
-          <div className="flex justify-center gap-2 mt-4">
-            {demoResults.map((_, index) => (
-              <button
-                key={index}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  currentSlide === index ? "bg-white" : "bg-white/30"
-                }`}
-                onClick={() => setCurrentSlide(index)}
-              />
-            ))}
-          </div>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <DripResults
+            totalScore={demoResult.totalScore}
+            breakdown={demoResult.breakdown}
+            feedback={demoResult.feedback}
+            onShare={handleShare}
+            onSave={handleSave}
+            profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
+          />
+        </motion.div>
       )}
     </motion.div>
   );

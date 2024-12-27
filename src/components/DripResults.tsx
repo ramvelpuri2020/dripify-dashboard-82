@@ -2,6 +2,7 @@ import { Share2, Save } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { motion } from "framer-motion";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 
 interface ScoreBreakdown {
   category: string;
@@ -15,18 +16,25 @@ interface DripResultsProps {
   feedback: string;
   onShare: () => void;
   onSave?: () => void;
+  profileImage?: string;
 }
 
-export const DripResults = ({ totalScore, breakdown, feedback, onShare, onSave }: DripResultsProps) => {
+export const DripResults = ({ totalScore, breakdown, feedback, onShare, onSave, profileImage }: DripResultsProps) => {
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-2"
+        className="text-center space-y-4"
       >
-        <h2 className="text-3xl font-bold text-white">You're a {totalScore}</h2>
-        <p className="text-green-400">Top Drip</p>
+        <Avatar className="w-20 h-20 mx-auto border-2 border-white/20">
+          <AvatarImage src={profileImage} alt="Profile" />
+          <AvatarFallback>👤</AvatarFallback>
+        </Avatar>
+        <div>
+          <h2 className="text-3xl font-bold text-white">You're a {totalScore}</h2>
+          <p className="text-green-400">Top Drip</p>
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-2 gap-4">

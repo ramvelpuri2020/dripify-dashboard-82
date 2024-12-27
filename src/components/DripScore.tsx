@@ -1,11 +1,13 @@
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface DripScoreProps {
   score: number;
   feedback: string;
+  profileImage?: string;
 }
 
-export const DripScore = ({ score, feedback }: DripScoreProps) => {
+export const DripScore = ({ score, feedback, profileImage }: DripScoreProps) => {
   const getScoreColor = (score: number) => {
     if (score >= 90) return "text-green-500";
     if (score >= 70) return "text-yellow-500";
@@ -14,6 +16,10 @@ export const DripScore = ({ score, feedback }: DripScoreProps) => {
 
   return (
     <div className="flex flex-col items-center space-y-4 animate-fade-in">
+      <Avatar className="w-16 h-16 border-2 border-white/20">
+        <AvatarImage src={profileImage} alt="Profile" />
+        <AvatarFallback>👤</AvatarFallback>
+      </Avatar>
       <div className="relative h-48 w-4">
         <div className="absolute -top-8 left-1/2 -translate-x-1/2">
           <span className={cn("text-2xl font-bold", getScoreColor(score))}>

@@ -2,7 +2,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { Trophy, TrendingUp, Flame, Calendar as CalendarIcon, Settings, ChevronRight } from "lucide-react";
+import { Trophy, TrendingUp, Flame, Calendar as CalendarIcon, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DripScore } from "./DripScore";
 import { Button } from "./ui/button";
@@ -14,12 +14,14 @@ export const DashboardView = () => {
     {
       date: "2024-03-15",
       score: 95,
-      title: "Evening Look"
+      title: "Evening Look",
+      image: "/placeholder.svg"
     },
     {
       date: "2024-03-14",
       score: 88,
-      title: "Casual Friday"
+      title: "Casual Friday",
+      image: "/placeholder.svg"
     }
   ];
 
@@ -40,7 +42,7 @@ export const DashboardView = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="space-y-6 px-4 pb-20"
+      className="space-y-6 px-4 pb-20 max-w-md mx-auto"
     >
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-white">GenStyle</h1>
@@ -49,25 +51,21 @@ export const DashboardView = () => {
         </Button>
       </div>
 
-      {/* Stats Overview in a single row */}
-      <div className="flex justify-between gap-2">
+      {/* Stats Overview in a single row with equal widths */}
+      <div className="grid grid-cols-3 gap-2">
         {styleStats.map((stat, index) => (
           <motion.div
             key={stat.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="flex-1"
+            className="w-full"
           >
-            <Card className="bg-black/30 backdrop-blur-lg border-white/10 hover:bg-black/40 transition-all">
-              <CardContent className="p-4">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <stat.icon className={cn("w-4 h-4", stat.color)} />
-                    <p className={cn("text-lg font-bold", stat.color)}>{stat.value}</p>
-                  </div>
-                  <p className="text-xs text-white/60">{stat.title}</p>
-                </div>
+            <Card className="bg-black/30 backdrop-blur-lg border-white/10 hover:bg-black/40 transition-all h-full">
+              <CardContent className="p-4 flex flex-col items-center justify-center space-y-2">
+                <stat.icon className={cn("w-5 h-5", stat.color)} />
+                <p className={cn("text-lg font-bold", stat.color)}>{stat.value}</p>
+                <p className="text-xs text-white/60 text-center">{stat.title}</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -122,18 +120,17 @@ export const DashboardView = () => {
                 className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                    <span className="text-xs text-white/60">Style</span>
-                  </div>
+                  <img 
+                    src={analysis.image} 
+                    alt={analysis.title}
+                    className="w-12 h-12 rounded-full object-cover bg-white/10"
+                  />
                   <div>
                     <p className="text-white text-sm font-medium">{analysis.title}</p>
                     <p className="text-white/60 text-xs">{analysis.date}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-green-400 text-sm font-bold">{analysis.score}</span>
-                  <ChevronRight className="w-4 h-4 text-white/60" />
-                </div>
+                <span className="text-green-400 text-sm font-bold">{analysis.score}</span>
               </motion.div>
             ))}
           </div>
