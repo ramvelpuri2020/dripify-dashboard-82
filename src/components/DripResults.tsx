@@ -11,7 +11,7 @@ interface ScoreBreakdown {
 interface DripResultsProps {
   totalScore: number;
   breakdown: ScoreBreakdown[];
-  feedback?: string;
+  feedback: string;
   onShare: () => void;
 }
 

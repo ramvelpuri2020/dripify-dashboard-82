@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { analyzeOutfit } from "@/services/openai";
-import { parseAnalysis } from "@/utils/analysisParser";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -16,6 +14,19 @@ export const ScanView = () => {
   const [showResults, setShowResults] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
   const { toast } = useToast();
+
+  const getDemoAnalysis = () => {
+    return {
+      totalScore: 8.5,
+      breakdown: [
+        { category: "Color Coordination", score: 9, emoji: "🎨" },
+        { category: "Style Matching", score: 8, emoji: "👔" },
+        { category: "Fit", score: 8.5, emoji: "📏" },
+        { category: "Accessories", score: 8.5, emoji: "💍" }
+      ],
+      feedback: "Great outfit choice! The colors work well together, and the fit is on point. Consider adding a statement accessory to elevate the look even further."
+    };
+  };
 
   const handleAnalyze = async () => {
     if (!selectedImage) {
@@ -29,17 +40,9 @@ export const ScanView = () => {
 
     setAnalyzing(true);
     try {
-      const base64Image = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(selectedImage);
-      });
-
-      const data = await analyzeOutfit(base64Image as string, selectedStyle);
-      console.log("OpenAI Response:", data);
-      
-      const results = parseAnalysis(data.choices[0].message.content);
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const results = getDemoAnalysis();
       setAnalysisResults(results);
       setShowResults(true);
     } catch (error) {
