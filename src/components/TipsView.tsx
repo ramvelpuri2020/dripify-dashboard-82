@@ -1,74 +1,58 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { Palette, Ruler, Sparkles, Lightbulb, Shirt, ShoppingBag } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { Share2, Camera, Target, Sparkles, Droplet, User, Eye } from "lucide-react";
+import { Button } from "./ui/button";
 
 export const TipsView = () => {
-  const tips = [
+  const analysisResults = [
     {
-      category: "Color Theory",
-      icon: Palette,
-      color: "text-pink-500",
-      tips: [
-        "Master the color wheel for foolproof combinations",
-        "Use the 60-30-10 rule for balanced outfits",
-        "Consider your skin undertone when choosing colors",
-        "Create contrast with complementary colors"
-      ]
+      category: "Overall",
+      score: 95,
+      emoji: "🎯"
     },
     {
-      category: "Fit & Proportion",
-      icon: Ruler,
-      color: "text-blue-500",
-      tips: [
-        "Know your body measurements and silhouette",
-        "Balance loose and fitted pieces",
-        "Use the rule of thirds for proportions",
-        "Tailor key pieces for perfect fit"
-      ]
+      category: "Potential",
+      score: 100,
+      emoji: "🚀"
     },
     {
-      category: "Style Development",
-      icon: Sparkles,
-      color: "text-purple-500",
-      tips: [
-        "Build a versatile capsule wardrobe",
-        "Mix high and low-end pieces",
-        "Develop your signature style elements",
-        "Document successful outfit combinations"
-      ]
+      category: "Jawline",
+      score: 95,
+      emoji: "👨"
     },
     {
-      category: "Trend Integration",
-      icon: Lightbulb,
-      color: "text-yellow-500",
-      tips: [
-        "Adapt trends to your personal style",
-        "Invest in timeless foundation pieces",
-        "Follow fashion influencers for inspiration",
-        "Experiment with seasonal trends mindfully"
-      ]
+      category: "Masculinity",
+      score: 95,
+      emoji: "💪"
     },
     {
-      category: "Wardrobe Management",
-      icon: Shirt,
-      color: "text-green-500",
-      tips: [
-        "Regular wardrobe audits and organization",
-        "Create outfit formulas for easy styling",
-        "Maintain a wish list for thoughtful additions",
-        "Practice sustainable fashion habits"
-      ]
+      category: "Skin Quality",
+      score: 95,
+      emoji: "✨"
     },
     {
-      category: "Shopping Strategy",
-      icon: ShoppingBag,
-      color: "text-orange-500",
-      tips: [
-        "Research before making major purchases",
-        "Focus on quality over quantity",
-        "Know your style before shopping",
-        "Wait 24 hours before impulse buys"
-      ]
+      category: "Cheekbones",
+      score: 90,
+      emoji: "👤"
+    },
+    {
+      category: "Eyes",
+      score: 95,
+      emoji: "👁️"
+    }
+  ];
+
+  const skinAdvice = [
+    {
+      title: "Drink Plenty of Water",
+      description: "Proper hydration starts from within. Drink an adequate amount of water throughout the day to keep your body and skin hydrated.",
+      icon: Droplet
+    },
+    {
+      title: "Skincare Routine",
+      description: "Use gentle, hydrating cleansers, moisturizers, and serums formulated with ingredients like hyaluronic acid, glycerin, ceramides, and aloe vera.",
+      icon: Sparkles
     }
   ];
 
@@ -77,43 +61,86 @@ export const TipsView = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="space-y-6 px-4 pb-20"
+      className="space-y-6 px-4 pb-20 max-w-md mx-auto"
     >
-      <div className="grid grid-cols-1 gap-4">
-        {tips.map((section, index) => (
+      <Card className="bg-black/30 backdrop-blur-lg border-white/10">
+        <CardContent className="p-6 space-y-6">
+          <div className="text-center space-y-2">
+            <Avatar className="w-24 h-24 mx-auto border-4 border-white/10">
+              <AvatarImage src="/placeholder.svg" alt="Profile" />
+              <AvatarFallback>
+                <User className="w-12 h-12" />
+              </AvatarFallback>
+            </Avatar>
+            <h2 className="text-3xl font-bold text-white">You're a 10</h2>
+            <p className="text-green-400">Top 5% of users</p>
+          </div>
+
+          <div className="space-y-4">
+            {analysisResults.map((item, index) => (
+              <motion.div
+                key={item.category}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="flex items-center justify-between bg-white/5 p-3 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{item.emoji}</span>
+                  <span className="text-white">{item.category}</span>
+                </div>
+                <span className="text-xl font-bold text-white">{item.score}</span>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="pt-4 space-y-4">
+            {skinAdvice.map((advice, index) => (
+              <motion.div
+                key={advice.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + (index * 0.1) }}
+                className="bg-white/5 p-4 rounded-lg space-y-2"
+              >
+                <div className="flex items-center gap-2">
+                  <advice.icon className="w-5 h-5 text-green-400" />
+                  <h3 className="text-white font-medium">{advice.title}</h3>
+                </div>
+                <p className="text-white/70 text-sm leading-relaxed">
+                  {advice.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+
           <motion.div
-            key={section.category}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="flex justify-center gap-4 pt-4"
           >
-            <Card className="bg-black/30 backdrop-blur-lg border-white/10 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-black/50 to-transparent">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <section.icon className={section.color} />
-                  {section.category}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 mt-4">
-                  {section.tips.map((tip, tipIndex) => (
-                    <motion.li
-                      key={tipIndex}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: (index * 0.1) + (tipIndex * 0.1) }}
-                      className="flex items-start gap-3 text-white/80"
-                    >
-                      <div className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 mt-2" />
-                      <span className="text-sm">{tip}</span>
-                    </motion.li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-full bg-white/10 hover:bg-white/20 text-white border-none"
+              onClick={() => {}}
+            >
+              <Share2 className="w-5 h-5 mr-2" />
+              Share Results
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-full bg-white/10 hover:bg-white/20 text-white border-none"
+              onClick={() => {}}
+            >
+              <Camera className="w-5 h-5 mr-2" />
+              New Scan
+            </Button>
           </motion.div>
-        ))}
-      </div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };
