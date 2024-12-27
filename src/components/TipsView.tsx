@@ -79,7 +79,7 @@ export const TipsView = () => {
       transition={{ duration: 0.5 }}
       className="space-y-6 px-4 pb-20"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4">
         {tips.map((section, index) => (
           <motion.div
             key={section.category}
