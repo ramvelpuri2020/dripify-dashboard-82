@@ -27,9 +27,9 @@ export const DashboardView = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="space-y-6"
+      className="space-y-6 px-4"
     >
-      <Card className="bg-white/5 border-white/10">
+      <Card className="bg-black/30 backdrop-blur-lg border-white/10">
         <CardHeader>
           <CardTitle className="text-white">Daily Style Reminder</CardTitle>
         </CardHeader>
@@ -38,7 +38,7 @@ export const DashboardView = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-white/5 border-white/10">
+      <Card className="bg-black/30 backdrop-blur-lg border-white/10">
         <CardHeader>
           <CardTitle className="text-white">Style Calendar</CardTitle>
         </CardHeader>
