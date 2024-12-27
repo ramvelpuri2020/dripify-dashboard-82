@@ -11,10 +11,11 @@ interface ScoreBreakdown {
 interface DripResultsProps {
   totalScore: number;
   breakdown: ScoreBreakdown[];
+  feedback?: string;
   onShare: () => void;
 }
 
-export const DripResults = ({ totalScore, breakdown, onShare }: DripResultsProps) => {
+export const DripResults = ({ totalScore, breakdown, feedback, onShare }: DripResultsProps) => {
   return (
     <div className="w-full max-w-md mx-auto animate-fade-in">
       <Card className="bg-gradient-to-br from-[#F97316] to-[#FB923C] p-6 text-white rounded-3xl shadow-xl border border-white/10">
@@ -36,6 +37,12 @@ export const DripResults = ({ totalScore, breakdown, onShare }: DripResultsProps
             </div>
           ))}
         </div>
+
+        {feedback && (
+          <div className="mt-6 p-4 bg-black/10 rounded-xl">
+            <p className="text-sm leading-relaxed">{feedback}</p>
+          </div>
+        )}
       </Card>
 
       <div className="flex justify-center gap-4 mt-6">
