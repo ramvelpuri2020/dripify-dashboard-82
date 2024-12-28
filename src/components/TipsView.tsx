@@ -7,7 +7,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { WhatsappIcon, InstagramIcon, MessagesSquare, Snapchat } from "lucide-react";
+import { MessageSquare, InstagramIcon, MessagesSquare, Share2 } from "lucide-react";
 
 export const TipsView = () => {
   const styleAnalysis = [
@@ -49,10 +49,10 @@ export const TipsView = () => {
   ];
 
   const shareOptions = [
-    { icon: WhatsappIcon, color: "text-green-500", name: "WhatsApp" },
+    { icon: MessageSquare, color: "text-green-500", name: "WhatsApp" },
     { icon: InstagramIcon, color: "text-pink-500", name: "Instagram" },
     { icon: MessagesSquare, color: "text-blue-500", name: "Messenger" },
-    { icon: Snapchat, color: "text-yellow-500", name: "Snapchat" }
+    { icon: Share2, color: "text-yellow-500", name: "Share" }
   ];
 
   return (
