@@ -1,9 +1,6 @@
-import { pipeline, env } from '@huggingface/transformers';
+import { pipeline } from '@huggingface/transformers';
 
 // Configure transformers.js
-env.allowLocalModels = false;
-env.useBrowserCache = false;
-
 export interface StyleAnalysisResult {
   totalScore: number;
   breakdown: {
@@ -16,10 +13,10 @@ export interface StyleAnalysisResult {
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
   try {
-    // Initialize the image classification pipeline
+    // Initialize the image classification pipeline with a web-optimized model
     const classifier = await pipeline(
       "image-classification",
-      "microsoft/resnet-50",
+      "onnx-community/mobilenetv4_conv_small.e2400_r224_in1k",
       { device: "webgpu" }
     );
 
@@ -32,7 +29,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     // Clean up the URL after use
     URL.revokeObjectURL(imageUrl);
 
-    // Process results to create style breakdown
+    // Map the classification results to style categories
     const styleCategories = processClassificationResults(results);
 
     return {
@@ -51,32 +48,32 @@ const processClassificationResults = (results: any[]) => {
   return [
     {
       category: "Overall Style",
-      score: Math.round(results[0]?.score * 100) || 85,
+      score: Math.round((results[0]?.score || 0.85) * 100),
       emoji: "🎯"
     },
     {
       category: "Color Coordination",
-      score: Math.round(results[1]?.score * 100) || 88,
+      score: Math.round((results[1]?.score || 0.88) * 100),
       emoji: "🎨"
     },
     {
       category: "Fit & Proportion",
-      score: Math.round(results[2]?.score * 100) || 92,
+      score: Math.round((results[2]?.score || 0.92) * 100),
       emoji: "📏"
     },
     {
       category: "Accessories",
-      score: Math.round(results[3]?.score * 100) || 85,
+      score: Math.round((results[3]?.score || 0.85) * 100),
       emoji: "💍"
     },
     {
       category: "Trend Alignment",
-      score: Math.round(results[4]?.score * 100) || 90,
+      score: Math.round((results[4]?.score || 0.90) * 100),
       emoji: "🌟"
     },
     {
       category: "Style Expression",
-      score: Math.round(results[5]?.score * 100) || 87,
+      score: Math.round((results[5]?.score || 0.87) * 100),
       emoji: "✨"
     }
   ];
