@@ -1,76 +1,69 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { image, style } = await req.json()
+    const { image, style } = await req.json();
+    console.log('Analyzing style for image with style:', style);
 
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: "gpt-4-vision-preview",
+        model: "gpt-4o-mini",
         messages: [
+          {
+            role: "system",
+            content: "You are a fashion expert AI that analyzes outfit images and provides detailed style feedback. For each analysis, provide scores out of 100 for: Color Coordination, Fit & Proportion, Style Coherence, Style Appropriateness, and Outfit Creativity. Also provide detailed feedback in these sections: DETAILED_DESCRIPTION, STRENGTHS, and IMPROVEMENTS."
+          },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Analyze this outfit for the ${style} style category. Focus on:
-
-                1. What specific items are they wearing? Describe the outfit in detail.
-                2. How well do the colors work together? (score /100)
-                3. How well do the pieces fit and their proportions? (score /100)
-                4. How cohesive is the overall style? (score /100)
-                5. How appropriate is it for the ${style} style? (score /100)
-                6. How creative and unique is the outfit? (score /100)
-
-                Format the scores exactly like this:
-                Color Coordination: [score]
-                Fit & Proportion: [score]
-                Style Coherence: [score]
-                Style Appropriateness: [score]
-                Outfit Creativity: [score]
-
-                Then provide three sections:
-                1. DETAILED_DESCRIPTION: [Detailed description of what they're wearing]
-                2. STRENGTHS: [What works well in this outfit]
-                3. IMPROVEMENTS: [Specific suggestions for improvement]`
+                content: `Please analyze this outfit for ${style} style occasion.`
               },
               {
                 type: "image_url",
-                image_url: image
+                image_url: {
+                  url: image
+                }
               }
             ]
           }
         ],
-        max_tokens: 1000
-      })
-    })
+        max_tokens: 1000,
+      }),
+    });
 
-    const data = await openaiResponse.json()
-    console.log('OpenAI Response:', data)
+    const data = await openAIResponse.json();
+    console.log('OpenAI Response:', data);
+
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    });
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Error in analyze-style function:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    });
   }
-})
+});

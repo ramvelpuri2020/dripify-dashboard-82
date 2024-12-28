@@ -1,4 +1,4 @@
-import { analyzeOutfit } from '@/services/openai';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface StyleAnalysisResult {
   totalScore: number;
@@ -19,10 +19,18 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       reader.readAsDataURL(imageFile);
     });
 
-    // Get detailed analysis from OpenAI
-    const analysisResponse = await analyzeOutfit(base64Image, "casual");
-    const analysis = analysisResponse.choices[0].message.content;
-    console.log("OpenAI Analysis:", analysis);
+    console.log('Calling analyze-style function...');
+    const { data, error } = await supabase.functions.invoke('analyze-style', {
+      body: { image: base64Image, style: "casual" }
+    });
+
+    if (error) {
+      console.error('Supabase function error:', error);
+      throw new Error('Failed to analyze image');
+    }
+
+    console.log('Analysis response:', data);
+    const analysis = data.choices[0].message.content;
 
     // Parse scores from the analysis
     const scores = {
