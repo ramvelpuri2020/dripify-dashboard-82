@@ -1,4 +1,3 @@
-import { pipeline } from '@huggingface/transformers';
 import { analyzeOutfit } from '@/services/openai';
 
 export interface StyleAnalysisResult {
@@ -30,15 +29,22 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       colorCoordination: extractScore(analysis, "Color Coordination"),
       fitProportion: extractScore(analysis, "Fit & Proportion"),
       styleCoherence: extractScore(analysis, "Style Coherence"),
-      accessories: extractScore(analysis, "Accessories"),
-      outfitCreativity: extractScore(analysis, "Outfit Creativity"),
-      trendAwareness: extractScore(analysis, "Trend Awareness")
+      styleAppropriateness: extractScore(analysis, "Style Appropriateness"),
+      outfitCreativity: extractScore(analysis, "Outfit Creativity")
     };
+
+    // Extract sections
+    const detailedDescription = extractSection(analysis, "DETAILED_DESCRIPTION");
+    const strengths = extractSection(analysis, "STRENGTHS");
+    const improvements = extractSection(analysis, "IMPROVEMENTS");
 
     // Calculate total score
     const totalScore = Math.round(
-      Object.values(scores).reduce((acc, curr) => acc + curr, 0) / 6
+      Object.values(scores).reduce((acc, curr) => acc + curr, 0) / 5
     );
+
+    // Prepare feedback
+    const feedback = `${detailedDescription}\n\nStrengths:\n${strengths}\n\nSuggested Improvements:\n${improvements}`;
 
     return {
       totalScore,
@@ -46,11 +52,10 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
         { category: "Color Coordination", score: scores.colorCoordination, emoji: "🎨" },
         { category: "Fit & Proportion", score: scores.fitProportion, emoji: "📏" },
         { category: "Style Coherence", score: scores.styleCoherence, emoji: "✨" },
-        { category: "Accessories", score: scores.accessories, emoji: "💍" },
-        { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🎯" },
-        { category: "Trend Awareness", score: scores.trendAwareness, emoji: "🌟" }
+        { category: "Style Appropriateness", score: scores.styleAppropriateness, emoji: "🎯" },
+        { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🌟" }
       ],
-      feedback: analysis
+      feedback
     };
   } catch (error) {
     console.error('Error analyzing style:', error);
@@ -61,5 +66,11 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 const extractScore = (analysis: string, category: string): number => {
   const regex = new RegExp(`${category}:?\\s*(\\d+)`, 'i');
   const match = analysis.match(regex);
-  return match ? parseInt(match[1]) : 70; // Default score if not found
+  return match ? parseInt(match[1]) : 70;
+};
+
+const extractSection = (analysis: string, section: string): string => {
+  const regex = new RegExp(`${section}:\\s*(.+?)(?=\\n\\n|$)`, 's');
+  const match = analysis.match(regex);
+  return match ? match[1].trim() : '';
 };

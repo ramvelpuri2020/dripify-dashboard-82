@@ -3,7 +3,7 @@ export const analyzeOutfit = async (imageBase64: string, style: string) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Authorization": `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
       model: "gpt-4-vision-preview",
@@ -13,30 +13,28 @@ export const analyzeOutfit = async (imageBase64: string, style: string) => {
           content: [
             {
               type: "text",
-              text: `Analyze this outfit for the ${style} style category. Provide a detailed analysis with scores out of 100 for the following categories:
+              text: `Analyze this outfit for the ${style} style category. I need a detailed analysis of what the person is wearing and how well it works. Focus on:
 
-              1. Color Coordination: Evaluate how well the colors complement each other
-              2. Fit & Proportion: Assess how well the clothes fit and their proportions
-              3. Style Coherence: Rate how well the pieces work together
-              4. Accessories: Evaluate the choice and use of accessories
-              5. Outfit Creativity: Rate the uniqueness and creativity
-              6. Trend Awareness: Assess alignment with current trends
+              1. What specific items are they wearing? Describe the outfit in detail.
+              2. How well do the colors work together? (score /100)
+              3. How well do the pieces fit and their proportions? (score /100)
+              4. How cohesive is the overall style? (score /100)
+              5. How appropriate is it for the ${style} style? (score /100)
+              6. How creative and unique is the outfit? (score /100)
 
-              Format the scores like this:
-              Color Coordination: 85
-              Fit & Proportion: 90
-              Style Coherence: 88
-              Accessories: 82
-              Outfit Creativity: 87
-              Trend Awareness: 85
+              Format the scores exactly like this:
+              Color Coordination: [score]
+              Fit & Proportion: [score]
+              Style Coherence: [score]
+              Style Appropriateness: [score]
+              Outfit Creativity: [score]
 
-              Then provide specific, detailed feedback about:
-              1. What works well in the outfit
-              2. Areas for improvement
-              3. Specific style tips based on the image
-              4. Suggestions for enhancing the look
+              Then provide three sections:
+              1. DETAILED_DESCRIPTION: [Detailed description of what they're wearing]
+              2. STRENGTHS: [What works well in this outfit]
+              3. IMPROVEMENTS: [Specific suggestions for improvement]
 
-              Be very specific about what you see in the image and why you gave each score.`
+              Be very specific about what you see in the image and provide actionable feedback.`
             },
             {
               type: "image_url",
