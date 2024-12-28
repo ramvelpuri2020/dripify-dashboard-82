@@ -6,32 +6,46 @@ import { ChevronRight } from "lucide-react";
 export const TipsView = () => {
   const styleAnalysis = [
     {
-      category: "Overall",
-      score: 70,
-      level: "Average",
-      advice: "You've got strong jawline, keep clean shave",
-      color: "from-orange-500 to-orange-300"
+      category: "Overall Style",
+      score: 85,
+      level: "Strong",
+      advice: "Focus on creating cohesive outfits that reflect your personal style",
+      color: "from-purple-500 to-pink-500"
     },
     {
-      category: "Potential",
-      score: 80,
-      level: "High",
-      advice: "Great potential for improvement",
+      category: "Color Coordination",
+      score: 88,
+      level: "Excellent",
+      advice: "Master color theory to create striking combinations",
+      color: "from-blue-500 to-blue-300"
+    },
+    {
+      category: "Fit & Proportion",
+      score: 92,
+      level: "Outstanding",
+      advice: "Understanding body proportions enhances outfit balance",
       color: "from-green-500 to-green-300"
     },
     {
-      category: "Jawline",
-      score: 60,
-      level: "Medium",
-      advice: "Consider facial exercises",
-      color: "from-orange-500 to-orange-300"
+      category: "Accessories",
+      score: 85,
+      level: "Strong",
+      advice: "Strategic accessorizing can elevate any outfit",
+      color: "from-yellow-500 to-yellow-300"
     },
     {
-      category: "Masculinity",
-      score: 75,
-      level: "High",
-      advice: "Strong masculine features",
-      color: "from-blue-500 to-blue-300"
+      category: "Trend Alignment",
+      score: 90,
+      level: "Excellent",
+      advice: "Stay current while maintaining authenticity",
+      color: "from-red-500 to-red-300"
+    },
+    {
+      category: "Style Expression",
+      score: 87,
+      level: "Strong",
+      advice: "Your unique style voice sets you apart",
+      color: "from-indigo-500 to-indigo-300"
     }
   ];
 
@@ -63,7 +77,7 @@ export const TipsView = () => {
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-400">{item.level}</span>
-                          <span className="text-gray-400">Top 50% of men</span>
+                          <span className="text-gray-400">Style Insight</span>
                         </div>
                         
                         <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
@@ -76,7 +90,7 @@ export const TipsView = () => {
                         <div className="flex justify-between items-center text-sm mt-2">
                           <span className="text-gray-300">{item.advice}</span>
                           <button className="flex items-center text-gray-400 hover:text-white transition-colors">
-                            View Advice
+                            View Details
                             <ChevronRight className="w-4 h-4 ml-1" />
                           </button>
                         </div>

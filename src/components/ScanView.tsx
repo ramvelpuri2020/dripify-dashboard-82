@@ -6,26 +6,15 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
+import { analyzeStyle, StyleAnalysisResult } from "@/utils/imageAnalysis";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedStyle, setSelectedStyle] = useState("casual");
   const [analyzing, setAnalyzing] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<StyleAnalysisResult | null>(null);
   const { toast } = useToast();
-
-  const demoResult = {
-    totalScore: 9.5,
-    breakdown: [
-      { category: "Overall", score: 95, emoji: "🎯" },
-      { category: "Style", score: 90, emoji: "👔" },
-      { category: "Fit", score: 92, emoji: "📏" },
-      { category: "Color", score: 88, emoji: "🎨" },
-      { category: "Accessories", score: 85, emoji: "💍" },
-      { category: "Confidence", score: 98, emoji: "✨" },
-    ],
-    feedback: "Exceptional style! Your outfit shows great attention to detail and perfect color coordination. The fit is tailored perfectly, and your accessory choices elevate the entire look."
-  };
 
   const handleAnalyze = async () => {
     if (!selectedImage) {
@@ -39,7 +28,8 @@ export const ScanView = () => {
 
     setAnalyzing(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const result = await analyzeStyle(selectedImage);
+      setAnalysisResult(result);
       setShowResults(true);
     } catch (error) {
       console.error("Analysis error:", error);
@@ -126,14 +116,16 @@ export const ScanView = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <DripResults
-            totalScore={demoResult.totalScore}
-            breakdown={demoResult.breakdown}
-            feedback={demoResult.feedback}
-            onShare={handleShare}
-            onSave={handleSave}
-            profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
-          />
+          {analysisResult && (
+            <DripResults
+              totalScore={analysisResult.totalScore}
+              breakdown={analysisResult.breakdown}
+              feedback={analysisResult.feedback}
+              onShare={handleShare}
+              onSave={handleSave}
+              profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
+            />
+          )}
         </motion.div>
       )}
     </motion.div>
