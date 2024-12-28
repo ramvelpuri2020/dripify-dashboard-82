@@ -53,3 +53,59 @@ export const analyzeOutfit = async (imageBase64: string, style: string) => {
 
   return response.json();
 };
+
+export const getTipsAnalysis = async (imageBase64: string) => {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4-vision-preview",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Analyze this outfit and provide detailed style tips. Focus on:
+
+              1. Overall Style Analysis (score /100)
+              2. Color Coordination (score /100)
+              3. Fit & Proportion (score /100)
+              4. Accessories (score /100)
+              5. Trend Alignment (score /100)
+              6. Style Expression (score /100)
+
+              For each category, provide:
+              1. Current score
+              2. What's working well
+              3. Specific improvement suggestions
+              4. Actionable tips for enhancement
+
+              Format each category exactly like this:
+              [Category Name]: [score]
+              STRENGTHS: [What works well]
+              IMPROVEMENTS: [Areas for improvement]
+              TIPS: [Specific, actionable advice]
+
+              Be very specific and detailed in your analysis.`
+            },
+            {
+              type: "image_url",
+              image_url: imageBase64
+            }
+          ]
+        }
+      ],
+      max_tokens: 1000
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to analyze image for tips");
+  }
+
+  return response.json();
+};
