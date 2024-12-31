@@ -26,14 +26,31 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a fashion expert AI that analyzes outfit images and provides detailed style feedback. For each analysis, provide scores out of 100 for: Color Coordination, Fit & Proportion, Style Coherence, Style Expression, and Outfit Creativity. Structure your response in these sections: SCORES, DETAILED_DESCRIPTION, STRENGTHS, and IMPROVEMENTS."
+            content: `You are a professional fashion critic and stylist. Analyze outfits in detail, providing specific scores and actionable feedback. 
+            Focus on these key areas:
+            1. Color Coordination (how well colors work together)
+            2. Fit & Proportion (how well the clothes fit and proportions work)
+            3. Style Coherence (how well pieces work together)
+            4. Style Expression (how well it expresses personal style)
+            5. Outfit Creativity (uniqueness and creative combinations)
+            
+            For each category, provide a score between 0-100, avoiding generic scores like 70.
+            Provide detailed explanations for each score.
+            
+            Structure your response with these sections:
+            - SCORES (numerical ratings)
+            - DETAILED_DESCRIPTION (thorough outfit analysis)
+            - STRENGTHS (specific positive aspects)
+            - IMPROVEMENTS (actionable suggestions)
+            
+            Be specific, detailed, and constructive in your feedback.`
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Please analyze this outfit for ${style} style occasion.`
+                text: `Please analyze this outfit for ${style} style occasion. Provide detailed feedback about the color combinations, fit, style coherence, and potential improvements. Be specific about what works and what could be enhanced.`
               },
               {
                 type: "image_url",
@@ -48,9 +65,10 @@ serve(async (req) => {
       }),
     });
 
-    const data = await openAIResponse.json();
-    console.log('OpenAI Response:', data);
+    console.log('OpenAI Response:', await openAIResponse.json());
 
+    const data = await openAIResponse.json();
+    
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
