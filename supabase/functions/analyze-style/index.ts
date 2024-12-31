@@ -14,7 +14,7 @@ serve(async (req) => {
 
   try {
     const { image, style } = await req.json();
-    console.log('Analyzing style for image with style:', style);
+    console.log('Analyzing style for occasion:', style);
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -27,7 +27,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a fashion expert AI that analyzes outfit images and provides detailed style feedback. For each analysis, provide scores out of 100 for: Color Coordination, Fit & Proportion, Style Coherence, Style Appropriateness, and Outfit Creativity. Also provide detailed feedback in these sections: DETAILED_DESCRIPTION, STRENGTHS, and IMPROVEMENTS."
+            content: "You are a fashion expert AI that analyzes outfit images and provides detailed style feedback. For each analysis, provide scores out of 100 for: Color Coordination, Fit & Proportion, Style Coherence, Style Expression, and Outfit Creativity. Structure your response in these sections: SCORES, DETAILED_DESCRIPTION, STRENGTHS, and IMPROVEMENTS."
           },
           {
             role: "user",
@@ -51,10 +51,6 @@ serve(async (req) => {
 
     const data = await openAIResponse.json();
     console.log('OpenAI Response:', data);
-
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

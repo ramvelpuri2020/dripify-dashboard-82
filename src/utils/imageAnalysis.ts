@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 export interface StyleAnalysisResult {
   totalScore: number;
   breakdown: {
@@ -9,18 +11,74 @@ export interface StyleAnalysisResult {
 }
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  try {
+    // Convert image to base64
+    const base64Image = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(imageFile);
+    });
 
-  return {
-    totalScore: 85,
-    breakdown: [
-      { category: "Color Coordination", score: 88, emoji: "🎨" },
-      { category: "Fit & Proportion", score: 92, emoji: "📏" },
-      { category: "Style Coherence", score: 85, emoji: "✨" },
-      { category: "Style Expression", score: 82, emoji: "🎯" },
-      { category: "Outfit Creativity", score: 78, emoji: "🌟" }
-    ],
-    feedback: "Your outfit shows great attention to color coordination and fit. The proportions are particularly well-balanced, creating a harmonious look. Consider experimenting with more unique accessories to add personal flair. The overall style is cohesive and appropriate for the occasion. To elevate further, try incorporating some trending elements while maintaining your authentic style."
-  };
+    console.log('Calling analyze-style function...');
+    const { data, error } = await supabase.functions.invoke('analyze-style', {
+      body: { image: base64Image, style: "casual" }
+    });
+
+    if (error) {
+      console.error('Supabase function error:', error);
+      throw new Error('Failed to analyze image');
+    }
+
+    console.log('Analysis response:', data);
+    const analysis = data.choices[0].message.content;
+
+    // Parse scores from the analysis
+    const scores = {
+      colorCoordination: extractScore(analysis, "Color Coordination"),
+      fitProportion: extractScore(analysis, "Fit & Proportion"),
+      styleCoherence: extractScore(analysis, "Style Coherence"),
+      styleExpression: extractScore(analysis, "Style Expression"),
+      outfitCreativity: extractScore(analysis, "Outfit Creativity")
+    };
+
+    // Extract sections
+    const detailedDescription = extractSection(analysis, "DETAILED_DESCRIPTION");
+    const strengths = extractSection(analysis, "STRENGTHS");
+    const improvements = extractSection(analysis, "IMPROVEMENTS");
+
+    // Calculate total score
+    const totalScore = Math.round(
+      Object.values(scores).reduce((acc, curr) => acc + curr, 0) / 5
+    );
+
+    // Prepare feedback
+    const feedback = `${detailedDescription}\n\nStrengths:\n${strengths}\n\nSuggested Improvements:\n${improvements}`;
+
+    return {
+      totalScore,
+      breakdown: [
+        { category: "Color Coordination", score: scores.colorCoordination, emoji: "🎨" },
+        { category: "Fit & Proportion", score: scores.fitProportion, emoji: "📏" },
+        { category: "Style Coherence", score: scores.styleCoherence, emoji: "✨" },
+        { category: "Style Expression", score: scores.styleExpression, emoji: "🎯" },
+        { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🌟" }
+      ],
+      feedback
+    };
+  } catch (error) {
+    console.error('Error analyzing style:', error);
+    throw error;
+  }
+};
+
+const extractScore = (analysis: string, category: string): number => {
+  const regex = new RegExp(`${category}:?\\s*(\\d+)`, 'i');
+  const match = analysis.match(regex);
+  return match ? parseInt(match[1]) : 70;
+};
+
+const extractSection = (analysis: string, section: string): string => {
+  const regex = new RegExp(`${section}:\\s*(.+?)(?=\\n\\n|$)`, 's');
+  const match = analysis.match(regex);
+  return match ? match[1].trim() : '';
 };
