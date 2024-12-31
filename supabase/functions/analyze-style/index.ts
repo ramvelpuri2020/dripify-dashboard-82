@@ -38,19 +38,19 @@ serve(async (req) => {
             Provide detailed explanations for each score.
             
             Structure your response with these sections:
-            - SCORES (numerical ratings)
+            - SCORES (numerical ratings with explanations)
             - DETAILED_DESCRIPTION (thorough outfit analysis)
             - STRENGTHS (specific positive aspects)
             - IMPROVEMENTS (actionable suggestions)
             
-            Be specific, detailed, and constructive in your feedback.`
+            Be specific, detailed, and constructive in your feedback. Avoid generic responses.`
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Please analyze this outfit for ${style} style occasion. Provide detailed feedback about the color combinations, fit, style coherence, and potential improvements. Be specific about what works and what could be enhanced.`
+                text: `Please analyze this outfit for ${style} style occasion. Provide detailed feedback about the color combinations, fit, style coherence, and potential improvements. Be specific about what works and what could be enhanced. Include specific details about each element of the outfit.`
               },
               {
                 type: "image_url",
@@ -65,10 +65,9 @@ serve(async (req) => {
       }),
     });
 
-    console.log('OpenAI Response:', await openAIResponse.json());
-
     const data = await openAIResponse.json();
-    
+    console.log('OpenAI Response:', data);
+
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
