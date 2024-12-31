@@ -13,7 +13,8 @@ serve(async (req) => {
 
   try {
     const { image, style } = await req.json();
-    
+    console.log('Analyzing style for occasion:', style);
+
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -32,7 +33,7 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                content: `Please analyze this outfit for ${style} style occasion.`
+                text: `Please analyze this outfit for ${style} style occasion.`
               },
               {
                 type: "image_url",
