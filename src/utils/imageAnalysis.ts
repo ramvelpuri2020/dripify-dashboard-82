@@ -29,32 +29,39 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       throw new Error('Failed to analyze image');
     }
 
-    console.log('Analysis response:', data);
+    console.log('OpenAI Response:', data);
+
+    // Check if we have a valid response with choices
+    if (!data?.choices?.[0]?.message?.content) {
+      throw new Error('Invalid response format from OpenAI');
+    }
+
     const analysis = data.choices[0].message.content;
 
     // Parse scores from the analysis
     const scores = {
-      colorCoordination: extractScore(analysis, "Color Coordination"),
-      fitProportion: extractScore(analysis, "Fit & Proportion"),
-      styleCoherence: extractScore(analysis, "Style Coherence"),
-      styleExpression: extractScore(analysis, "Style Expression"),
-      outfitCreativity: extractScore(analysis, "Outfit Creativity")
+      colorCoordination: extractScore(analysis, "Color Coordination") || 70,
+      fitProportion: extractScore(analysis, "Fit & Proportion") || 70,
+      styleCoherence: extractScore(analysis, "Style Coherence") || 70,
+      styleExpression: extractScore(analysis, "Style Expression") || 70,
+      outfitCreativity: extractScore(analysis, "Outfit Creativity") || 70
     };
 
-    // Extract sections
-    const detailedDescription = extractSection(analysis, "DETAILED_DESCRIPTION");
-    const strengths = extractSection(analysis, "STRENGTHS");
-    const improvements = extractSection(analysis, "IMPROVEMENTS");
+    // Extract sections with fallbacks
+    const detailedDescription = extractSection(analysis, "DETAILED_DESCRIPTION") || "No detailed description available.";
+    const strengths = extractSection(analysis, "STRENGTHS") || "No strengths identified.";
+    const improvements = extractSection(analysis, "IMPROVEMENTS") || "No improvements suggested.";
 
     // Calculate total score
     const totalScore = Math.round(
       Object.values(scores).reduce((acc, curr) => acc + curr, 0) / 5
     );
 
-    // Prepare feedback
+    // Prepare feedback with proper formatting
     const feedback = `${detailedDescription}\n\nStrengths:\n${strengths}\n\nSuggested Improvements:\n${improvements}`;
 
-    return {
+    // Create the result object with default values where needed
+    const result: StyleAnalysisResult = {
       totalScore,
       breakdown: [
         { category: "Color Coordination", score: scores.colorCoordination, emoji: "🎨" },
@@ -65,6 +72,10 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       ],
       feedback
     };
+
+    console.log('Analysis response:', result);
+    return result;
+
   } catch (error) {
     console.error('Error analyzing style:', error);
     throw error;
