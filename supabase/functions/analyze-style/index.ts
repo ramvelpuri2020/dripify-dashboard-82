@@ -28,38 +28,37 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a professional fashion critic and stylist. Analyze outfits in detail, providing specific scores and actionable feedback. 
-            Focus on these key areas:
+            content: `You are a professional fashion critic and stylist. Analyze outfits in detail, providing specific scores and natural, conversational feedback.
+            First, describe what you see in the image in a clear, concise way.
+            Then analyze these key areas:
             1. Color Coordination (how well colors work together)
-            2. Fit & Proportion (how well the clothes fit and proportions work)
+            2. Fit & Proportion (how well the clothes fit)
             3. Style Coherence (how well pieces work together)
-            4. Style Expression (how well it expresses personal style)
+            4. Accessories (use of accessories and details)
             5. Outfit Creativity (uniqueness and creative combinations)
             
-            For each category, provide a score between 0-100.
-            Structure your response in this exact format:
+            For each category, provide a score between 0-100 based on your analysis.
+            
+            Structure your response exactly like this:
+            IMAGE_DESCRIPTION:
+            [brief description of what you see in the image]
+
+            ANALYSIS:
+            [natural, conversational analysis of the outfit explaining the scoring]
+
             SCORES:
             Color Coordination: [score]
             Fit & Proportion: [score]
             Style Coherence: [score]
-            Style Expression: [score]
-            Outfit Creativity: [score]
-
-            DETAILED_DESCRIPTION:
-            [detailed outfit analysis]
-
-            STRENGTHS:
-            [specific positive aspects]
-
-            IMPROVEMENTS:
-            [actionable suggestions]`
+            Accessories: [score]
+            Outfit Creativity: [score]`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: `Please analyze this outfit for ${style} style occasion. Provide detailed feedback about the color combinations, fit, style coherence, and potential improvements.`
+                text: `Please analyze this outfit for ${style} style occasion. First describe what you see, then provide detailed feedback about the style elements and scoring.`
               },
               {
                 type: 'image_url',
@@ -83,19 +82,24 @@ serve(async (req) => {
 
     const analysis = data.choices[0].message.content;
     
-    // Parse scores from the analysis
+    // Extract sections
+    const imageDescription = extractSection(analysis, "IMAGE_DESCRIPTION") || "No description available.";
+    const analysisText = extractSection(analysis, "ANALYSIS") || "No analysis available.";
+    
+    // Parse scores
     const scores = {
-      colorCoordination: extractScore(analysis, "Color Coordination") || 70,
-      fitProportion: extractScore(analysis, "Fit & Proportion") || 70,
-      styleCoherence: extractScore(analysis, "Style Coherence") || 70,
-      styleExpression: extractScore(analysis, "Style Expression") || 70,
-      outfitCreativity: extractScore(analysis, "Outfit Creativity") || 70
+      colorCoordination: extractScore(analysis, "Color Coordination"),
+      fitProportion: extractScore(analysis, "Fit & Proportion"),
+      styleCoherence: extractScore(analysis, "Style Coherence"),
+      accessories: extractScore(analysis, "Accessories"),
+      outfitCreativity: extractScore(analysis, "Outfit Creativity")
     };
 
-    // Extract sections
-    const detailedDescription = extractSection(analysis, "DETAILED_DESCRIPTION") || "No detailed description available.";
-    const strengths = extractSection(analysis, "STRENGTHS") || "No strengths identified.";
-    const improvements = extractSection(analysis, "IMPROVEMENTS") || "No improvements suggested.";
+    // Validate scores
+    if (Object.values(scores).some(score => !score)) {
+      console.error('Invalid scores detected:', scores);
+      throw new Error('Failed to extract valid scores from the analysis');
+    }
 
     // Calculate total score
     const totalScore = Math.round(
@@ -108,10 +112,10 @@ serve(async (req) => {
         { category: "Color Coordination", score: scores.colorCoordination, emoji: "🎨" },
         { category: "Fit & Proportion", score: scores.fitProportion, emoji: "📏" },
         { category: "Style Coherence", score: scores.styleCoherence, emoji: "✨" },
-        { category: "Style Expression", score: scores.styleExpression, emoji: "🎯" },
+        { category: "Accessories", score: scores.accessories, emoji: "💍" },
         { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🌟" }
       ],
-      feedback: `${detailedDescription}\n\nStrengths:\n${strengths}\n\nSuggested Improvements:\n${improvements}`
+      feedback: `${imageDescription}\n\n${analysisText}`
     };
 
     return new Response(JSON.stringify(result), {
@@ -129,7 +133,7 @@ serve(async (req) => {
 function extractScore(analysis: string, category: string): number {
   const regex = new RegExp(`${category}:?\\s*(\\d+)`, 'i');
   const match = analysis.match(regex);
-  return match ? parseInt(match[1]) : 70;
+  return match ? parseInt(match[1]) : 0;
 }
 
 function extractSection(analysis: string, section: string): string {

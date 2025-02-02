@@ -3,7 +3,6 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { motion } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
-import { DetailsModal } from "./DetailsModal";
 
 interface ScoreBreakdown {
   category: string;
@@ -45,8 +44,19 @@ export const DripResults = ({
         </div>
       </motion.div>
 
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg p-6"
+      >
+        <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
+          {feedback}
+        </p>
+      </motion.div>
+
       <div className="grid grid-cols-2 gap-4">
-        {breakdown.slice(0, 4).map((item, index) => (
+        {breakdown.map((item, index) => (
           <motion.div
             key={item.category}
             initial={{ opacity: 0, y: 20 }}
@@ -71,15 +81,6 @@ export const DripResults = ({
           </motion.div>
         ))}
       </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="flex justify-center"
-      >
-        <DetailsModal breakdown={breakdown} feedback={feedback} />
-      </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
