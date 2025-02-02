@@ -2,16 +2,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardView } from "@/components/DashboardView";
 import { ScanView } from "@/components/ScanView";
 import { TipsView } from "@/components/TipsView";
-import { LayoutDashboard, Scan, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Scan, MessageSquare, User } from "lucide-react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1A1F2C] to-[#2C1F3D] relative pb-20">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-bold text-center bg-gradient-to-r from-[#F97316] to-[#FB923C] text-transparent bg-clip-text py-8">
-          DripCheck
-        </h1>
+        <div className="flex justify-between items-center py-8 px-4">
+          <h1 className="text-4xl font-bold text-center bg-gradient-to-r from-[#F97316] to-[#FB923C] text-transparent bg-clip-text">
+            DripCheck
+          </h1>
+          <Link 
+            to="/profile"
+            className="p-2 rounded-full hover:bg-white/10 transition-colors"
+          >
+            <User className="w-6 h-6 text-white/80" />
+          </Link>
+        </div>
         
         <Tabs defaultValue="dashboard" className="w-full">
           <TabsContent value="dashboard" className="mt-0">
@@ -26,7 +35,6 @@ const Index = () => {
             <TipsView />
           </TabsContent>
 
-          {/* Bottom Navigation */}
           <motion.div 
             initial={{ y: 100 }}
             animate={{ y: 0 }}
