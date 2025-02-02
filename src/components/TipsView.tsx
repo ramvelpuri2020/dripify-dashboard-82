@@ -1,7 +1,26 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Star, Palette, Ruler, Crown, Sparkles, Wand2 } from "lucide-react";
+
+const getIconForCategory = (category: string) => {
+  switch (category) {
+    case "Overall Style":
+      return Crown;
+    case "Color Coordination":
+      return Palette;
+    case "Fit & Proportion":
+      return Ruler;
+    case "Accessories":
+      return Star;
+    case "Trend Alignment":
+      return Sparkles;
+    case "Style Expression":
+      return Wand2;
+    default:
+      return Crown;
+  }
+};
 
 export const TipsView = () => {
   const styleAnalysis = [
@@ -56,42 +75,59 @@ export const TipsView = () => {
       transition={{ duration: 0.5 }}
       className="space-y-6 px-4 pb-20"
     >
-      <Card className="bg-black/30 backdrop-blur-lg border-white/10">
+      <Card className="bg-gradient-to-br from-[#1A1F2C]/80 to-[#2C1F3D]/80 backdrop-blur-lg border-white/10 shadow-xl">
         <CardContent className="p-6">
+          <h2 className="text-2xl font-bold mb-6 text-white/90 tracking-tight">Style Analysis</h2>
           <ScrollArea className="h-[70vh] pr-4">
-            <div className="space-y-4">
+            <div className="grid gap-4">
               {styleAnalysis.map((item, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
+                  className="group"
                 >
-                  <Card className="bg-black/50 backdrop-blur-lg border-white/10">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xl font-semibold text-white">{item.category}</span>
-                        <span className="text-3xl font-bold text-white">{item.score}</span>
+                  <Card className="bg-gradient-to-br from-[#1A1F2C]/90 to-[#2C1F3D]/90 backdrop-blur-lg border-white/10 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10 hover:border-purple-500/20">
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          {React.createElement(getIconForCategory(item.category), {
+                            className: "w-6 h-6 text-purple-400"
+                          })}
+                          <div>
+                            <h3 className="text-lg font-semibold text-white/90 tracking-tight">
+                              {item.category}
+                            </h3>
+                            <p className="text-sm text-white/60">
+                              {item.level}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 text-transparent bg-clip-text">
+                            {item.score}
+                          </span>
+                        </div>
                       </div>
                       
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">{item.level}</span>
-                          <span className="text-gray-400">Style Insight</span>
-                        </div>
-                        
-                        <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                          <div 
+                      <div className="space-y-4">
+                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${item.score}%` }}
+                            transition={{ delay: index * 0.1 + 0.3, duration: 0.5 }}
                             className={`h-full bg-gradient-to-r ${item.color}`}
-                            style={{ width: `${item.score}%` }}
                           />
                         </div>
                         
-                        <div className="flex justify-between items-center text-sm mt-2">
-                          <span className="text-gray-300">{item.advice}</span>
-                          <button className="flex items-center text-gray-400 hover:text-white transition-colors">
-                            View Details
-                            <ChevronRight className="w-4 h-4 ml-1" />
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm text-white/70 max-w-[70%]">
+                            {item.advice}
+                          </p>
+                          <button className="flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300 transition-colors group">
+                            <span>Details</span>
+                            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                           </button>
                         </div>
                       </div>
