@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { motion } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { DetailsModal } from "./DetailsModal";
 
 interface ScoreBreakdown {
   category: string;
@@ -19,7 +20,14 @@ interface DripResultsProps {
   profileImage?: string;
 }
 
-export const DripResults = ({ totalScore, breakdown, feedback, onShare, onSave, profileImage }: DripResultsProps) => {
+export const DripResults = ({
+  totalScore,
+  breakdown,
+  feedback,
+  onShare,
+  onSave,
+  profileImage,
+}: DripResultsProps) => {
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
       <motion.div
@@ -38,7 +46,7 @@ export const DripResults = ({ totalScore, breakdown, feedback, onShare, onSave, 
       </motion.div>
 
       <div className="grid grid-cols-2 gap-4">
-        {breakdown.map((item, index) => (
+        {breakdown.slice(0, 4).map((item, index) => (
           <motion.div
             key={item.category}
             initial={{ opacity: 0, y: 20 }}
@@ -52,7 +60,7 @@ export const DripResults = ({ totalScore, breakdown, feedback, onShare, onSave, 
                   <span className="text-sm text-white/80">{item.category}</span>
                 </div>
                 <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-1000"
                     style={{ width: `${item.score}%` }}
                   />
@@ -64,16 +72,14 @@ export const DripResults = ({ totalScore, breakdown, feedback, onShare, onSave, 
         ))}
       </div>
 
-      {feedback && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="p-4 bg-black/30 backdrop-blur-lg rounded-xl border border-white/10"
-        >
-          <p className="text-white/80 text-sm leading-relaxed">{feedback}</p>
-        </motion.div>
-      )}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="flex justify-center"
+      >
+        <DetailsModal breakdown={breakdown} feedback={feedback} />
+      </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
