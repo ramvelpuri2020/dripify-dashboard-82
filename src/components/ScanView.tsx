@@ -28,14 +28,16 @@ export const ScanView = () => {
 
     setAnalyzing(true);
     try {
+      console.log('Starting analysis...');
       const result = await analyzeStyle(selectedImage);
+      console.log('Analysis completed:', result);
       setAnalysisResult(result);
       setShowResults(true);
     } catch (error) {
       console.error("Analysis error:", error);
       toast({
         title: "Analysis failed",
-        description: "There was an error analyzing your image",
+        description: error instanceof Error ? error.message : "There was an error analyzing your image",
         variant: "destructive",
       });
     } finally {

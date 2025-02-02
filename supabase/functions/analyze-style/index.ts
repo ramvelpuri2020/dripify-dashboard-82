@@ -9,7 +9,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -25,7 +24,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -78,25 +77,25 @@ serve(async (req) => {
     const data = await response.json();
     console.log('OpenAI Response:', data);
 
-    if (data.error) {
-      throw new Error(data.error.message);
+    if (!data.choices?.[0]?.message?.content) {
+      throw new Error('Invalid response from OpenAI');
     }
 
     const analysis = data.choices[0].message.content;
     
     // Parse scores from the analysis
     const scores = {
-      colorCoordination: extractScore(analysis, "Color Coordination"),
-      fitProportion: extractScore(analysis, "Fit & Proportion"),
-      styleCoherence: extractScore(analysis, "Style Coherence"),
-      styleExpression: extractScore(analysis, "Style Expression"),
-      outfitCreativity: extractScore(analysis, "Outfit Creativity")
+      colorCoordination: extractScore(analysis, "Color Coordination") || 70,
+      fitProportion: extractScore(analysis, "Fit & Proportion") || 70,
+      styleCoherence: extractScore(analysis, "Style Coherence") || 70,
+      styleExpression: extractScore(analysis, "Style Expression") || 70,
+      outfitCreativity: extractScore(analysis, "Outfit Creativity") || 70
     };
 
     // Extract sections
-    const detailedDescription = extractSection(analysis, "DETAILED_DESCRIPTION");
-    const strengths = extractSection(analysis, "STRENGTHS");
-    const improvements = extractSection(analysis, "IMPROVEMENTS");
+    const detailedDescription = extractSection(analysis, "DETAILED_DESCRIPTION") || "No detailed description available.";
+    const strengths = extractSection(analysis, "STRENGTHS") || "No strengths identified.";
+    const improvements = extractSection(analysis, "IMPROVEMENTS") || "No improvements suggested.";
 
     // Calculate total score
     const totalScore = Math.round(
