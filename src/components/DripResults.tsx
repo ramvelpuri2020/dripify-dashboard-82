@@ -39,7 +39,7 @@ export const DripResults = ({
           <AvatarFallback>👤</AvatarFallback>
         </Avatar>
         <div className="space-y-2">
-          <h2 className="text-4xl font-bold text-white">{totalScore}</h2>
+          <h2 className="text-4xl font-bold text-white">{totalScore}/10</h2>
           <p className="text-xl text-green-400">Style Score</p>
         </div>
       </motion.div>
@@ -59,9 +59,11 @@ export const DripResults = ({
                   <span className="text-sm text-white/80">{item.category}</span>
                 </div>
                 <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-1000"
-                    style={{ width: `${item.score}%` }}
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(item.score / 10) * 100}%` }}
+                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                    transition={{ duration: 1 }}
                   />
                 </div>
                 <span className="text-lg font-bold text-white">{item.score}</span>
