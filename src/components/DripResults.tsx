@@ -38,21 +38,10 @@ export const DripResults = ({
           <AvatarImage src={profileImage} alt="Profile" />
           <AvatarFallback>👤</AvatarFallback>
         </Avatar>
-        <div>
-          <h2 className="text-3xl font-bold text-white">You're a {totalScore}</h2>
-          <p className="text-green-400">Top Drip</p>
+        <div className="space-y-2">
+          <h2 className="text-4xl font-bold text-white">{totalScore}</h2>
+          <p className="text-xl text-green-400">Style Score</p>
         </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg p-6"
-      >
-        <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
-          {feedback}
-        </p>
       </motion.div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -81,6 +70,17 @@ export const DripResults = ({
           </motion.div>
         ))}
       </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg p-6"
+      >
+        <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
+          {feedback}
+        </p>
+      </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
