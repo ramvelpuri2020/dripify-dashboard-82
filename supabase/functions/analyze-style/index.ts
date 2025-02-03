@@ -9,7 +9,7 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -21,16 +21,22 @@ serve(async (req) => {
     });
     const openai = new OpenAIApi(configuration);
 
+    console.log('Analyzing image with OpenAI...');
+
     // Analyze the image
     const response = await openai.createChatCompletion({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o",
       messages: [
+        {
+          role: "system",
+          content: "You are a fashion expert. Analyze outfits and provide concise, specific feedback. Focus on key elements that make the outfit work (or not). Be direct and clear."
+        },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "You are a fashion expert. Analyze this outfit and provide a concise style assessment. Focus on the key elements that make the outfit work (or not work). Be specific but brief. Rate the outfit in these categories: Color Coordination, Fit & Proportion, Style Coherence, and Outfit Creativity. Each score should be from 1-10. The total score should be the average of these scores. Format your response as JSON with these fields: totalScore (number), breakdown (array of objects with category, score, and emoji), and feedback (string). The feedback should be 2-3 sentences max explaining the key strengths or areas for improvement.",
+              text: "Analyze this outfit and provide a brief, focused assessment. Rate these categories from 1-10:\n- Color Coordination\n- Fit & Proportion\n- Style Coherence\n- Outfit Creativity\n\nProvide a 2-3 sentence explanation focusing on the key strengths or areas for improvement. Format as JSON with: totalScore (average), breakdown (array with category/score/emoji), and feedback (string)."
             },
             {
               type: "image_url",
@@ -47,11 +53,14 @@ serve(async (req) => {
       throw new Error("No completion received from OpenAI");
     }
 
+    console.log('OpenAI response:', completion);
+
     // Parse the JSON response
     const result = JSON.parse(completion);
 
     // Validate the response format
     if (!result.totalScore || !Array.isArray(result.breakdown) || !result.feedback) {
+      console.error('Invalid response format:', result);
       throw new Error("Invalid response format from OpenAI");
     }
 
