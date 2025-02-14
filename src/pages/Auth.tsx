@@ -27,7 +27,19 @@ export const Auth = () => {
           email,
           password,
         });
-        if (error) throw error;
+        
+        if (error) {
+          // Handle rate limit error specifically
+          if (error.status === 429) {
+            const errorBody = JSON.parse(error.message.includes('{') ? 
+              error.message.substring(error.message.indexOf('{')) : 
+              '{"message": "Please wait a moment before trying again."}'
+            );
+            throw new Error(errorBody.message || "Please wait before trying again.");
+          }
+          throw error;
+        }
+
         toast({
           title: "Sign up successful!",
           description: "Please check your email to verify your account.",
@@ -41,9 +53,10 @@ export const Auth = () => {
         navigate("/");
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred";
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
