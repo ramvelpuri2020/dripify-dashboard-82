@@ -66,11 +66,11 @@ export const DashboardView = () => {
 
       {/* Getting Started Guide */}
       <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
-        <CardContent className="p-6 bg-gray-950 hover:bg-gray-800">
+        <CardContent className="p-6 bg-slate-900 hover:bg-slate-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-purple-400" />
-              <h3 className="text-lg font-semibold text-slate-950">Getting Started</h3>
+              <h3 className="text-lg font-semibold text-slate-50">Getting Started</h3>
             </div>
             <Button onClick={() => navigate('/scan')} className="bg-purple-500 hover:bg-purple-600 transition-colors group rounded">
               <Camera className="w-4 h-4 mr-2" />
