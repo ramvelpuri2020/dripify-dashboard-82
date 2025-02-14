@@ -12,23 +12,76 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          budget_range: string | null
+          color_preferences: string[] | null
           created_at: string
+          favorite_brands: string[] | null
           id: string
+          size_info: Json | null
+          style_preferences: string[] | null
+          updated_at: string | null
           username: string | null
         }
         Insert: {
           avatar_url?: string | null
+          budget_range?: string | null
+          color_preferences?: string[] | null
           created_at?: string
+          favorite_brands?: string[] | null
           id: string
+          size_info?: Json | null
+          style_preferences?: string[] | null
+          updated_at?: string | null
           username?: string | null
         }
         Update: {
           avatar_url?: string | null
+          budget_range?: string | null
+          color_preferences?: string[] | null
           created_at?: string
+          favorite_brands?: string[] | null
           id?: string
+          size_info?: Json | null
+          style_preferences?: string[] | null
+          updated_at?: string | null
           username?: string | null
         }
         Relationships: []
+      }
+      saved_outfits: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          tags: string[] | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          tags?: string[] | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          tags?: string[] | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_outfits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       style_analyses: {
         Row: {
@@ -61,6 +114,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "style_analyses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_achievements: {
+        Row: {
+          achieved_at: string
+          achievement_type: string
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          achieved_at?: string
+          achievement_type: string
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          achieved_at?: string
+          achievement_type?: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
