@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { analyzeStyle } from "@/utils/imageAnalysis";
 import { useScanStore } from "@/store/scanStore";
+import { supabase } from "@/integrations/supabase/client";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -18,6 +19,27 @@ export const ScanView = () => {
   const { toast } = useToast();
   const setLatestScan = useScanStore((state) => state.setLatestScan);
   const [result, setResult] = useState<any>(null);
+
+  const saveAnalysisToDatabase = async (analysis: any, imageUrl: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('style_analyses')
+      .insert({
+        user_id: user.id,
+        total_score: analysis.totalScore,
+        breakdown: analysis.breakdown,
+        feedback: analysis.feedback,
+        image_url: imageUrl,
+        last_scan_date: new Date().toISOString().split('T')[0]
+      });
+
+    if (error) {
+      console.error('Error saving analysis:', error);
+      throw error;
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!selectedImage) {
@@ -34,9 +56,36 @@ export const ScanView = () => {
       console.log('Starting analysis...');
       const analysisResult = await analyzeStyle(selectedImage);
       console.log('Analysis completed:', analysisResult);
+
+      // Upload image to Supabase Storage
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const fileExt = selectedImage.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('style-images')
+        .upload(filePath, selectedImage);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('style-images')
+        .getPublicUrl(filePath);
+
+      // Save analysis with image URL
+      await saveAnalysisToDatabase(analysisResult, publicUrl);
+
       setResult(analysisResult);
       setLatestScan(analysisResult);
       setShowResults(true);
+
+      toast({
+        title: "Analysis Complete",
+        description: "Your style has been analyzed and saved!",
+      });
     } catch (error) {
       console.error("Analysis error:", error);
       toast({

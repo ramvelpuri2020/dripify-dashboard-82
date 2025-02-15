@@ -90,6 +90,8 @@ export type Database = {
           feedback: string
           id: string
           image_url: string
+          last_scan_date: string | null
+          streak_count: number | null
           total_score: number
           user_id: string | null
         }
@@ -99,6 +101,8 @@ export type Database = {
           feedback: string
           id?: string
           image_url: string
+          last_scan_date?: string | null
+          streak_count?: number | null
           total_score: number
           user_id?: string | null
         }
@@ -108,6 +112,8 @@ export type Database = {
           feedback?: string
           id?: string
           image_url?: string
+          last_scan_date?: string | null
+          streak_count?: number | null
           total_score?: number
           user_id?: string | null
         }
