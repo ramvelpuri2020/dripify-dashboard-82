@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StyleSelector } from "@/components/StyleSelector";
@@ -16,6 +17,7 @@ export const ScanView = () => {
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
   const setLatestScan = useScanStore((state) => state.setLatestScan);
+  const [result, setResult] = useState<any>(null);
 
   const handleAnalyze = async () => {
     if (!selectedImage) {
@@ -30,9 +32,10 @@ export const ScanView = () => {
     setAnalyzing(true);
     try {
       console.log('Starting analysis...');
-      const result = await analyzeStyle(selectedImage);
-      console.log('Analysis completed:', result);
-      setLatestScan(result);
+      const analysisResult = await analyzeStyle(selectedImage);
+      console.log('Analysis completed:', analysisResult);
+      setResult(analysisResult);
+      setLatestScan(analysisResult);
       setShowResults(true);
     } catch (error) {
       console.error("Analysis error:", error);
@@ -119,11 +122,11 @@ export const ScanView = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {analysisResult && (
+          {result && (
             <DripResults
-              totalScore={analysisResult.totalScore}
-              breakdown={analysisResult.breakdown}
-              feedback={analysisResult.feedback}
+              totalScore={result.totalScore}
+              breakdown={result.breakdown}
+              feedback={result.feedback}
               onShare={handleShare}
               onSave={handleSave}
               profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
