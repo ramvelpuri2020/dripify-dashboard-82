@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -28,7 +27,7 @@ export const DashboardView = () => {
     averageScore: 0,
     streak: 0,
     totalScans: 0,
-    trend: 0
+    bestScore: 0
   });
 
   useEffect(() => {
@@ -52,15 +51,14 @@ export const DashboardView = () => {
           // Calculate stats
           const scores = data.map(a => a.total_score);
           const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-          const trend = data.length > 1 ? 
-            ((data[0].total_score - data[data.length-1].total_score) / data[data.length-1].total_score) * 100 : 
-            0;
+          const bestScore = Math.max(...scores);
+          const currentStreak = data[0].streak_count || 0;
 
           setStats({
             averageScore: Math.round(averageScore * 10) / 10,
-            streak: data[0].streak_count || 0,
+            streak: currentStreak,
             totalScans: data.length,
-            trend: Math.round(trend)
+            bestScore: bestScore
           });
         }
       } catch (error) {
@@ -82,14 +80,14 @@ export const DashboardView = () => {
     color: "text-[#9b87f5]",
     emptyState: "Take your first style scan!"
   }, {
-    title: "Trending",
-    value: hasScans ? `${stats.trend > 0 ? '+' : ''}${stats.trend}%` : "--",
+    title: "Best Score",
+    value: hasScans ? `${stats.bestScore}` : "--",
     icon: TrendingUp,
     color: "text-[#7E69AB]",
-    emptyState: "Track your progress"
+    emptyState: "Start scanning outfits"
   }, {
     title: "Style Streak",
-    value: hasScans ? `${stats.streak} days` : "--",
+    value: hasScans ? `${stats.streak} ${stats.streak === 1 ? 'day' : 'days'}` : "--",
     icon: Flame,
     color: "text-[#D6BCFA]",
     emptyState: "Start your streak"

@@ -1,13 +1,21 @@
-import { Share2, Save } from "lucide-react";
+
+import { Share2, Save, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { motion } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface ScoreBreakdown {
   category: string;
   score: number;
   emoji: string;
+}
+
+interface Tip {
+  category: string;
+  suggestion: string;
+  priority: 'high' | 'medium' | 'low';
 }
 
 interface DripResultsProps {
@@ -17,6 +25,7 @@ interface DripResultsProps {
   onShare: () => void;
   onSave?: () => void;
   profileImage?: string;
+  tips?: Tip[];
 }
 
 export const DripResults = ({
@@ -26,6 +35,7 @@ export const DripResults = ({
   onShare,
   onSave,
   profileImage,
+  tips = []
 }: DripResultsProps) => {
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
@@ -41,6 +51,7 @@ export const DripResults = ({
         <div className="space-y-2">
           <h2 className="text-4xl font-bold text-white">{totalScore}/10</h2>
           <p className="text-xl text-green-400">Style Score</p>
+          <p className="text-sm text-white/60">Based on fit, color coordination, and style elements</p>
         </div>
       </motion.div>
 
@@ -79,9 +90,39 @@ export const DripResults = ({
         transition={{ delay: 0.4 }}
         className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg p-6"
       >
-        <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
-          {feedback}
-        </p>
+        <h3 className="text-lg font-semibold text-white mb-4">Style Tips</h3>
+        <ScrollArea className="h-[200px] pr-4">
+          <div className="space-y-4">
+            {tips.map((tip, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card className="bg-black/20 border-white/5 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-full ${
+                      tip.priority === 'high' ? 'bg-red-500/20' :
+                      tip.priority === 'medium' ? 'bg-yellow-500/20' :
+                      'bg-green-500/20'
+                    }`}>
+                      <ChevronRight className={`w-4 h-4 ${
+                        tip.priority === 'high' ? 'text-red-500' :
+                        tip.priority === 'medium' ? 'text-yellow-500' :
+                        'text-green-500'
+                      }`} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white/90">{tip.category}</p>
+                      <p className="text-sm text-white/60">{tip.suggestion}</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </ScrollArea>
       </motion.div>
 
       <motion.div

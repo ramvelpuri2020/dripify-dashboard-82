@@ -91,7 +91,10 @@ export type Database = {
           id: string
           image_url: string
           last_scan_date: string | null
+          scan_date: string | null
           streak_count: number | null
+          thumbnail_url: string | null
+          tips: Json | null
           total_score: number
           user_id: string | null
         }
@@ -102,7 +105,10 @@ export type Database = {
           id?: string
           image_url: string
           last_scan_date?: string | null
+          scan_date?: string | null
           streak_count?: number | null
+          thumbnail_url?: string | null
+          tips?: Json | null
           total_score: number
           user_id?: string | null
         }
@@ -113,7 +119,10 @@ export type Database = {
           id?: string
           image_url?: string
           last_scan_date?: string | null
+          scan_date?: string | null
           streak_count?: number | null
+          thumbnail_url?: string | null
+          tips?: Json | null
           total_score?: number
           user_id?: string | null
         }

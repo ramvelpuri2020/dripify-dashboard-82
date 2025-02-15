@@ -20,7 +20,39 @@ export const ScanView = () => {
   const setLatestScan = useScanStore((state) => state.setLatestScan);
   const [result, setResult] = useState<any>(null);
 
-  const saveAnalysisToDatabase = async (analysis: any, imageUrl: string) => {
+  const generateThumbnail = async (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Set thumbnail size (200x200 px)
+        const size = 200;
+        canvas.width = size;
+        canvas.height = size;
+
+        // Calculate dimensions maintaining aspect ratio
+        const scale = Math.min(size / img.width, size / img.height);
+        const x = (size - img.width * scale) / 2;
+        const y = (size - img.height * scale) / 2;
+
+        if (ctx) {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, size, size);
+          ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+        }
+
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+        }, 'image/jpeg', 0.8);
+      };
+
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const saveAnalysisToDatabase = async (analysis: any, imageUrl: string, thumbnailUrl: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -32,6 +64,9 @@ export const ScanView = () => {
         breakdown: analysis.breakdown,
         feedback: analysis.feedback,
         image_url: imageUrl,
+        thumbnail_url: thumbnailUrl,
+        tips: analysis.tips,
+        scan_date: new Date().toISOString(),
         last_scan_date: new Date().toISOString().split('T')[0]
       });
 
@@ -65,6 +100,7 @@ export const ScanView = () => {
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
+      // Upload original image
       const { error: uploadError, data } = await supabase.storage
         .from('style-images')
         .upload(filePath, selectedImage);
@@ -75,8 +111,22 @@ export const ScanView = () => {
         .from('style-images')
         .getPublicUrl(filePath);
 
-      // Save analysis with image URL
-      await saveAnalysisToDatabase(analysisResult, publicUrl);
+      // Generate and upload thumbnail
+      const thumbnail = await generateThumbnail(selectedImage);
+      const thumbnailPath = `${user.id}/thumb_${fileName}`;
+      
+      const { error: thumbError } = await supabase.storage
+        .from('style-thumbnails')
+        .upload(thumbnailPath, thumbnail);
+
+      if (thumbError) throw thumbError;
+
+      const { data: { publicUrl: thumbnailUrl } } = supabase.storage
+        .from('style-thumbnails')
+        .getPublicUrl(thumbnailPath);
+
+      // Save analysis with both URLs
+      await saveAnalysisToDatabase(analysisResult, publicUrl, thumbnailUrl);
 
       setResult(analysisResult);
       setLatestScan(analysisResult);
