@@ -117,15 +117,7 @@ export type Database = {
           total_score?: number
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "style_analyses_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_achievements: {
         Row: {
