@@ -6,15 +6,16 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { analyzeStyle, StyleAnalysisResult } from "@/utils/imageAnalysis";
+import { analyzeStyle } from "@/utils/imageAnalysis";
+import { useScanStore } from "@/store/scanStore";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedStyle, setSelectedStyle] = useState("casual");
   const [analyzing, setAnalyzing] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<StyleAnalysisResult | null>(null);
   const { toast } = useToast();
+  const setLatestScan = useScanStore((state) => state.setLatestScan);
 
   const handleAnalyze = async () => {
     if (!selectedImage) {
@@ -31,7 +32,7 @@ export const ScanView = () => {
       console.log('Starting analysis...');
       const result = await analyzeStyle(selectedImage);
       console.log('Analysis completed:', result);
-      setAnalysisResult(result);
+      setLatestScan(result);
       setShowResults(true);
     } catch (error) {
       console.error("Analysis error:", error);
