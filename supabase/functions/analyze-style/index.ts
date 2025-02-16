@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -25,7 +24,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -33,7 +32,6 @@ serve(async (req) => {
             1. A brief, focused description (2-3 sentences max)
             2. A clear explanation of the style score (1-2 sentences)
             3. Specific scores for key categories
-            4. Three specific, actionable style tips
             
             Keep all feedback concise and direct. Focus on the most important aspects.
             
@@ -45,19 +43,14 @@ serve(async (req) => {
             Color Coordination: [score]
             Fit & Proportion: [score]
             Style Coherence: [score]
-            Outfit Creativity: [score]
-            
-            STYLE_TIPS:
-            1. [First tip with category and priority]
-            2. [Second tip with category and priority]
-            3. [Third tip with category and priority]`
+            Outfit Creativity: [score]`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: `Analyze this outfit and provide concise, focused feedback.`
+                text: `Analyze this outfit and provide a concise, focused feedback.`
               },
               {
                 type: 'image_url',
@@ -68,7 +61,7 @@ serve(async (req) => {
             ]
           }
         ],
-        max_tokens: 1000,
+        max_tokens: 500,
       }),
     });
 
@@ -93,25 +86,6 @@ serve(async (req) => {
       outfitCreativity: extractScore(analysis, "Outfit Creativity")
     };
 
-    // Extract style tips
-    const styleTips = [];
-    const tipsSection = analysis.match(/STYLE_TIPS:\n([\s\S]*?)(?=\n\n|$)/)?.[1];
-    if (tipsSection) {
-      const tips = tipsSection.split('\n').filter(tip => tip.trim());
-      for (const tip of tips) {
-        const cleanTip = tip.replace(/^\d+\.\s*/, '').trim();
-        if (cleanTip) {
-          const priority = determinePriority(cleanTip);
-          const category = determineCategory(cleanTip);
-          styleTips.push({
-            category,
-            suggestion: cleanTip,
-            priority
-          });
-        }
-      }
-    }
-
     // Calculate total score
     const totalScore = Math.round(
       Object.values(scores).reduce((acc, curr) => acc + curr, 0) / 4
@@ -125,8 +99,7 @@ serve(async (req) => {
         { category: "Style Coherence", score: scores.styleCoherence, emoji: "✨" },
         { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🎯" }
       ],
-      feedback: `${briefDescription}\n\n${scoreExplanation}`,
-      tips: styleTips
+      feedback: `${briefDescription}\n\n${scoreExplanation}`
     };
 
     return new Response(JSON.stringify(result), {
@@ -145,42 +118,4 @@ function extractScore(analysis: string, category: string): number {
   const regex = new RegExp(`${category}:?\\s*(\\d+)`, 'i');
   const match = analysis.match(regex);
   return match ? parseInt(match[1]) : 70; // Default score if not found
-}
-
-function determinePriority(tip: string): 'high' | 'medium' | 'low' {
-  const lowPriorityKeywords = ['consider', 'might', 'could', 'optional'];
-  const highPriorityKeywords = ['should', 'need', 'must', 'important', 'essential'];
-  
-  const tipLower = tip.toLowerCase();
-  
-  if (highPriorityKeywords.some(word => tipLower.includes(word))) {
-    return 'high';
-  } else if (lowPriorityKeywords.some(word => tipLower.includes(word))) {
-    return 'low';
-  }
-  return 'medium';
-}
-
-function determineCategory(tip: string): string {
-  const categories = {
-    color: 'Color & Pattern',
-    fit: 'Fit & Proportion',
-    accessory: 'Accessories',
-    style: 'Style Elements',
-    trend: 'Trends',
-    proportion: 'Fit & Proportion',
-    pattern: 'Color & Pattern',
-    texture: 'Texture & Material',
-    material: 'Texture & Material',
-    layering: 'Styling Technique'
-  };
-  
-  const tipLower = tip.toLowerCase();
-  for (const [keyword, category] of Object.entries(categories)) {
-    if (tipLower.includes(keyword)) {
-      return category;
-    }
-  }
-  
-  return 'Style Elements';
 }
