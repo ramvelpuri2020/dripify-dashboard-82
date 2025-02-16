@@ -18,15 +18,6 @@ serve(async (req) => {
     const { image, style } = await req.json();
     console.log('Analyzing style for occasion:', style);
 
-    if (!image) {
-      throw new Error('No image provided');
-    }
-
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
-
-    console.log('Calling OpenAI API...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -34,7 +25,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4-vision-preview',
         messages: [
           {
             role: 'system',
@@ -81,13 +72,11 @@ serve(async (req) => {
       }),
     });
 
-    console.log('OpenAI response status:', response.status);
     const data = await response.json();
-    console.log('OpenAI raw response:', JSON.stringify(data));
+    console.log('OpenAI Response:', data);
 
     if (!data.choices?.[0]?.message?.content) {
-      console.error('Invalid OpenAI response:', data);
-      throw new Error('Invalid response format from OpenAI');
+      throw new Error('Invalid response from OpenAI');
     }
 
     const analysis = data.choices[0].message.content;
@@ -96,7 +85,7 @@ serve(async (req) => {
     const briefDescription = analysis.match(/BRIEF_DESCRIPTION:\s*(.*?)(?=\n|$)/s)?.[1]?.trim() || "No description available.";
     const scoreExplanation = analysis.match(/SCORE_EXPLANATION:\s*(.*?)(?=\n|$)/s)?.[1]?.trim() || "No explanation available.";
     
-    // Parse scores with better error handling
+    // Parse scores
     const scores = {
       colorCoordination: extractScore(analysis, "Color Coordination"),
       fitProportion: extractScore(analysis, "Fit & Proportion"),
@@ -104,7 +93,7 @@ serve(async (req) => {
       outfitCreativity: extractScore(analysis, "Outfit Creativity")
     };
 
-    // Extract style tips with validation
+    // Extract style tips
     const styleTips = [];
     const tipsSection = analysis.match(/STYLE_TIPS:\n([\s\S]*?)(?=\n\n|$)/)?.[1];
     if (tipsSection) {
@@ -123,21 +112,10 @@ serve(async (req) => {
       }
     }
 
-    if (styleTips.length === 0) {
-      styleTips.push({
-        category: "General",
-        suggestion: "Consider having your outfit professionally evaluated for more specific recommendations.",
-        priority: "medium"
-      });
-    }
-
-    // Calculate total score with validation
-    let totalScore = Math.round(
+    // Calculate total score
+    const totalScore = Math.round(
       Object.values(scores).reduce((acc, curr) => acc + curr, 0) / 4
     );
-
-    // Ensure total score is within bounds
-    totalScore = Math.max(1, Math.min(10, totalScore));
 
     const result = {
       totalScore,
@@ -151,17 +129,12 @@ serve(async (req) => {
       tips: styleTips
     };
 
-    console.log('Processed analysis result:', JSON.stringify(result));
-
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error in analyze-style function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: error.stack
-    }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -169,15 +142,9 @@ serve(async (req) => {
 });
 
 function extractScore(analysis: string, category: string): number {
-  try {
-    const regex = new RegExp(`${category}:?\\s*(\\d+)`, 'i');
-    const match = analysis.match(regex);
-    const score = match ? parseInt(match[1]) : 7;
-    return Math.max(1, Math.min(10, score)); // Ensure score is between 1 and 10
-  } catch (error) {
-    console.error(`Error extracting score for ${category}:`, error);
-    return 7; // Default score if parsing fails
-  }
+  const regex = new RegExp(`${category}:?\\s*(\\d+)`, 'i');
+  const match = analysis.match(regex);
+  return match ? parseInt(match[1]) : 70; // Default score if not found
 }
 
 function determinePriority(tip: string): 'high' | 'medium' | 'low' {
