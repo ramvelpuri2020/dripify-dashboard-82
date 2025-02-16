@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 export const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
@@ -23,21 +24,34 @@ export const Auth = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        // Validate username
+        if (!username.trim()) {
+          throw new Error("Username is required");
+        }
+        if (username.length < 3) {
+          throw new Error("Username must be at least 3 characters long");
+        }
+
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              username: username, // This will be used by the trigger to create the profile
+            }
+          }
         });
         
-        if (error) {
+        if (signUpError) {
           // Handle rate limit error specifically
-          if (error.status === 429) {
-            const errorBody = JSON.parse(error.message.includes('{') ? 
-              error.message.substring(error.message.indexOf('{')) : 
+          if (signUpError.status === 429) {
+            const errorBody = JSON.parse(signUpError.message.includes('{') ? 
+              signUpError.message.substring(signUpError.message.indexOf('{')) : 
               '{"message": "Please wait a moment before trying again."}'
             );
             throw new Error(errorBody.message || "Please wait before trying again.");
           }
-          throw error;
+          throw signUpError;
         }
 
         toast({
@@ -45,11 +59,11 @@ export const Auth = () => {
           description: "Please check your email to verify your account.",
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) throw error;
+        if (signInError) throw signInError;
         navigate("/");
       }
     } catch (error) {
@@ -82,6 +96,19 @@ export const Auth = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAuth} className="space-y-6">
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    className="bg-white/5 border-white/10 text-white"
+                    placeholder="Choose a username"
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -91,6 +118,7 @@ export const Auth = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="bg-white/5 border-white/10 text-white"
+                  placeholder="Enter your email"
                 />
               </div>
               <div className="space-y-2">
@@ -102,6 +130,7 @@ export const Auth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   className="bg-white/5 border-white/10 text-white"
+                  placeholder="Choose a password"
                 />
               </div>
               <Button
