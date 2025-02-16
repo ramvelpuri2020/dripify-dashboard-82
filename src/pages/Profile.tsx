@@ -2,21 +2,28 @@
 import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Edit, Camera, User, Calendar, Star, TrendingUp, Image } from "lucide-react";
+import { Edit, Camera, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { format } from "date-fns";
+
+interface StyleAnalysis {
+  id: string;
+  user_id: string;
+  total_score: number;
+  created_at: string;
+  image_url: string;
+  breakdown: Array<{
+    category: string;
+    score: number;
+    emoji: string;
+  }>;
+  streak_count: number;
+}
 
 const Profile = () => {
   const [profile, setProfile] = useState<{
@@ -29,7 +36,7 @@ const Profile = () => {
   } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [newUsername, setNewUsername] = useState("");
-  const [recentScans, setRecentScans] = useState<any[]>([]);
+  const [recentScans, setRecentScans] = useState<StyleAnalysis[]>([]);
   const [styleStats, setStyleStats] = useState({
     totalScans: 0,
     averageScore: 0,
@@ -83,11 +90,13 @@ const Profile = () => {
       
       // Calculate best category
       const categories: {[key: string]: number[]} = {};
-      analyses.forEach(analysis => {
-        analysis.breakdown.forEach((b: any) => {
-          if (!categories[b.category]) categories[b.category] = [];
-          categories[b.category].push(b.score);
-        });
+      analyses.forEach((analysis: StyleAnalysis) => {
+        if (Array.isArray(analysis.breakdown)) {
+          analysis.breakdown.forEach((b) => {
+            if (!categories[b.category]) categories[b.category] = [];
+            categories[b.category].push(b.score);
+          });
+        }
       });
 
       let bestCategory = "";
