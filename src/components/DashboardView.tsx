@@ -1,13 +1,15 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { Trophy, TrendingUp, Flame, Camera, History, ArrowRight, Sparkles } from "lucide-react";
+import { Trophy, TrendingUp, Flame, Camera, History, ArrowRight, Sparkles, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "./ui/scroll-area";
 import { format } from "date-fns";
+import { useToast } from "./ui/use-toast";
 
 interface StyleAnalysis {
   id: string;
@@ -29,6 +31,7 @@ export const DashboardView = () => {
     totalScans: 0,
     bestScore: 0
   });
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchAnalyses = async () => {
@@ -71,6 +74,24 @@ export const DashboardView = () => {
     fetchAnalyses();
   }, []);
 
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      toast({
+        title: "Signed out successfully",
+        description: "You have been signed out of your account."
+      });
+      navigate('/auth');
+    } catch (error) {
+      toast({
+        title: "Error signing out",
+        description: "An error occurred while signing out.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const hasScans = analyses.length > 0;
 
   const styleStats = [{
@@ -103,16 +124,26 @@ export const DashboardView = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="py-6"
+        className="py-6 flex justify-between items-center"
       >
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-[#9b87f5] to-[#D6BCFA] text-transparent bg-clip-text">
-          {hasScans ? `Welcome Back!` : 'Welcome to DripCheck'}
-        </h1>
-        <p className="text-[#C8C8C9] text-sm mt-1">
-          {hasScans 
-            ? `You've completed ${stats.totalScans} style ${stats.totalScans === 1 ? 'scan' : 'scans'}!` 
-            : "Let's discover your unique style"}
-        </p>
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#9b87f5] to-[#D6BCFA] text-transparent bg-clip-text">
+            {hasScans ? `Welcome Back!` : 'Welcome to DripCheck'}
+          </h1>
+          <p className="text-[#C8C8C9] text-sm mt-1">
+            {hasScans 
+              ? `You've completed ${stats.totalScans} style ${stats.totalScans === 1 ? 'scan' : 'scans'}!` 
+              : "Let's discover your unique style"}
+          </p>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={handleSignOut}
+          className="hover:bg-white/10"
+        >
+          <LogOut className="h-5 w-5 text-white/60" />
+        </Button>
       </motion.div>
 
       {!hasScans ? (
@@ -208,11 +239,17 @@ export const DashboardView = () => {
                       <CardContent className="p-4">
                         <div className="flex items-start gap-4">
                           <div className="w-20 h-20 rounded-lg overflow-hidden bg-purple-500/10 flex-shrink-0">
-                            <img
-                              src={analysis.image_url}
-                              alt="Style analysis"
-                              className="w-full h-full object-cover"
-                            />
+                            {analysis.image_url && (
+                              <img
+                                src={analysis.image_url}
+                                alt="Style analysis"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const img = e.target as HTMLImageElement;
+                                  img.src = '/placeholder.svg';
+                                }}
+                              />
+                            )}
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
