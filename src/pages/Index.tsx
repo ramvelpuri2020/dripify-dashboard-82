@@ -1,12 +1,29 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardView } from "@/components/DashboardView";
 import { ScanView } from "@/components/ScanView";
 import { TipsView } from "@/components/TipsView";
 import { LayoutDashboard, Scan, MessageSquare, User } from "lucide-react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname.split('/')[1] || 'dashboard';
+
+  // Sync tab value with URL
+  useEffect(() => {
+    if (location.pathname === '/') {
+      navigate('/dashboard');
+    }
+  }, [location.pathname, navigate]);
+
+  const handleTabChange = (value: string) => {
+    navigate(`/${value}`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1A1F2C] to-[#2C1F3D] relative pb-20">
       <div className="max-w-3xl mx-auto">
@@ -22,18 +39,13 @@ const Index = () => {
           </Link>
         </div>
         
-        <Tabs defaultValue="dashboard" className="w-full">
-          <TabsContent value="dashboard" className="mt-0">
-            <DashboardView />
-          </TabsContent>
-
-          <TabsContent value="scan" className="mt-0">
-            <ScanView />
-          </TabsContent>
-
-          <TabsContent value="tips" className="mt-0">
-            <TipsView />
-          </TabsContent>
+        <Tabs value={currentPath} onValueChange={handleTabChange} className="w-full">
+          <Routes>
+            <Route path="/dashboard" element={<DashboardView />} />
+            <Route path="/scan" element={<ScanView />} />
+            <Route path="/tips" element={<TipsView />} />
+            <Route path="/" element={<DashboardView />} />
+          </Routes>
 
           <motion.div 
             initial={{ y: 100 }}
