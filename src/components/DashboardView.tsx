@@ -21,6 +21,14 @@ interface StyleAnalysis {
   last_scan_date: string;
 }
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
+const getImageUrl = (path: string) => {
+  if (!path) return '/placeholder.svg';
+  if (path.startsWith('http')) return path;
+  return `${SUPABASE_URL}/storage/v1/object/public/styles/${path}`;
+};
+
 export const DashboardView = () => {
   const navigate = useNavigate();
   const [analyses, setAnalyses] = useState<StyleAnalysis[]>([]);
@@ -49,7 +57,13 @@ export const DashboardView = () => {
         if (error) throw error;
 
         if (data && data.length > 0) {
-          setAnalyses(data);
+          // Process image URLs before setting the analyses
+          const processedData = data.map(analysis => ({
+            ...analysis,
+            image_url: getImageUrl(analysis.image_url)
+          }));
+          
+          setAnalyses(processedData);
           
           // Calculate stats
           const scores = data.map(a => a.total_score);
@@ -66,13 +80,18 @@ export const DashboardView = () => {
         }
       } catch (error) {
         console.error('Error fetching analyses:', error);
+        toast({
+          title: "Error loading analyses",
+          description: "Failed to load your style analyses.",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchAnalyses();
-  }, []);
+  }, [toast]);
 
   const handleSignOut = async () => {
     try {
@@ -239,17 +258,15 @@ export const DashboardView = () => {
                       <CardContent className="p-4">
                         <div className="flex items-start gap-4">
                           <div className="w-20 h-20 rounded-lg overflow-hidden bg-purple-500/10 flex-shrink-0">
-                            {analysis.image_url && (
-                              <img
-                                src={analysis.image_url}
-                                alt="Style analysis"
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const img = e.target as HTMLImageElement;
-                                  img.src = '/placeholder.svg';
-                                }}
-                              />
-                            )}
+                            <img
+                              src={analysis.image_url}
+                              alt="Style analysis"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const img = e.target as HTMLImageElement;
+                                img.src = '/placeholder.svg';
+                              }}
+                            />
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
