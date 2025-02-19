@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -16,17 +15,19 @@ interface StyleAnalysis {
   total_score: number;
   feedback: string;
   image_url: string;
+  thumbnail_url: string;
   created_at: string;
   streak_count: number;
   last_scan_date: string;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
 const getImageUrl = (path: string) => {
   if (!path) return '/placeholder.svg';
   if (path.startsWith('http')) return path;
-  return `${SUPABASE_URL}/storage/v1/object/public/styles/${path}`;
+  const { data } = supabase.storage
+    .from('style-images')
+    .getPublicUrl(path);
+  return data?.publicUrl || '/placeholder.svg';
 };
 
 export const DashboardView = () => {
@@ -45,7 +46,10 @@ export const DashboardView = () => {
     const fetchAnalyses = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          navigate('/auth');
+          return;
+        }
 
         const { data, error } = await supabase
           .from('style_analyses')
@@ -57,15 +61,13 @@ export const DashboardView = () => {
         if (error) throw error;
 
         if (data && data.length > 0) {
-          // Process image URLs before setting the analyses
           const processedData = data.map(analysis => ({
             ...analysis,
-            image_url: getImageUrl(analysis.image_url)
+            image_url: analysis.thumbnail_url || analysis.image_url
           }));
           
           setAnalyses(processedData);
           
-          // Calculate stats
           const scores = data.map(a => a.total_score);
           const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
           const bestScore = Math.max(...scores);
@@ -90,8 +92,26 @@ export const DashboardView = () => {
       }
     };
 
+    const subscription = supabase
+      .channel('style_analyses_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'style_analyses' 
+        }, 
+        () => {
+          fetchAnalyses();
+        }
+      )
+      .subscribe();
+
     fetchAnalyses();
-  }, [toast]);
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate, toast]);
 
   const handleSignOut = async () => {
     try {
@@ -132,6 +152,14 @@ export const DashboardView = () => {
     color: "text-[#D6BCFA]",
     emptyState: "Start your streak"
   }];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+      </div>
+    );
+  }
 
   return (
     <motion.div 
@@ -259,9 +287,10 @@ export const DashboardView = () => {
                         <div className="flex items-start gap-4">
                           <div className="w-20 h-20 rounded-lg overflow-hidden bg-purple-500/10 flex-shrink-0">
                             <img
-                              src={analysis.image_url}
+                              src={getImageUrl(analysis.image_url)}
                               alt="Style analysis"
                               className="w-full h-full object-cover"
+                              loading="lazy"
                               onError={(e) => {
                                 const img = e.target as HTMLImageElement;
                                 img.src = '/placeholder.svg';
