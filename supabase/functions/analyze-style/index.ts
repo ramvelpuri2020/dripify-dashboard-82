@@ -1,21 +1,25 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+import { createClient } from '@supabase/supabase-js';
+import { serve } from '@vercel/node';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+export default serve(async (req, res) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return res.status(200).json({ body: null, headers: corsHeaders });
   }
 
   try {
-    const { image, style } = await req.json();
-    console.log('Analyzing style for occasion:', style);
+    const { image, style } = req.body;
+    console.log('Analyzing drip for style:', style);
+
+    // Get OpenAI key from environment variable
+    const openAIApiKey = process.env.OPENAI_API_KEY;
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -24,33 +28,41 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4-vision-preview', // Using vision model since gpt-4o-mini isn't available yet
         messages: [
           {
             role: 'system',
-            content: `You are a fashion expert. Analyze the outfit image and provide:
-            1. A brief, focused description (2-3 sentences max)
-            2. A clear explanation of the style score (1-2 sentences)
-            3. Specific scores for key categories
+            content: `You're a streetwear expert with an attitude. Keep it real and use street culture slang naturally. 
+            You must ALWAYS return scores between 1-10 (never default to any number).
+            Analyze fits using this exact format:
+
+            {
+              "first_impression": "2-3 sentences with your immediate reaction, keep it street",
+              "final_verdict": "1-2 sentences explaining if they ate or need help",
+              "scores": {
+                "drip_level": <1-10>, // Overall impact and swagger
+                "color_game": <1-10>, // How the colors work together
+                "fit_check": <1-10>, // How the proportions and sizing hit
+                "trend_radar": <1-10>, // Balance of trends and timeless pieces
+                "unique_sauce": <1-10> // Personal style and originality
+              },
+              "detailed_thoughts": {
+                "drip_level": "one line explaining score",
+                "color_game": "one line explaining score",
+                "fit_check": "one line explaining score",
+                "trend_radar": "one line explaining score",
+                "unique_sauce": "one line explaining score"
+              }
+            }
             
-            Keep all feedback concise and direct. Focus on the most important aspects.
-            
-            Format your response exactly like this:
-            BRIEF_DESCRIPTION: [2-3 sentences describing what you see]
-            SCORE_EXPLANATION: [1-2 sentences explaining the overall score]
-            
-            SCORES:
-            Color Coordination: [score]
-            Fit & Proportion: [score]
-            Style Coherence: [score]
-            Outfit Creativity: [score]`
+            IMPORTANT: Never default to 70 or any other number. Analyze the image carefully and provide accurate scores between 1 and 10.`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: `Analyze this outfit and provide a concise, focused feedback.`
+                text: `Rate this fit and keep it a buck - they need the real feedback 💯`
               },
               {
                 type: 'image_url',
@@ -61,61 +73,81 @@ serve(async (req) => {
             ]
           }
         ],
-        max_tokens: 500,
+        response_format: { type: "json_object" },
+        max_tokens: 1000,
+        temperature: 0.7
       }),
     });
 
     const data = await response.json();
-    console.log('OpenAI Response:', data);
+    console.log('AI Response:', data);
 
     if (!data.choices?.[0]?.message?.content) {
-      throw new Error('Invalid response from OpenAI');
+      throw new Error('Invalid response from AI');
     }
 
-    const analysis = data.choices[0].message.content;
-    
-    // Extract sections
-    const briefDescription = analysis.match(/BRIEF_DESCRIPTION:\s*(.*?)(?=\n|$)/s)?.[1]?.trim() || "No description available.";
-    const scoreExplanation = analysis.match(/SCORE_EXPLANATION:\s*(.*?)(?=\n|$)/s)?.[1]?.trim() || "No explanation available.";
-    
-    // Parse scores
-    const scores = {
-      colorCoordination: extractScore(analysis, "Color Coordination"),
-      fitProportion: extractScore(analysis, "Fit & Proportion"),
-      styleCoherence: extractScore(analysis, "Style Coherence"),
-      outfitCreativity: extractScore(analysis, "Outfit Creativity")
-    };
+    const parsedResponse = JSON.parse(data.choices[0].message.content);
 
-    // Calculate total score
-    const totalScore = Math.round(
-      Object.values(scores).reduce((acc, curr) => acc + curr, 0) / 4
+    // Validate scores are between 1-10
+    Object.entries(parsedResponse.scores).forEach(([key, value]) => {
+      if (typeof value !== 'number' || value < 1 || value > 10) {
+        throw new Error(`Invalid score for ${key}: must be between 1 and 10`);
+      }
+    });
+
+    // Calculate overall drip score
+    const scores = parsedResponse.scores;
+    const dripScore = Math.round(
+      (scores.drip_level + 
+       scores.color_game + 
+       scores.fit_check + 
+       scores.trend_radar + 
+       scores.unique_sauce) / 5
     );
 
     const result = {
-      totalScore,
+      totalScore: dripScore,
       breakdown: [
-        { category: "Color Coordination", score: scores.colorCoordination, emoji: "🎨" },
-        { category: "Fit & Proportion", score: scores.fitProportion, emoji: "📏" },
-        { category: "Style Coherence", score: scores.styleCoherence, emoji: "✨" },
-        { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🎯" }
+        { 
+          category: "Drip Level", 
+          score: scores.drip_level, 
+          emoji: "🔥",
+          details: parsedResponse.detailed_thoughts.drip_level
+        },
+        { 
+          category: "Color Game", 
+          score: scores.color_game, 
+          emoji: "🎨",
+          details: parsedResponse.detailed_thoughts.color_game
+        },
+        { 
+          category: "Fit Check", 
+          score: scores.fit_check, 
+          emoji: "👕",
+          details: parsedResponse.detailed_thoughts.fit_check
+        },
+        { 
+          category: "Trend Radar", 
+          score: scores.trend_radar, 
+          emoji: "📈",
+          details: parsedResponse.detailed_thoughts.trend_radar
+        },
+        { 
+          category: "Unique Sauce", 
+          score: scores.unique_sauce, 
+          emoji: "✨",
+          details: parsedResponse.detailed_thoughts.unique_sauce
+        }
       ],
-      feedback: `${briefDescription}\n\n${scoreExplanation}`
+      feedback: `${parsedResponse.first_impression}\n\n${parsedResponse.final_verdict}`
     };
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return res.status(200).json({ ...result, headers: corsHeaders });
   } catch (error) {
-    console.error('Error in analyze-style function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    console.error('Error in drip-check function:', error);
+    return res.status(500).json({ 
+      error: error.message,
+      headers: corsHeaders 
     });
   }
 });
-
-function extractScore(analysis: string, category: string): number {
-  const regex = new RegExp(`${category}:?\\s*(\\d+)`, 'i');
-  const match = analysis.match(regex);
-  return match ? parseInt(match[1]) : 70; // Default score if not found
-}
