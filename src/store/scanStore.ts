@@ -10,6 +10,11 @@ export interface StyleAnalysisResult {
     details?: string;
   }[];
   feedback: string;
+  styleTips?: {
+    category: string;
+    tips: string[];
+  }[];
+  nextLevelTips?: string[];
   timestamp?: Date;
 }
 

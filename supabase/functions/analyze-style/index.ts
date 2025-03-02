@@ -1,68 +1,91 @@
-import { createClient } from '@supabase/supabase-js';
-import { serve } from '@vercel/node';
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-export default serve(async (req, res) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return res.status(200).json({ body: null, headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { image, style } = req.body;
-    console.log('Analyzing drip for style:', style);
+    const { image, style } = await req.json();
+    console.log('Analyzing style for: ', style);
 
     // Get OpenAI key from environment variable
-    const openAIApiKey = process.env.OPENAI_API_KEY;
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // First analysis for overall style assessment
+    const styleAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4-vision-preview', // Using vision model since gpt-4o-mini isn't available yet
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: `You're a streetwear expert with an attitude. Keep it real and use street culture slang naturally. 
-            You must ALWAYS return scores between 1-10 (never default to any number).
-            Analyze fits using this exact format:
+            content: `You're a fashion expert who analyzes outfits. 
+            Analyze the outfit and provide scores between 1-10 for each category.
+            Return ONLY valid JSON in this exact format:
 
             {
-              "first_impression": "2-3 sentences with your immediate reaction, keep it street",
-              "final_verdict": "1-2 sentences explaining if they ate or need help",
-              "scores": {
-                "drip_level": <1-10>, // Overall impact and swagger
-                "color_game": <1-10>, // How the colors work together
-                "fit_check": <1-10>, // How the proportions and sizing hit
-                "trend_radar": <1-10>, // Balance of trends and timeless pieces
-                "unique_sauce": <1-10> // Personal style and originality
-              },
-              "detailed_thoughts": {
-                "drip_level": "one line explaining score",
-                "color_game": "one line explaining score",
-                "fit_check": "one line explaining score",
-                "trend_radar": "one line explaining score",
-                "unique_sauce": "one line explaining score"
-              }
-            }
-            
-            IMPORTANT: Never default to 70 or any other number. Analyze the image carefully and provide accurate scores between 1 and 10.`
+              "totalScore": <1-10>,
+              "breakdown": [
+                {
+                  "category": "Overall Style",
+                  "score": <1-10>,
+                  "emoji": "👑",
+                  "details": "1-2 sentence explanation of score"
+                },
+                {
+                  "category": "Color Coordination",
+                  "score": <1-10>,
+                  "emoji": "🎨",
+                  "details": "1-2 sentence explanation of score"
+                },
+                {
+                  "category": "Fit & Proportion",
+                  "score": <1-10>,
+                  "emoji": "📏",
+                  "details": "1-2 sentence explanation of score"
+                },
+                {
+                  "category": "Accessories",
+                  "score": <1-10>,
+                  "emoji": "⭐",
+                  "details": "1-2 sentence explanation of score"
+                },
+                {
+                  "category": "Trend Alignment",
+                  "score": <1-10>,
+                  "emoji": "✨",
+                  "details": "1-2 sentence explanation of score"
+                },
+                {
+                  "category": "Style Expression",
+                  "score": <1-10>,
+                  "emoji": "🪄",
+                  "details": "1-2 sentence explanation of score"
+                }
+              ],
+              "feedback": "3-4 sentences of overall feedback about the outfit"
+            }`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: `Rate this fit and keep it a buck - they need the real feedback 💯`
+                text: `Analyze this outfit and provide a detailed style assessment.`
               },
               {
                 type: 'image_url',
@@ -79,75 +102,116 @@ export default serve(async (req, res) => {
       }),
     });
 
-    const data = await response.json();
-    console.log('AI Response:', data);
+    const styleData = await styleAnalysisResponse.json();
+    console.log('Style Analysis Response:', styleData);
 
-    if (!data.choices?.[0]?.message?.content) {
+    if (!styleData.choices?.[0]?.message?.content) {
       throw new Error('Invalid response from AI');
     }
 
-    const parsedResponse = JSON.parse(data.choices[0].message.content);
-
-    // Validate scores are between 1-10
-    Object.entries(parsedResponse.scores).forEach(([key, value]) => {
-      if (typeof value !== 'number' || value < 1 || value > 10) {
-        throw new Error(`Invalid score for ${key}: must be between 1 and 10`);
-      }
+    // Parse the initial style analysis
+    const parsedStyleResponse = JSON.parse(styleData.choices[0].message.content);
+    
+    // Now generate custom improvement tips based on the analysis
+    const tipsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a high-end fashion stylist who provides specific, actionable style improvement tips.
+            Based on the style analysis provided, generate 3 specific improvement tips for each category.
+            Each tip should be tailored to the specific outfit seen in the image and the scores provided.
+            For categories with high scores (8-10), focus on refinement and advanced techniques.
+            For categories with medium scores (5-7), focus on specific improvements.
+            For categories with low scores (1-4), focus on fundamental improvements.
+            
+            Return ONLY valid JSON in this exact format:
+            {
+              "styleTips": [
+                {
+                  "category": "Overall Style",
+                  "tips": ["tip 1", "tip 2", "tip 3"]
+                },
+                {
+                  "category": "Color Coordination",
+                  "tips": ["tip 1", "tip 2", "tip 3"]
+                },
+                {
+                  "category": "Fit & Proportion",
+                  "tips": ["tip 1", "tip 2", "tip 3"]
+                },
+                {
+                  "category": "Accessories",
+                  "tips": ["tip 1", "tip 2", "tip 3"]
+                },
+                {
+                  "category": "Trend Alignment",
+                  "tips": ["tip 1", "tip 2", "tip 3"]
+                },
+                {
+                  "category": "Style Expression",
+                  "tips": ["tip 1", "tip 2", "tip 3"]
+                }
+              ],
+              "nextLevelTips": ["advanced tip 1", "advanced tip 2", "advanced tip 3", "advanced tip 4"]
+            }`
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Here's the style analysis of this outfit: ${JSON.stringify(parsedStyleResponse)}. 
+                Generate specific improvement tips for each category based on this analysis and what you can see in the image.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: image
+                }
+              }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 1500,
+        temperature: 0.8
+      }),
     });
 
-    // Calculate overall drip score
-    const scores = parsedResponse.scores;
-    const dripScore = Math.round(
-      (scores.drip_level + 
-       scores.color_game + 
-       scores.fit_check + 
-       scores.trend_radar + 
-       scores.unique_sauce) / 5
-    );
+    const tipsData = await tipsResponse.json();
+    console.log('Tips Response:', tipsData);
 
+    if (!tipsData.choices?.[0]?.message?.content) {
+      throw new Error('Invalid tips response from AI');
+    }
+
+    // Parse the tips response
+    const parsedTipsResponse = JSON.parse(tipsData.choices[0].message.content);
+
+    // Combine both results
     const result = {
-      totalScore: dripScore,
-      breakdown: [
-        { 
-          category: "Drip Level", 
-          score: scores.drip_level, 
-          emoji: "🔥",
-          details: parsedResponse.detailed_thoughts.drip_level
-        },
-        { 
-          category: "Color Game", 
-          score: scores.color_game, 
-          emoji: "🎨",
-          details: parsedResponse.detailed_thoughts.color_game
-        },
-        { 
-          category: "Fit Check", 
-          score: scores.fit_check, 
-          emoji: "👕",
-          details: parsedResponse.detailed_thoughts.fit_check
-        },
-        { 
-          category: "Trend Radar", 
-          score: scores.trend_radar, 
-          emoji: "📈",
-          details: parsedResponse.detailed_thoughts.trend_radar
-        },
-        { 
-          category: "Unique Sauce", 
-          score: scores.unique_sauce, 
-          emoji: "✨",
-          details: parsedResponse.detailed_thoughts.unique_sauce
-        }
-      ],
-      feedback: `${parsedResponse.first_impression}\n\n${parsedResponse.final_verdict}`
+      ...parsedStyleResponse,
+      styleTips: parsedTipsResponse.styleTips,
+      nextLevelTips: parsedTipsResponse.nextLevelTips
     };
 
-    return res.status(200).json({ ...result, headers: corsHeaders });
+    return new Response(JSON.stringify(result), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   } catch (error) {
-    console.error('Error in drip-check function:', error);
-    return res.status(500).json({ 
-      error: error.message,
-      headers: corsHeaders 
+    console.error('Error in analyze-style function:', error);
+    return new Response(JSON.stringify({ 
+      error: error.message || 'An error occurred during style analysis'
+    }), { 
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
 });

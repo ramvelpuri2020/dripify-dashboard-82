@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
@@ -6,7 +7,6 @@ import { ChevronRight, Star, Palette, Ruler, Crown, Sparkles, Wand2, Camera, Lig
 import { useScanStore } from "@/store/scanStore";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
-import { generateTipsForCategory } from "@/utils/imageAnalysis";
 
 const getIconForCategory = (category: string) => {
   switch (category) {
@@ -50,6 +50,14 @@ export const TipsView = () => {
       </div>
     );
   }
+
+  // Find matching tips for each category
+  const getCategoryTips = (category: string) => {
+    if (!latestScan.styleTips) return [];
+    
+    const categoryTips = latestScan.styleTips.find(item => item.category === category);
+    return categoryTips ? categoryTips.tips : [];
+  };
 
   return (
     <motion.div 
@@ -131,12 +139,20 @@ export const TipsView = () => {
                             <span>Improvement Tips</span>
                           </div>
                           
-                          {generateTipsForCategory(item.category, item.score).map((tip, i) => (
-                            <div key={i} className="flex gap-2 items-start">
+                          {getCategoryTips(item.category).length > 0 ? (
+                            getCategoryTips(item.category).map((tip, i) => (
+                              <div key={i} className="flex gap-2 items-start">
+                                <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-sm text-white/80">{tip}</p>
+                              </div>
+                            ))
+                          ) : (
+                            // Fallback to old tips generator if AI tips aren't available
+                            <div className="flex gap-2 items-start">
                               <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                              <p className="text-sm text-white/80">{tip}</p>
+                              <p className="text-sm text-white/80 italic">Personalized tips are being generated for this category.</p>
                             </div>
-                          ))}
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -166,17 +182,27 @@ export const TipsView = () => {
                     </p>
                     
                     <div className="space-y-3">
-                      {[
-                        "Experiment with layering to add depth and visual interest to simple pieces.",
-                        "Consider adding statement accessories that reflect your personality.",
-                        "Try incorporating one trend piece with your timeless basics for a modern edge.",
-                        "Focus on fabric quality - even simple pieces look elevated in premium materials."
-                      ].map((tip, i) => (
-                        <div key={i} className="flex gap-2 items-start">
-                          <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-white/80">{tip}</p>
-                        </div>
-                      ))}
+                      {latestScan.nextLevelTips && latestScan.nextLevelTips.length > 0 ? (
+                        latestScan.nextLevelTips.map((tip, i) => (
+                          <div key={i} className="flex gap-2 items-start">
+                            <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-white/80">{tip}</p>
+                          </div>
+                        ))
+                      ) : (
+                        // Fallback tips if nextLevelTips aren't available
+                        [
+                          "Experiment with layering to add depth and visual interest to simple pieces.",
+                          "Consider adding statement accessories that reflect your personality.",
+                          "Try incorporating one trend piece with your timeless basics for a modern edge.",
+                          "Focus on fabric quality - even simple pieces look elevated in premium materials."
+                        ].map((tip, i) => (
+                          <div key={i} className="flex gap-2 items-start">
+                            <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-white/80">{tip}</p>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
