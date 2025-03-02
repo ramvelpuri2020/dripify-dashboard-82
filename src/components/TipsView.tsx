@@ -2,10 +2,11 @@ import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronRight, Star, Palette, Ruler, Crown, Sparkles, Wand2, Camera } from "lucide-react";
+import { ChevronRight, Star, Palette, Ruler, Crown, Sparkles, Wand2, Camera, LightbulbIcon } from "lucide-react";
 import { useScanStore } from "@/store/scanStore";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
+import { generateTipsForCategory } from "@/utils/imageAnalysis";
 
 const getIconForCategory = (category: string) => {
   switch (category) {
@@ -59,16 +60,12 @@ export const TipsView = () => {
     >
       <Card className="bg-gradient-to-br from-[#1A1F2C]/80 to-[#2C1F3D]/80 backdrop-blur-lg border-white/10 shadow-xl">
         <CardContent className="p-6">
-          {latestScan.feedback && (
-            <div className="mb-6">
-              <p className="text-white/80">{latestScan.feedback}</p>
-            </div>
-          )}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white/90 tracking-tight">Style Analysis</h2>
-            <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 text-transparent bg-clip-text">
-              {latestScan.totalScore}/10
-            </div>
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-white/90 tracking-tight mb-2">Style Improvement Tips</h2>
+            <p className="text-white/80">
+              Based on your style score of <span className="font-bold text-purple-400">{latestScan.totalScore}/10</span>, 
+              here are personalized recommendations to elevate your look.
+            </p>
           </div>
           
           <ScrollArea className="h-[70vh] pr-4">
@@ -92,9 +89,18 @@ export const TipsView = () => {
                             <h3 className="text-lg font-semibold text-white/90 tracking-tight">
                               {item.category}
                             </h3>
-                            <p className="text-sm text-white/60">
-                              Score: {item.score}/10
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm text-white/60">
+                                Current Score: {item.score}/10
+                              </p>
+                              <div className={`text-xs px-2 py-0.5 rounded-full ${
+                                item.score >= 8 ? 'bg-green-500/20 text-green-400' : 
+                                item.score >= 6 ? 'bg-yellow-500/20 text-yellow-400' : 
+                                'bg-red-500/20 text-red-400'
+                              }`}>
+                                {item.score >= 8 ? 'Great' : item.score >= 6 ? 'Good' : 'Needs Work'}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -105,18 +111,76 @@ export const TipsView = () => {
                             initial={{ width: 0 }}
                             animate={{ width: `${(item.score / 10) * 100}%` }}
                             transition={{ delay: index * 0.1 + 0.3, duration: 0.5 }}
-                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                            className={`h-full ${
+                              item.score >= 8 ? 'bg-gradient-to-r from-green-500 to-green-400' : 
+                              item.score >= 6 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' : 
+                              'bg-gradient-to-r from-red-500 to-red-400'
+                            }`}
                           />
                         </div>
                         
-                        <div className="text-sm text-white/70">
-                          {item.details}
+                        {item.details && (
+                          <div className="text-sm text-white/70 mb-3">
+                            {item.details}
+                          </div>
+                        )}
+                        
+                        <div className="bg-black/20 rounded-lg p-4 space-y-2">
+                          <div className="flex items-center gap-2 text-purple-400 font-medium mb-1">
+                            <Sparkles className="w-4 h-4" />
+                            <span>Improvement Tips</span>
+                          </div>
+                          
+                          {generateTipsForCategory(item.category, item.score).map((tip, i) => (
+                            <div key={i} className="flex gap-2 items-start">
+                              <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                              <p className="text-sm text-white/80">{tip}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 </motion.div>
               ))}
+
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: latestScan.breakdown.length * 0.1 }}
+                className="mt-4"
+              >
+                <Card className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-lg border-purple-500/30 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-purple-500/30 rounded-full">
+                        <Wand2 className="w-5 h-5 text-purple-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-white/90 tracking-tight">
+                        Next Level Style
+                      </h3>
+                    </div>
+                    
+                    <p className="text-white/80 text-sm mb-4">
+                      Ready to take your style to a perfect 10? Try these overall recommendations:
+                    </p>
+                    
+                    <div className="space-y-3">
+                      {[
+                        "Experiment with layering to add depth and visual interest to simple pieces.",
+                        "Consider adding statement accessories that reflect your personality.",
+                        "Try incorporating one trend piece with your timeless basics for a modern edge.",
+                        "Focus on fabric quality - even simple pieces look elevated in premium materials."
+                      ].map((tip, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                          <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-white/80">{tip}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </div>
           </ScrollArea>
         </CardContent>
