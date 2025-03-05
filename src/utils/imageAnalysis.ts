@@ -53,7 +53,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     };
 
     // Save analysis to Supabase
-    saveAnalysisToSupabase(result, imageFile);
+    await saveAnalysisToSupabase(result, imageFile);
 
     // Update the scan store with the new analysis
     const store = useScanStore.getState();
@@ -93,6 +93,46 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
       .from('outfit_images')
       .getPublicUrl(`public/${fileName}`);
 
+    // Get the current date in ISO format
+    const currentDate = new Date().toISOString();
+    const currentDateString = currentDate.split('T')[0]; // YYYY-MM-DD format
+
+    // Check if there's a previous scan to calculate streak
+    const { data: previousScan, error: scanError } = await supabase
+      .from('style_analyses')
+      .select('scan_date, last_scan_date, streak_count')
+      .eq('user_id', user.id)
+      .order('scan_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let streakCount = 1; // Default to 1 for first scan
+    
+    if (!scanError && previousScan) {
+      const prevDate = previousScan.last_scan_date;
+      const today = currentDateString;
+      
+      if (prevDate) {
+        const prevDateObj = new Date(prevDate);
+        const todayObj = new Date(today);
+        
+        // Calculate days difference
+        const diffTime = todayObj.getTime() - prevDateObj.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+          // Consecutive day, increment streak
+          streakCount = (previousScan.streak_count || 0) + 1;
+        } else if (diffDays === 0) {
+          // Same day, maintain streak
+          streakCount = previousScan.streak_count || 1;
+        } else {
+          // Streak broken
+          streakCount = 1;
+        }
+      }
+    }
+
     // Store analysis in Supabase database
     const { data, error } = await supabase
       .from('style_analyses')
@@ -103,7 +143,9 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
         feedback: result.feedback,
         tips: result.styleTips,
         image_url: publicUrl,
-        scan_date: new Date().toISOString()
+        scan_date: currentDate,
+        last_scan_date: currentDateString,
+        streak_count: streakCount
       });
 
     if (error) {

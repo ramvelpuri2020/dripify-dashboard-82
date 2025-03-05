@@ -25,151 +25,257 @@ const Profile = () => {
     improvedCategories: 0,
     styleStreak: 0,
   });
+  const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchProfile();
     fetchStyleStats();
+
+    // Set up real-time subscription for profile updates
+    const profileChannel = supabase
+      .channel('profile_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'profiles' 
+        }, 
+        () => {
+          fetchProfile();
+        }
+      )
+      .subscribe();
+
+    // Set up real-time subscription for style analysis updates
+    const analysisChannel = supabase
+      .channel('style_analysis_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'style_analyses' 
+        }, 
+        () => {
+          fetchStyleStats();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileChannel);
+      supabase.removeChannel(analysisChannel);
+    };
   }, []);
 
   const fetchProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('username, avatar_url')
-      .eq('id', user.id)
-      .single();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching profile:', error);
-      toast({
-        title: "Error loading profile",
-        description: "Could not load profile information",
-        variant: "destructive",
-      });
-      return;
+      if (error) {
+        console.error('Error fetching profile:', error);
+        toast({
+          title: "Error loading profile",
+          description: "Could not load profile information",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data) {
+        setProfile({
+          username: data.username || user.email?.split('@')[0] || 'User',
+          avatar_url: data.avatar_url
+        });
+      } else {
+        // Create a profile if it doesn't exist
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            username: user.email?.split('@')[0] || 'User'
+          });
+
+        if (insertError) {
+          console.error('Error creating profile:', insertError);
+        } else {
+          setProfile({
+            username: user.email?.split('@')[0] || 'User',
+            avatar_url: null
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error in fetchProfile:', error);
+    } finally {
+      setLoading(false);
     }
-
-    setProfile(data);
   };
 
   const fetchStyleStats = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    // Get total scan count
-    const { count: totalScans, error: countError } = await supabase
-      .from('style_analyses')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+      // Get total scan count
+      const { count: totalScans, error: countError } = await supabase
+        .from('style_analyses')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
 
-    if (countError) {
-      console.error('Error fetching scan count:', countError);
-      return;
-    }
+      if (countError) {
+        console.error('Error fetching scan count:', countError);
+      }
 
-    // Get average score
-    const { data: scoreData, error: scoreError } = await supabase
-      .from('style_analyses')
-      .select('total_score')
-      .eq('user_id', user.id);
+      // Get average score
+      const { data: scoreData, error: scoreError } = await supabase
+        .from('style_analyses')
+        .select('total_score')
+        .eq('user_id', user.id);
 
-    if (scoreError) {
-      console.error('Error fetching scores:', scoreError);
-      return;
-    }
+      if (scoreError) {
+        console.error('Error fetching scores:', scoreError);
+      }
 
-    let averageScore = 0;
-    if (scoreData && scoreData.length > 0) {
-      averageScore = Math.round(
-        scoreData.reduce((acc, curr) => acc + curr.total_score, 0) / scoreData.length
-      );
-    }
+      let averageScore = 0;
+      if (scoreData && scoreData.length > 0) {
+        averageScore = Math.round(
+          scoreData.reduce((acc, curr) => acc + curr.total_score, 0) / scoreData.length
+        );
+      }
 
-    // Get best category
-    const { data: analyses, error: analysesError } = await supabase
-      .from('style_analyses')
-      .select('breakdown')
-      .eq('user_id', user.id);
+      // Get best category
+      const { data: analyses, error: analysesError } = await supabase
+        .from('style_analyses')
+        .select('breakdown')
+        .eq('user_id', user.id);
 
-    if (analysesError) {
-      console.error('Error fetching analyses:', analysesError);
-      return;
-    }
+      if (analysesError) {
+        console.error('Error fetching analyses:', analysesError);
+      }
 
-    let bestCategory = '';
-    if (analyses && analyses.length > 0) {
-      // Process breakdown data to find best category
-      const categoryScores: Record<string, { total: number; count: number }> = {};
-      
-      analyses.forEach(analysis => {
-        if (analysis.breakdown && Array.isArray(analysis.breakdown)) {
-          // Type assertion to handle JSON properly
-          const breakdownArray = analysis.breakdown as Breakdown[];
-          
-          breakdownArray.forEach(item => {
-            if (item && typeof item === 'object' && 'category' in item && 'score' in item) {
-              const category = item.category;
-              const score = item.score;
-              
-              if (!categoryScores[category]) {
-                categoryScores[category] = { total: 0, count: 0 };
+      let bestCategory = '';
+      if (analyses && analyses.length > 0) {
+        // Process breakdown data to find best category
+        const categoryScores: Record<string, { total: number; count: number }> = {};
+        
+        analyses.forEach(analysis => {
+          if (analysis.breakdown && Array.isArray(analysis.breakdown)) {
+            // Safe type casting with runtime checks
+            analysis.breakdown.forEach((item: any) => {
+              if (item && typeof item === 'object' && 'category' in item && 'score' in item) {
+                const category = item.category as string;
+                const score = item.score as number;
+                
+                if (!categoryScores[category]) {
+                  categoryScores[category] = { total: 0, count: 0 };
+                }
+                categoryScores[category].total += score;
+                categoryScores[category].count += 1;
               }
-              categoryScores[category].total += score;
-              categoryScores[category].count += 1;
+            });
+          }
+        });
+
+        let highestAvg = 0;
+        Object.entries(categoryScores).forEach(([category, data]) => {
+          const avg = data.total / data.count;
+          if (avg > highestAvg) {
+            highestAvg = avg;
+            bestCategory = category;
+          }
+        });
+      }
+
+      // Get last scan date and streak
+      const { data: latestScan, error: latestError } = await supabase
+        .from('style_analyses')
+        .select('scan_date, streak_count')
+        .eq('user_id', user.id)
+        .order('scan_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let lastScan = '';
+      let styleStreak = 0;
+
+      if (latestScan) {
+        // Format date as "X days ago"
+        const scanDate = new Date(latestScan.scan_date);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - scanDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        lastScan = diffDays <= 1 ? 'today' : `${diffDays} days ago`;
+        styleStreak = latestScan.streak_count || 0;
+      }
+
+      // Calculate improved categories based on actual data
+      // This looks at categories that have improved scores over time
+      let improvedCategories = 0;
+      if (analyses && analyses.length >= 2) {
+        const oldestAnalysis = analyses[analyses.length - 1];
+        const newestAnalysis = analyses[0];
+        
+        if (oldestAnalysis.breakdown && newestAnalysis.breakdown) {
+          const oldCategories: Record<string, number> = {};
+          
+          // Process older breakdown
+          (oldestAnalysis.breakdown as any[]).forEach((item: any) => {
+            if (item && typeof item === 'object' && 'category' in item && 'score' in item) {
+              oldCategories[item.category] = item.score;
+            }
+          });
+          
+          // Compare with newer breakdown
+          (newestAnalysis.breakdown as any[]).forEach((item: any) => {
+            if (item && typeof item === 'object' && 'category' in item && 'score' in item) {
+              if (oldCategories[item.category] && item.score > oldCategories[item.category]) {
+                improvedCategories++;
+              }
             }
           });
         }
+      }
+
+      setStyleStats({
+        totalScans: totalScans || 0,
+        averageScore,
+        bestCategory,
+        lastScan,
+        improvedCategories,
+        styleStreak,
       });
-
-      let highestAvg = 0;
-      Object.entries(categoryScores).forEach(([category, data]) => {
-        const avg = data.total / data.count;
-        if (avg > highestAvg) {
-          highestAvg = avg;
-          bestCategory = category;
-        }
-      });
+    } catch (error) {
+      console.error('Error in fetchStyleStats:', error);
+    } finally {
+      setLoading(false);
     }
-
-    // Get last scan date and streak
-    const { data: latestScan, error: latestError } = await supabase
-      .from('style_analyses')
-      .select('scan_date, streak_count')
-      .eq('user_id', user.id)
-      .order('scan_date', { ascending: false })
-      .limit(1)
-      .single();
-
-    let lastScan = '';
-    let styleStreak = 0;
-
-    if (!latestError && latestScan) {
-      // Format date as "X days ago"
-      const scanDate = new Date(latestScan.scan_date);
-      const now = new Date();
-      const diffTime = Math.abs(now.getTime() - scanDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      lastScan = diffDays <= 1 ? 'today' : `${diffDays} days ago`;
-      styleStreak = latestScan.streak_count || 0;
-    }
-
-    // Set improved categories (this is a placeholder - would need more data to calculate properly)
-    const improvedCategories = Math.min(3, Math.floor(totalScans || 0 / 4)); // Just a placeholder calculation
-
-    setStyleStats({
-      totalScans: totalScans || 0,
-      averageScore,
-      bestCategory,
-      lastScan,
-      improvedCategories,
-      styleStreak,
-    });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1A1F2C] to-[#2C1F3D] py-8 px-4 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-[#9b87f5] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1A1F2C] to-[#2C1F3D] py-8 px-4">

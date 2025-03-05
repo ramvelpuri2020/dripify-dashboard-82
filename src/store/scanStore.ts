@@ -25,6 +25,7 @@ interface ScanStoreState {
     averageScore: number;
     bestScore: number;
     streak: number;
+    totalScans: number;
   };
   isLoading: boolean;
 }
@@ -42,6 +43,7 @@ export const useScanStore = create<ScanStore>((set, get) => ({
     averageScore: 0,
     bestScore: 0,
     streak: 0,
+    totalScans: 0
   },
   isLoading: false,
   
@@ -63,6 +65,16 @@ export const useScanStore = create<ScanStore>((set, get) => ({
         console.log("No user ID available for fetching stats");
         set({ isLoading: false });
         return;
+      }
+      
+      // Get total scan count
+      const { count: totalScans, error: countError } = await supabase
+        .from('style_analyses')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+        
+      if (countError) {
+        console.error('Error fetching scan count:', countError);
       }
       
       // Fetch average score
@@ -97,7 +109,7 @@ export const useScanStore = create<ScanStore>((set, get) => ({
         .eq('user_id', userId)
         .order('scan_date', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
         
       let streak = 0;
       
@@ -109,7 +121,8 @@ export const useScanStore = create<ScanStore>((set, get) => ({
         styleStats: {
           averageScore,
           bestScore,
-          streak
+          streak,
+          totalScans: totalScans || 0
         },
         isLoading: false
       });
