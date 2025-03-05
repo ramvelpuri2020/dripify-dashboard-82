@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Upload, X } from "lucide-react";
+import { User, Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -34,7 +34,8 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
       const { data, error } = await supabase.storage
         .from('avatars')
         .upload(fileName, file, {
-          upsert: true
+          upsert: true,
+          cacheControl: '3600'
         });
 
       if (error) {
@@ -104,24 +105,28 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
       await uploadAvatar(file);
     } catch (error) {
       console.error('Error handling file:', error);
+      setPreview(avatarUrl); // Reset preview on error
     }
   };
 
   const removeAvatar = async () => {
     try {
-      if (!avatarUrl || !userId) return;
+      if (!preview || !userId) return;
       
-      // Extract filename from URL
-      const urlParts = avatarUrl.split('/');
-      const fileName = urlParts[urlParts.length - 2] + '/' + urlParts[urlParts.length - 1];
-      
-      // Delete from storage
-      const { error: deleteError } = await supabase.storage
-        .from('avatars')
-        .remove([fileName]);
+      // Only attempt to delete from storage if it's a Supabase URL
+      if (avatarUrl && avatarUrl.includes('supabase')) {
+        // Extract filename from URL
+        const urlParts = avatarUrl.split('/');
+        const fileName = urlParts[urlParts.length - 2] + '/' + urlParts[urlParts.length - 1];
         
-      if (deleteError) {
-        console.error('Error deleting avatar from storage:', deleteError);
+        // Delete from storage
+        const { error: deleteError } = await supabase.storage
+          .from('avatars')
+          .remove([fileName]);
+          
+        if (deleteError) {
+          console.error('Error deleting avatar from storage:', deleteError);
+        }
       }
       
       // Update profile
@@ -162,35 +167,36 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
           </AvatarFallback>
         </Avatar>
         
-        <div className="absolute -bottom-3 flex space-x-2 left-1/2 transform -translate-x-1/2">
+        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2">
           <div className="relative">
-            <Button
-              size="icon"
-              className="rounded-full bg-[#9b87f5] hover:bg-[#8671e0] h-8 w-8"
+            <input 
+              type="file"
+              id="avatar-upload"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              onChange={handleFileChange}
+              accept="image/*"
               disabled={uploading}
+            />
+            <label 
+              htmlFor="avatar-upload" 
+              className={`inline-flex items-center justify-center rounded-full w-8 h-8 ${preview ? 'bg-[#9b87f5] hover:bg-[#8671e0]' : 'bg-purple-500 hover:bg-purple-600'} cursor-pointer transition-colors`}
             >
-              <Upload className="h-4 w-4" />
-              <input 
-                type="file"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                onChange={handleFileChange}
-                accept="image/*"
+              <Camera className="h-4 w-4 text-white" />
+            </label>
+            
+            {preview && (
+              <Button
+                type="button"
+                size="icon"
+                variant="destructive"
+                className="rounded-full h-8 w-8 ml-2"
+                onClick={removeAvatar}
                 disabled={uploading}
-              />
-            </Button>
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
-          
-          {preview && (
-            <Button
-              size="icon"
-              variant="destructive"
-              className="rounded-full h-8 w-8"
-              onClick={removeAvatar}
-              disabled={uploading}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
         </div>
       </div>
       
@@ -199,6 +205,12 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
           {username || "User"}
         </h2>
       </div>
+      
+      {uploading && (
+        <div className="text-center text-sm text-white/60">
+          Uploading...
+        </div>
+      )}
     </div>
   );
 };
