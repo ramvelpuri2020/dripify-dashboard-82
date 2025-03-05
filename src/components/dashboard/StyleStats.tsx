@@ -9,9 +9,15 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface StyleStatsProps {
   hasScans: boolean;
+  stats?: {
+    averageScore: number;
+    streak: number;
+    totalScans: number;
+    bestScore: number;
+  };
 }
 
-export const StyleStats = ({ hasScans }: StyleStatsProps) => {
+export const StyleStats = ({ hasScans, stats }: StyleStatsProps) => {
   const { styleStats, fetchUserStats } = useScanStore();
   
   useEffect(() => {
@@ -22,7 +28,10 @@ export const StyleStats = ({ hasScans }: StyleStatsProps) => {
       }
     };
     
-    fetchStats();
+    // Only fetch from store if stats prop is not provided
+    if (!stats) {
+      fetchStats();
+    }
     
     // Set up real-time subscription for style_analyses table
     const channel = supabase
@@ -35,7 +44,9 @@ export const StyleStats = ({ hasScans }: StyleStatsProps) => {
           table: 'style_analyses'
         },
         () => {
-          fetchStats();
+          if (!stats) {
+            fetchStats();
+          }
         }
       )
       .subscribe();
@@ -43,23 +54,26 @@ export const StyleStats = ({ hasScans }: StyleStatsProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchUserStats]);
+  }, [fetchUserStats, stats]);
+
+  // Use provided stats or fall back to store stats
+  const displayStats = stats || styleStats;
 
   const styleStatsData = [{
     title: "Style Score",
-    value: hasScans ? `${styleStats.averageScore}` : "--",
+    value: hasScans ? `${displayStats.averageScore}` : "--",
     icon: Trophy,
     color: "text-[#9b87f5]",
     emptyState: "Take your first style scan!"
   }, {
     title: "Best Score",
-    value: hasScans ? `${styleStats.bestScore}` : "--",
+    value: hasScans ? `${displayStats.bestScore}` : "--",
     icon: TrendingUp,
     color: "text-[#7E69AB]",
     emptyState: "Start scanning outfits"
   }, {
     title: "Style Streak",
-    value: hasScans ? `${styleStats.streak} ${styleStats.streak === 1 ? 'day' : 'days'}` : "--",
+    value: hasScans ? `${displayStats.streak} ${displayStats.streak === 1 ? 'day' : 'days'}` : "--",
     icon: Flame,
     color: "text-[#D6BCFA]",
     emptyState: "Start your streak"

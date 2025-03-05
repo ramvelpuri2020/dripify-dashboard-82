@@ -8,6 +8,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/components/ui/use-toast";
 
+interface Breakdown {
+  category: string;
+  score: number;
+  emoji?: string;
+  details?: string;
+}
+
 const Profile = () => {
   const [profile, setProfile] = useState<{ username: string; avatar_url: string | null } | null>(null);
   const [styleStats, setStyleStats] = useState({
@@ -96,17 +103,23 @@ const Profile = () => {
     let bestCategory = '';
     if (analyses && analyses.length > 0) {
       // Process breakdown data to find best category
-      const categoryScores = {};
+      const categoryScores: Record<string, { total: number; count: number }> = {};
       
       analyses.forEach(analysis => {
         if (analysis.breakdown && Array.isArray(analysis.breakdown)) {
-          analysis.breakdown.forEach(item => {
-            if (item.category && item.score) {
-              if (!categoryScores[item.category]) {
-                categoryScores[item.category] = { total: 0, count: 0 };
+          // Type assertion to handle JSON properly
+          const breakdownArray = analysis.breakdown as Breakdown[];
+          
+          breakdownArray.forEach(item => {
+            if (item && typeof item === 'object' && 'category' in item && 'score' in item) {
+              const category = item.category;
+              const score = item.score;
+              
+              if (!categoryScores[category]) {
+                categoryScores[category] = { total: 0, count: 0 };
               }
-              categoryScores[item.category].total += item.score;
-              categoryScores[item.category].count += 1;
+              categoryScores[category].total += score;
+              categoryScores[category].count += 1;
             }
           });
         }
@@ -146,7 +159,7 @@ const Profile = () => {
     }
 
     // Set improved categories (this is a placeholder - would need more data to calculate properly)
-    const improvedCategories = Math.min(3, Math.floor(totalScans / 4)); // Just a placeholder calculation
+    const improvedCategories = Math.min(3, Math.floor(totalScans || 0 / 4)); // Just a placeholder calculation
 
     setStyleStats({
       totalScans: totalScans || 0,
