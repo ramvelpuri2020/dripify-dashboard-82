@@ -1,12 +1,14 @@
 
 import { useState, useEffect } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { User } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/components/ui/use-toast";
+import { AvatarUpload } from "@/components/profile/AvatarUpload";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface Breakdown {
   category: string;
@@ -16,7 +18,7 @@ interface Breakdown {
 }
 
 const Profile = () => {
-  const [profile, setProfile] = useState<{ username: string; avatar_url: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ username: string; avatar_url: string | null, id: string } | null>(null);
   const [styleStats, setStyleStats] = useState({
     totalScans: 0,
     averageScore: 0,
@@ -28,6 +30,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProfile();
@@ -80,42 +83,53 @@ const Profile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('username, avatar_url')
+        .select('username, avatar_url, id')
         .eq('id', user.id)
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error('Error fetching profile:', error);
-        toast({
-          title: "Error loading profile",
-          description: "Could not load profile information",
-          variant: "destructive",
-        });
+        
+        if (error.code === 'PGRST116') {
+          // Create a profile if it doesn't exist
+          const username = user.email?.split('@')[0] || 'User';
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              username
+            });
+
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+            toast({
+              title: "Error creating profile",
+              description: "Could not create a profile for you",
+              variant: "destructive",
+            });
+          } else {
+            setProfile({
+              username,
+              avatar_url: null,
+              id: user.id
+            });
+          }
+        } else {
+          toast({
+            title: "Error loading profile",
+            description: "Could not load profile information",
+            variant: "destructive",
+          });
+        }
         return;
       }
 
       if (data) {
         setProfile({
           username: data.username || user.email?.split('@')[0] || 'User',
-          avatar_url: data.avatar_url
+          avatar_url: data.avatar_url,
+          id: user.id
         });
-      } else {
-        // Create a profile if it doesn't exist
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            username: user.email?.split('@')[0] || 'User'
-          });
-
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
-        } else {
-          setProfile({
-            username: user.email?.split('@')[0] || 'User',
-            avatar_url: null
-          });
-        }
       }
     } catch (error) {
       console.error('Error in fetchProfile:', error);
@@ -178,7 +192,7 @@ const Profile = () => {
         analyses.forEach(analysis => {
           if (analysis.breakdown && Array.isArray(analysis.breakdown)) {
             // Safe type casting with runtime checks
-            analysis.breakdown.forEach((item: any) => {
+            (analysis.breakdown as unknown as Breakdown[]).forEach((item) => {
               if (item && typeof item === 'object' && 'category' in item && 'score' in item) {
                 const category = item.category as string;
                 const score = item.score as number;
@@ -237,14 +251,14 @@ const Profile = () => {
           const oldCategories: Record<string, number> = {};
           
           // Process older breakdown
-          (oldestAnalysis.breakdown as any[]).forEach((item: any) => {
+          (oldestAnalysis.breakdown as unknown as Breakdown[]).forEach((item) => {
             if (item && typeof item === 'object' && 'category' in item && 'score' in item) {
               oldCategories[item.category] = item.score;
             }
           });
           
           // Compare with newer breakdown
-          (newestAnalysis.breakdown as any[]).forEach((item: any) => {
+          (newestAnalysis.breakdown as unknown as Breakdown[]).forEach((item) => {
             if (item && typeof item === 'object' && 'category' in item && 'score' in item) {
               if (oldCategories[item.category] && item.score > oldCategories[item.category]) {
                 improvedCategories++;
@@ -269,6 +283,15 @@ const Profile = () => {
     }
   };
 
+  const handleAvatarUpdate = (url: string) => {
+    if (profile) {
+      setProfile({
+        ...profile,
+        avatar_url: url
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1A1F2C] to-[#2C1F3D] py-8 px-4 flex items-center justify-center">
@@ -284,28 +307,28 @@ const Profile = () => {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-2xl mx-auto space-y-6"
       >
+        <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            className="rounded-full p-2 text-white/70 hover:text-white hover:bg-white/10"
+            onClick={() => navigate('/')}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-medium text-white/90 ml-2">Profile</h1>
+        </div>
+
         <Card className="bg-black/20 backdrop-blur-lg border-white/10">
           <CardContent className="p-6">
             <div className="flex flex-col items-center space-y-4">
-              <div className="relative">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={profile?.avatar_url || ""} />
-                  <AvatarFallback>
-                    <User className="h-12 w-12 text-white/60" />
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-
-              <div className="space-y-4 w-full max-w-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white/60">Username</p>
-                    <p className="text-xl font-semibold text-white">
-                      {profile?.username || "Loading..."}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {profile && (
+                <AvatarUpload 
+                  avatarUrl={profile.avatar_url} 
+                  userId={profile.id}
+                  username={profile.username}
+                  onAvatarUpdate={handleAvatarUpdate}
+                />
+              )}
             </div>
           </CardContent>
         </Card>
