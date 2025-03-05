@@ -1,4 +1,6 @@
+
 import { supabase } from '@/integrations/supabase/client';
+import { useScanStore } from '@/store/scanStore';
 
 export interface StyleAnalysisResult {
   totalScore: number;
@@ -42,7 +44,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       throw new Error('Invalid response format from OpenAI');
     }
 
-    return {
+    const result = {
       totalScore: data.totalScore,
       breakdown: data.breakdown,
       feedback: data.feedback,
@@ -50,9 +52,66 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       nextLevelTips: data.nextLevelTips || []
     };
 
+    // Save analysis to Supabase
+    saveAnalysisToSupabase(result, imageFile);
+
+    // Update the scan store with the new analysis
+    const store = useScanStore.getState();
+    store.setLatestScan(result);
+    store.fetchUserStats();
+
+    return result;
+
   } catch (error) {
     console.error('Error analyzing style:', error);
     throw error;
+  }
+};
+
+const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: File) => {
+  try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.log('No user logged in, skipping save to Supabase');
+      return;
+    }
+
+    // Upload image to Supabase Storage
+    const fileName = `outfit_${Date.now()}_${imageFile.name.replace(/\s+/g, '_')}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('outfit_images')
+      .upload(`public/${fileName}`, imageFile);
+
+    if (uploadError) {
+      console.error('Error uploading image:', uploadError);
+      return;
+    }
+
+    // Get public URL for the uploaded image
+    const { data: { publicUrl } } = supabase.storage
+      .from('outfit_images')
+      .getPublicUrl(`public/${fileName}`);
+
+    // Store analysis in Supabase database
+    const { data, error } = await supabase
+      .from('style_analyses')
+      .insert({
+        user_id: user.id,
+        total_score: result.totalScore,
+        breakdown: result.breakdown,
+        feedback: result.feedback,
+        tips: result.styleTips,
+        image_url: publicUrl,
+        scan_date: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('Error saving analysis to database:', error);
+    }
+
+  } catch (error) {
+    console.error('Error in saveAnalysisToSupabase:', error);
   }
 };
 

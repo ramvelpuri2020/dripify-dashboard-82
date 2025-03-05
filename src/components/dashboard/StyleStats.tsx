@@ -1,34 +1,65 @@
 
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Trophy, TrendingUp, Flame } from "lucide-react";
+import { useScanStore } from "@/store/scanStore";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StyleStatsProps {
   hasScans: boolean;
-  stats: {
-    averageScore: number;
-    bestScore: number;
-    streak: number;
-  };
 }
 
-export const StyleStats = ({ hasScans, stats }: StyleStatsProps) => {
-  const styleStats = [{
+export const StyleStats = ({ hasScans }: StyleStatsProps) => {
+  const { styleStats, fetchUserStats } = useScanStore();
+  
+  useEffect(() => {
+    const fetchStats = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        fetchUserStats(user.id);
+      }
+    };
+    
+    fetchStats();
+    
+    // Set up real-time subscription for style_analyses table
+    const channel = supabase
+      .channel('style_stats_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'style_analyses'
+        },
+        () => {
+          fetchStats();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchUserStats]);
+
+  const styleStatsData = [{
     title: "Style Score",
-    value: hasScans ? `${stats.averageScore}` : "--",
+    value: hasScans ? `${styleStats.averageScore}` : "--",
     icon: Trophy,
     color: "text-[#9b87f5]",
     emptyState: "Take your first style scan!"
   }, {
     title: "Best Score",
-    value: hasScans ? `${stats.bestScore}` : "--",
+    value: hasScans ? `${styleStats.bestScore}` : "--",
     icon: TrendingUp,
     color: "text-[#7E69AB]",
     emptyState: "Start scanning outfits"
   }, {
     title: "Style Streak",
-    value: hasScans ? `${stats.streak} ${stats.streak === 1 ? 'day' : 'days'}` : "--",
+    value: hasScans ? `${styleStats.streak} ${styleStats.streak === 1 ? 'day' : 'days'}` : "--",
     icon: Flame,
     color: "text-[#D6BCFA]",
     emptyState: "Start your streak"
@@ -36,7 +67,7 @@ export const StyleStats = ({ hasScans, stats }: StyleStatsProps) => {
 
   return (
     <div className="grid grid-cols-3 gap-3">
-      {styleStats.map((stat, index) => (
+      {styleStatsData.map((stat, index) => (
         <motion.div
           key={stat.title}
           initial={{ opacity: 0, y: 20 }}
