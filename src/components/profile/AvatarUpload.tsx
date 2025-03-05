@@ -39,6 +39,7 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
         });
 
       if (error) {
+        console.error('Storage upload error:', error);
         throw error;
       }
 
@@ -54,6 +55,7 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
         .eq('id', userId);
 
       if (updateError) {
+        console.error('Profile update error:', updateError);
         throw updateError;
       }
 
@@ -103,9 +105,23 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
       
       // Upload the file
       await uploadAvatar(file);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error handling file:', error);
       setPreview(avatarUrl); // Reset preview on error
+      
+      // Display a more specific error message based on the error
+      let errorMessage = "There was an error uploading your avatar.";
+      if (error.statusCode === "403") {
+        errorMessage = "Permission denied. Please try logging in again.";
+      } else if (error.message?.includes("storage")) {
+        errorMessage = "Storage error. Please try a different image format.";
+      }
+      
+      toast({
+        title: "Upload failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
@@ -113,19 +129,26 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
     try {
       if (!preview || !userId) return;
       
+      setUploading(true);
+      
       // Only attempt to delete from storage if it's a Supabase URL
       if (avatarUrl && avatarUrl.includes('supabase')) {
-        // Extract filename from URL
-        const urlParts = avatarUrl.split('/');
-        const fileName = urlParts[urlParts.length - 2] + '/' + urlParts[urlParts.length - 1];
-        
-        // Delete from storage
-        const { error: deleteError } = await supabase.storage
-          .from('avatars')
-          .remove([fileName]);
+        try {
+          // Extract filename from URL
+          const urlParts = avatarUrl.split('/');
+          const fileName = urlParts[urlParts.length - 2] + '/' + urlParts[urlParts.length - 1];
           
-        if (deleteError) {
-          console.error('Error deleting avatar from storage:', deleteError);
+          // Delete from storage
+          const { error: deleteError } = await supabase.storage
+            .from('avatars')
+            .remove([fileName]);
+            
+          if (deleteError) {
+            console.error('Error deleting avatar from storage:', deleteError);
+          }
+        } catch (err) {
+          console.error('Error parsing avatar URL for deletion:', err);
+          // Continue with profile update even if storage deletion fails
         }
       }
       
@@ -154,6 +177,8 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
         description: "There was an error removing your avatar.",
         variant: "destructive",
       });
+    } finally {
+      setUploading(false);
     }
   };
 
