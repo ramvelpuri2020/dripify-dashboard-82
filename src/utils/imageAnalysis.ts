@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 
@@ -26,9 +27,9 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       reader.readAsDataURL(imageFile);
     });
 
-    console.log('Calling analyze-style function with OpenAI model...');
+    console.log('Calling analyze-style function...');
     const { data, error } = await supabase.functions.invoke('analyze-style', {
-      body: { image: base64Image }
+      body: { image: base64Image, style: "casual" }
     });
 
     if (error) {
@@ -40,7 +41,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     if (!data || !data.totalScore || !data.breakdown || !data.feedback) {
       console.error('Invalid response format:', data);
-      throw new Error('Invalid response format from analysis');
+      throw new Error('Invalid response format from OpenAI');
     }
 
     const result = {
