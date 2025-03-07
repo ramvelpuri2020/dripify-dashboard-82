@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { HfInference } from "https://esm.sh/@huggingface/inference@2.5.0";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,46 +14,71 @@ serve(async (req) => {
 
   try {
     const { image } = await req.json();
-    console.log('Starting style analysis with Hugging Face models');
+    console.log('Starting style analysis with OpenAI model');
 
-    // Get Hugging Face API key from environment variable
-    const hfApiKey = Deno.env.get('HUGGING_FACE_API_KEY');
-    if (!hfApiKey) {
-      throw new Error('Hugging Face API key not configured');
+    // Get OpenAI API key from environment variable
+    const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAiApiKey) {
+      throw new Error('OpenAI API key not configured');
     }
 
-    const hf = new HfInference(hfApiKey);
-    
-    // First, use a vision model to analyze the image
-    console.log('Analyzing image with vision model...');
-    const visionAnalysis = await hf.imageClassification({
-      model: 'google/vit-base-patch16-224',
-      data: image,
+    // Call the OpenAI API with the image
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a professional fashion stylist with years of experience working with high-end clients.
+            Analyze the outfit in the image and provide a detailed, authentic style assessment.
+            Be direct, honest, and specific - like a real stylist would be, not overly positive or generic like AI typically is.
+            Focus on details like fit, color combinations, fabric choices, proportions, and overall cohesion.
+            Rate different categories from 1-10, explain scores, and give actionable advice.
+            DO NOT be artificially complimentary - point out real issues.
+            Structure your response with:
+            1. Overall score (1-10)
+            2. Detailed breakdown with scores for: Overall Style, Color Coordination, Fit & Proportion, Accessories, Trend Alignment, and Style Expression
+            3. Honest, brief feedback paragraph
+            4. Specific style tips for each category
+            5. Next-level suggestions for wardrobe improvement`
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: {
+                  url: image
+                }
+              },
+              {
+                type: 'text',
+                text: 'Analyze this outfit with honest, professional feedback.'
+              }
+            ]
+          }
+        ],
+        max_tokens: 1000
+      }),
     });
+
+    const openaiResponse = await response.json();
+    console.log('OpenAI response received');
     
-    console.log('Vision analysis completed', visionAnalysis);
-    
-    // Then use a text model to generate a comprehensive style analysis
-    const stylePrompt = `Analyze this outfit's fashion style. The image contains: ${visionAnalysis.map(item => item.label).join(', ')}. 
-    Provide a detailed style assessment with scores between 1-10 for different categories.`;
-    
-    console.log('Generating style analysis with text model...');
-    const styleAnalysis = await hf.textGeneration({
-      model: 'HuggingFaceH4/zephyr-7b-beta',
-      inputs: stylePrompt,
-      parameters: {
-        max_new_tokens: 1024,
-        temperature: 0.7,
-      }
-    });
-    
-    console.log('Text generation completed');
-    
-    // Process the raw text response into a structured format
-    const rawAnalysis = styleAnalysis.generated_text;
+    if (!openaiResponse.choices || !openaiResponse.choices[0] || !openaiResponse.choices[0].message) {
+      console.error('Invalid response from OpenAI:', openaiResponse);
+      throw new Error('Invalid response from OpenAI');
+    }
+
+    const rawAnalysis = openaiResponse.choices[0].message.content;
     console.log('Raw analysis:', rawAnalysis);
     
-    // Parse the analysis into our expected format
+    // Process the raw text analysis into a structured format
     const result = processRawAnalysis(rawAnalysis);
     
     return new Response(JSON.stringify(result), { 
@@ -174,7 +199,7 @@ function processRawAnalysis(rawText) {
     };
     
     // Try to extract scores and categories from the raw text
-    const scorePattern = /(\w+(\s\w+)*)\s*:\s*(\d+)/g;
+    const scorePattern = /(\w+(\s\w+)*)\s*[:]\s*(\d+)/g;
     const matches = [...rawText.matchAll(scorePattern)];
     
     if (matches.length > 0) {
@@ -196,7 +221,7 @@ function processRawAnalysis(rawText) {
           category,
           score,
           emoji,
-          details: `Scored ${score}/10 based on analysis.`
+          details: extractDetailForCategory(rawText, category) || `Scored ${score}/10 based on analysis.`
         };
       });
       
@@ -210,34 +235,43 @@ function processRawAnalysis(rawText) {
       defaultResult.breakdown = extractedBreakdown;
       
       // Try to extract overall feedback
-      const feedbackMatch = rawText.match(/overall(.*?)(?=\n|$)/i);
+      const feedbackMatch = rawText.match(/feedback[:\s]+(.*?)(?=\n\n|\n[A-Z]|$)/is);
       if (feedbackMatch && feedbackMatch[1]) {
         defaultResult.feedback = feedbackMatch[1].trim();
+      } else {
+        // Alternative extraction method for feedback
+        const paragraphs = rawText.split('\n\n');
+        for (const paragraph of paragraphs) {
+          if (paragraph.length > 50 && !paragraph.includes(':') && !paragraph.match(/^\d+\./)) {
+            defaultResult.feedback = paragraph.trim();
+            break;
+          }
+        }
       }
     }
     
-    // Try to extract tips if possible
-    const tipsPattern = /(Tip|Suggestion)s? for (.+?):\s*(.+?)(?=\n\n|\n[A-Z]|$)/gsi;
-    const tipMatches = [...rawText.matchAll(tipsPattern)];
+    // Extract tips more aggressively
+    const extractedTips = [];
+    const categories = defaultResult.breakdown.map(item => item.category);
     
-    if (tipMatches.length > 0) {
-      const extractedTips = tipMatches.map(match => {
-        const category = match[2].trim();
-        const tipsText = match[3].trim();
-        const tipsList = tipsText
-          .split(/\d+\.|•|-)/)
-          .map(tip => tip.trim())
-          .filter(tip => tip.length > 0);
-        
-        return {
+    for (const category of categories) {
+      const tipsForCategory = extractTipsForCategory(rawText, category);
+      if (tipsForCategory.length > 0) {
+        extractedTips.push({
           category,
-          tips: tipsList.length > 0 ? tipsList : ["Consider refinements in this area", "Look for inspiration online", "Experiment with different options"]
-        };
-      });
-      
-      if (extractedTips.length > 0) {
-        defaultResult.styleTips = extractedTips;
+          tips: tipsForCategory
+        });
       }
+    }
+    
+    if (extractedTips.length > 0) {
+      defaultResult.styleTips = extractedTips;
+    }
+    
+    // Extract next level tips
+    const nextLevelTips = extractNextLevelTips(rawText);
+    if (nextLevelTips.length > 0) {
+      defaultResult.nextLevelTips = nextLevelTips;
     }
     
     return defaultResult;
@@ -250,10 +284,10 @@ function processRawAnalysis(rawText) {
           category: "Overall Style",
           score: 7,
           emoji: "👑",
-          details: "AI detected elements of style in this outfit."
+          details: "Stylistic elements were detected in this outfit."
         }
       ],
-      feedback: "The AI processed this image but encountered an error in detailed analysis. The outfit appears to have good elements of style.",
+      feedback: "The style analysis encountered a technical issue. The outfit appears to have good elements of style based on initial assessment.",
       styleTips: [
         {
           category: "General",
@@ -263,4 +297,78 @@ function processRawAnalysis(rawText) {
       nextLevelTips: ["Develop a personal style guide", "Study fashion basics", "Create outfit combinations"]
     };
   }
+}
+
+// Helper function to extract details for a specific category
+function extractDetailForCategory(text, category) {
+  const escapedCategory = category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const detailsPattern = new RegExp(`${escapedCategory}[:\\s]+\\d+[^\\n]*(.*?)(?=\\n\\s*[A-Z]|\\n\\n|$)`, 'is');
+  const match = text.match(detailsPattern);
+  return match && match[1] ? match[1].trim() : null;
+}
+
+// Helper function to extract tips for a specific category
+function extractTipsForCategory(text, category) {
+  const escapedCategory = category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  
+  // Try to find a section with tips for this category
+  const tipsPattern = new RegExp(`(?:Tips|Suggestions|Advice|Recommendations)\\s+for\\s+${escapedCategory}[:\\s]+(.*?)(?=\\n\\s*[A-Z]|\\n\\n|$)`, 'is');
+  const match = text.match(tipsPattern);
+  
+  if (match && match[1]) {
+    // Extract bullet points or numbered list
+    return match[1]
+      .split(/(?:\r?\n|-)/)
+      .map(tip => tip.trim().replace(/^\d+\.|\*|\•/, '').trim())
+      .filter(tip => tip.length > 5);
+  }
+  
+  // Alternative strategy: look for parts mentioning the category with action verbs
+  const parts = text.split('\n');
+  const categoryTips = [];
+  
+  for (const part of parts) {
+    if (part.toLowerCase().includes(category.toLowerCase()) && 
+        (part.includes('Try') || part.includes('Consider') || part.includes('Add') || 
+         part.includes('Choose') || part.includes('Avoid') || part.includes('Focus'))) {
+      const tip = part.trim().replace(/^\d+\.|\*|\•/, '').trim();
+      if (tip.length > 5) {
+        categoryTips.push(tip);
+      }
+    }
+  }
+  
+  return categoryTips.length > 0 ? categoryTips : [];
+}
+
+// Helper function to extract next level tips
+function extractNextLevelTips(text) {
+  // Look for sections that might contain next level tips
+  const nextLevelSectionPattern = /(?:Next Level|Advanced|To Elevate|Future|Improvement)[^:]*:?\s*(.*?)(?=\n\s*[A-Z]|\n\n|$)/is;
+  const sectionMatch = text.match(nextLevelSectionPattern);
+  
+  if (sectionMatch && sectionMatch[1]) {
+    // Extract bullet points or numbered list
+    return sectionMatch[1]
+      .split(/(?:\r?\n|-)/)
+      .map(tip => tip.trim().replace(/^\d+\.|\*|\•/, '').trim())
+      .filter(tip => tip.length > 5);
+  }
+  
+  // Alternative strategy: look for advanced recommendations in the text
+  const parts = text.split('\n');
+  const advancedTips = [];
+  
+  for (const part of parts) {
+    if ((part.includes('advanced') || part.includes('next level') || part.includes('elevate') || 
+         part.includes('improve') || part.includes('upgrade')) && 
+        (part.includes('wardrobe') || part.includes('style') || part.includes('fashion'))) {
+      const tip = part.trim().replace(/^\d+\.|\*|\•/, '').trim();
+      if (tip.length > 5) {
+        advancedTips.push(tip);
+      }
+    }
+  }
+  
+  return advancedTips.length > 0 ? advancedTips : [];
 }

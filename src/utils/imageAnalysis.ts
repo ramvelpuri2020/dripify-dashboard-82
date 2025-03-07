@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 
@@ -27,7 +26,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       reader.readAsDataURL(imageFile);
     });
 
-    console.log('Calling analyze-style function with Hugging Face models...');
+    console.log('Calling analyze-style function with OpenAI model...');
     const { data, error } = await supabase.functions.invoke('analyze-style', {
       body: { image: base64Image }
     });
