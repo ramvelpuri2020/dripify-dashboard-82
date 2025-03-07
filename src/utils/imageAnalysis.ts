@@ -27,9 +27,9 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       reader.readAsDataURL(imageFile);
     });
 
-    console.log('Calling analyze-style function...');
+    console.log('Calling analyze-style function with Hugging Face models...');
     const { data, error } = await supabase.functions.invoke('analyze-style', {
-      body: { image: base64Image, style: "casual" }
+      body: { image: base64Image }
     });
 
     if (error) {
@@ -41,7 +41,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     if (!data || !data.totalScore || !data.breakdown || !data.feedback) {
       console.error('Invalid response format:', data);
-      throw new Error('Invalid response format from OpenAI');
+      throw new Error('Invalid response format from analysis');
     }
 
     const result = {
