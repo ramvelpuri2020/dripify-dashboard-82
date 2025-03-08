@@ -6,14 +6,50 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple rate limiting cache
+const rateLimitCache = new Map();
+const RATE_LIMIT_WINDOW = 3600000; // 1 hour in milliseconds
+const MAX_REQUESTS_PER_WINDOW = 10; // Maximum 10 requests per hour
+
+// Function to check rate limit
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const userRequests = rateLimitCache.get(userId) || [];
+  
+  // Filter out requests older than the rate limit window
+  const recentRequests = userRequests.filter(time => now - time < RATE_LIMIT_WINDOW);
+  
+  // Check if user has exceeded the rate limit
+  if (recentRequests.length >= MAX_REQUESTS_PER_WINDOW) {
+    return false;
+  }
+  
+  // Add current request time and update cache
+  recentRequests.push(now);
+  rateLimitCache.set(userId, recentRequests);
+  return true;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { image, style } = await req.json();
+    const { image, style, userId } = await req.json();
     console.log('Analyzing style for: ', style);
+
+    // Check rate limit if userId is provided
+    if (userId) {
+      if (!checkRateLimit(userId)) {
+        return new Response(JSON.stringify({ 
+          error: 'Rate limit exceeded. Please try again later.' 
+        }), { 
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+    }
 
     // Get RapidAPI key from environment variable
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
