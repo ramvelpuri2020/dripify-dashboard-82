@@ -20,10 +20,6 @@ export interface StyleAnalysisResult {
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
   try {
-    // Get current user for rate limiting
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id || null;
-
     // Convert image to base64
     const base64Image = await new Promise<string>((resolve) => {
       const reader = new FileReader();
@@ -33,11 +29,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     console.log('Calling analyze-style function...');
     const { data, error } = await supabase.functions.invoke('analyze-style', {
-      body: { 
-        image: base64Image, 
-        style: "casual",
-        userId: userId 
-      }
+      body: { image: base64Image, style: "casual" }
     });
 
     if (error) {
