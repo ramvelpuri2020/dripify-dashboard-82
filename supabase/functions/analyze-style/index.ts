@@ -110,8 +110,12 @@ serve(async (req) => {
       throw new Error('Invalid response from RapidAPI');
     }
 
-    // Parse the initial style analysis
-    const parsedStyleResponse = JSON.parse(styleData.choices[0].message.content);
+    // Parse the initial style analysis - clean up markdown code formatting if present
+    let styleContent = styleData.choices[0].message.content;
+    // Remove markdown code block formatting if present
+    styleContent = styleContent.replace(/```json\n|\n```|```/g, '');
+    
+    const parsedStyleResponse = JSON.parse(styleContent);
     
     // Now generate custom improvement tips based on the analysis
     const tipsResponse = await fetch('https://cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com/v1/chat/completions', {
@@ -194,8 +198,12 @@ serve(async (req) => {
       throw new Error('Invalid tips response from RapidAPI');
     }
 
-    // Parse the tips response
-    const parsedTipsResponse = JSON.parse(tipsData.choices[0].message.content);
+    // Parse the tips response - clean up markdown code formatting if present
+    let tipsContent = tipsData.choices[0].message.content;
+    // Remove markdown code block formatting if present
+    tipsContent = tipsContent.replace(/```json\n|\n```|```/g, '');
+    
+    const parsedTipsResponse = JSON.parse(tipsContent);
 
     // Combine both results
     const result = {
