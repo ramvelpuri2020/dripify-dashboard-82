@@ -49,7 +49,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     if (!data || !data.totalScore || !data.breakdown || !data.feedback) {
       console.error('Invalid response format:', data);
-      throw new Error('Invalid response format from AI service');
+      throw new Error('Invalid response format from OpenAI');
     }
 
     const result = {
