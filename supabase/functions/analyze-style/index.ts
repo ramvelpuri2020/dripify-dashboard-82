@@ -6,14 +6,50 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple rate limiting cache
+const rateLimitCache = new Map();
+const RATE_LIMIT_WINDOW = 3600000; // 1 hour in milliseconds
+const MAX_REQUESTS_PER_WINDOW = 10; // Maximum 10 requests per hour
+
+// Function to check rate limit
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const userRequests = rateLimitCache.get(userId) || [];
+  
+  // Filter out requests older than the rate limit window
+  const recentRequests = userRequests.filter(time => now - time < RATE_LIMIT_WINDOW);
+  
+  // Check if user has exceeded the rate limit
+  if (recentRequests.length >= MAX_REQUESTS_PER_WINDOW) {
+    return false;
+  }
+  
+  // Add current request time and update cache
+  recentRequests.push(now);
+  rateLimitCache.set(userId, recentRequests);
+  return true;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { image, style } = await req.json();
+    const { image, style, userId } = await req.json();
     console.log('Analyzing style for: ', style);
+
+    // Check rate limit if userId is provided
+    if (userId) {
+      if (!checkRateLimit(userId)) {
+        return new Response(JSON.stringify({ 
+          error: 'Rate limit exceeded. Please try again later.' 
+        }), { 
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+    }
 
     // Get RapidAPI key from environment variable
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
@@ -22,15 +58,14 @@ serve(async (req) => {
     }
 
     // First analysis for overall style assessment
-    const styleAnalysisResponse = await fetch('https://cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com/v1/chat/completions', {
+    const styleAnalysisResponse = await fetch('https://chatgpt-42.p.rapidapi.com/gpt4', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-rapidapi-host': 'cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com',
+        'x-rapidapi-host': 'chatgpt-42.p.rapidapi.com',
         'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -84,49 +119,47 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Analyze this outfit and provide a detailed style assessment.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: image
-                }
-              }
-            ]
+            content: `Analyze this outfit and provide a detailed style assessment. The image is encoded as base64: ${image}`
           }
         ],
-        temperature: 0.8,
-        max_tokens: 1000
+        web_access: false
       }),
     });
+
+    if (!styleAnalysisResponse.ok) {
+      console.error('API response not ok:', await styleAnalysisResponse.text());
+      throw new Error(`API response not ok: ${styleAnalysisResponse.status}`);
+    }
 
     const styleData = await styleAnalysisResponse.json();
     console.log('Style Analysis Response:', styleData);
 
-    if (!styleData.choices?.[0]?.message?.content) {
+    if (!styleData.gpt4 || !styleData.gpt4.content) {
       throw new Error('Invalid response from RapidAPI');
     }
 
     // Parse the initial style analysis - clean up markdown code formatting if present
-    let styleContent = styleData.choices[0].message.content;
+    let styleContent = styleData.gpt4.content;
     // Remove markdown code block formatting if present
     styleContent = styleContent.replace(/```json\n|\n```|```/g, '');
     
-    const parsedStyleResponse = JSON.parse(styleContent);
+    let parsedStyleResponse;
+    try {
+      parsedStyleResponse = JSON.parse(styleContent);
+    } catch (err) {
+      console.error('Error parsing style JSON:', err);
+      throw new Error('Failed to parse style analysis response');
+    }
     
     // Now generate custom improvement tips based on the analysis
-    const tipsResponse = await fetch('https://cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com/v1/chat/completions', {
+    const tipsResponse = await fetch('https://chatgpt-42.p.rapidapi.com/gpt4', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-rapidapi-host': 'cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com',
+        'x-rapidapi-host': 'chatgpt-42.p.rapidapi.com',
         'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -171,39 +204,38 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Here's the style analysis of this outfit: ${JSON.stringify(parsedStyleResponse)}. 
-                Generate specific improvement tips for each category based on this analysis and what you can see in the image.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: image
-                }
-              }
-            ]
+            content: `Here's the style analysis of this outfit: ${JSON.stringify(parsedStyleResponse)}. 
+            Generate specific improvement tips for each category based on this analysis and the image encoded as base64: ${image}`
           }
         ],
-        temperature: 0.8,
-        max_tokens: 1500
+        web_access: false
       }),
     });
+
+    if (!tipsResponse.ok) {
+      console.error('Tips API response not ok:', await tipsResponse.text());
+      throw new Error(`Tips API response not ok: ${tipsResponse.status}`);
+    }
 
     const tipsData = await tipsResponse.json();
     console.log('Tips Response:', tipsData);
 
-    if (!tipsData.choices?.[0]?.message?.content) {
+    if (!tipsData.gpt4 || !tipsData.gpt4.content) {
       throw new Error('Invalid tips response from RapidAPI');
     }
 
     // Parse the tips response - clean up markdown code formatting if present
-    let tipsContent = tipsData.choices[0].message.content;
+    let tipsContent = tipsData.gpt4.content;
     // Remove markdown code block formatting if present
     tipsContent = tipsContent.replace(/```json\n|\n```|```/g, '');
     
-    const parsedTipsResponse = JSON.parse(tipsContent);
+    let parsedTipsResponse;
+    try {
+      parsedTipsResponse = JSON.parse(tipsContent);
+    } catch (err) {
+      console.error('Error parsing tips JSON:', err);
+      throw new Error('Failed to parse tips response');
+    }
 
     // Combine both results
     const result = {
