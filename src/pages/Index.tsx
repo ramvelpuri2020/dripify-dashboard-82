@@ -1,3 +1,4 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardView } from "@/components/DashboardView";
 import { ScanView } from "@/components/ScanView";

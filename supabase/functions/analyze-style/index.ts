@@ -15,26 +15,28 @@ serve(async (req) => {
     const { image, style } = await req.json();
     console.log('Analyzing style for: ', style);
 
-    // Get OpenAI key from environment variable
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    // Get RapidAPI key from environment variable
+    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
+    if (!rapidApiKey) {
+      throw new Error('RapidAPI key not configured');
     }
 
     // First analysis for overall style assessment
-    const styleAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const styleAnalysisResponse = await fetch('https://cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
+        'x-rapidapi-host': 'cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com',
+        'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: `You're a fashion expert who analyzes outfits. 
-            Analyze the outfit and provide scores between 1-10 for each category.
+            content: `You're a fashion expert who analyzes outfits with brutal honesty. 
+            Analyze the outfit as if you're a real fashion expert who is direct and uses slang and industry terms naturally.
+            Provide scores between 1-10 for each category. Sound authentic and conversational, not like AI.
             Return ONLY valid JSON in this exact format:
 
             {
@@ -96,9 +98,8 @@ serve(async (req) => {
             ]
           }
         ],
-        response_format: { type: "json_object" },
-        max_tokens: 1000,
-        temperature: 0.7
+        temperature: 0.8,
+        max_tokens: 1000
       }),
     });
 
@@ -106,26 +107,28 @@ serve(async (req) => {
     console.log('Style Analysis Response:', styleData);
 
     if (!styleData.choices?.[0]?.message?.content) {
-      throw new Error('Invalid response from AI');
+      throw new Error('Invalid response from RapidAPI');
     }
 
     // Parse the initial style analysis
     const parsedStyleResponse = JSON.parse(styleData.choices[0].message.content);
     
     // Now generate custom improvement tips based on the analysis
-    const tipsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const tipsResponse = await fetch('https://cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
+        'x-rapidapi-host': 'cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com',
+        'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
             content: `You are a high-end fashion stylist who provides specific, actionable style improvement tips.
             Based on the style analysis provided, generate 3 specific improvement tips for each category.
+            Be authentic, direct, and conversational - use fashion lingo and slang naturally. Don't sound like AI.
             Each tip should be tailored to the specific outfit seen in the image and the scores provided.
             For categories with high scores (8-10), focus on refinement and advanced techniques.
             For categories with medium scores (5-7), focus on specific improvements.
@@ -179,9 +182,8 @@ serve(async (req) => {
             ]
           }
         ],
-        response_format: { type: "json_object" },
-        max_tokens: 1500,
-        temperature: 0.8
+        temperature: 0.8,
+        max_tokens: 1500
       }),
     });
 
@@ -189,7 +191,7 @@ serve(async (req) => {
     console.log('Tips Response:', tipsData);
 
     if (!tipsData.choices?.[0]?.message?.content) {
-      throw new Error('Invalid tips response from AI');
+      throw new Error('Invalid tips response from RapidAPI');
     }
 
     // Parse the tips response
