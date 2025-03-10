@@ -22,11 +22,11 @@ serve(async (req) => {
     }
 
     // First analysis for overall style assessment
-    const styleAnalysisResponse = await fetch('https://chatgpt-vision1.p.rapidapi.com/gpt4', {
+    const styleAnalysisResponse = await fetch('https://chatgpt-42.p.rapidapi.com/gpt4', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-rapidapi-host': 'chatgpt-vision1.p.rapidapi.com',
+        'x-rapidapi-host': 'chatgpt-42.p.rapidapi.com',
         'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
@@ -116,11 +116,11 @@ serve(async (req) => {
     const parsedStyleResponse = JSON.parse(styleContent);
     
     // Now generate custom improvement tips based on the analysis
-    const tipsResponse = await fetch('https://chatgpt-vision1.p.rapidapi.com/gpt4', {
+    const tipsResponse = await fetch('https://chatgpt-42.p.rapidapi.com/gpt4', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-rapidapi-host': 'chatgpt-vision1.p.rapidapi.com',
+        'x-rapidapi-host': 'chatgpt-42.p.rapidapi.com',
         'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
