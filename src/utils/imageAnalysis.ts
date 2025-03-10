@@ -32,13 +32,23 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     });
 
     console.log('Calling analyze-style function...');
-    const { data, error } = await supabase.functions.invoke('analyze-style', {
+    
+    // Set a timeout to handle cases where the function call might hang
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Analysis timed out after 30 seconds')), 30000);
+    });
+    
+    // Actual function call
+    const functionCallPromise = supabase.functions.invoke('analyze-style', {
       body: { 
         image: base64Image, 
         style: "casual",
         userId: userId 
       }
     });
+    
+    // Race between timeout and actual call
+    const { data, error } = await Promise.race([functionCallPromise, timeoutPromise]);
 
     if (error) {
       console.error('Supabase function error:', error);
