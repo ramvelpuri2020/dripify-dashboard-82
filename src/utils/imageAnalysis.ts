@@ -20,36 +20,17 @@ export interface StyleAnalysisResult {
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
   try {
-    // Get current user for rate limiting
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id || null;
-
     // Convert image to base64
-    const base64Image = await new Promise<string>((resolve, reject) => {
+    const base64Image = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Failed to read image file'));
       reader.readAsDataURL(imageFile);
     });
 
     console.log('Calling analyze-style function...');
-    
-    // Set a timeout to handle cases where the function call might hang
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Analysis timed out after 20 seconds')), 20000);
+    const { data, error } = await supabase.functions.invoke('analyze-style', {
+      body: { image: base64Image, style: "casual" }
     });
-    
-    // Actual function call
-    const functionCallPromise = supabase.functions.invoke('analyze-style', {
-      body: { 
-        image: base64Image, 
-        style: "casual",
-        userId: userId 
-      }
-    });
-    
-    // Race between timeout and actual call
-    const { data, error } = await Promise.race([functionCallPromise, timeoutPromise]);
 
     if (error) {
       console.error('Supabase function error:', error);
@@ -60,7 +41,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     if (!data || !data.totalScore || !data.breakdown || !data.feedback) {
       console.error('Invalid response format:', data);
-      throw new Error('Invalid response format from AI service');
+      throw new Error('Invalid response format from OpenAI');
     }
 
     const result = {
@@ -96,54 +77,21 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
       return;
     }
 
-    // Upload image to Supabase Storage with proper error handling
+    // Upload image to Supabase Storage
     const fileName = `outfit_${Date.now()}_${imageFile.name.replace(/\s+/g, '_')}`;
-    
-    // Make sure storage is initialized and bucket exists
-    const { data: bucketList, error: bucketError } = await supabase.storage.listBuckets();
-    
-    let storageError = null;
-    
-    // Check if outfit_images bucket exists
-    const outfitBucketExists = bucketList?.some(bucket => bucket.name === 'outfit_images');
-    
-    if (!outfitBucketExists) {
-      console.log('Creating outfit_images bucket...');
-      const { error } = await supabase.storage.createBucket('outfit_images', {
-        public: true
-      });
-      if (error) {
-        console.error('Error creating bucket:', error);
-        storageError = error;
-      }
-    }
-    
-    // If we encountered an error or bucket exists, try to upload
-    if (!storageError) {
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('outfit_images')
-        .upload(`public/${fileName}`, imageFile, {
-          cacheControl: '3600',
-          upsert: true
-        });
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('outfit_images')
+      .upload(`public/${fileName}`, imageFile);
 
-      if (uploadError) {
-        console.error('Error uploading image:', uploadError);
-        storageError = uploadError;
-      }
+    if (uploadError) {
+      console.error('Error uploading image:', uploadError);
+      return;
     }
 
-    // Get public URL for the uploaded image or use a placeholder if upload failed
-    let publicUrl = '';
-    if (!storageError) {
-      const { data: { publicUrl: url } } = supabase.storage
-        .from('outfit_images')
-        .getPublicUrl(`public/${fileName}`);
-      publicUrl = url;
-    } else {
-      // Use a placeholder image if upload failed
-      publicUrl = '/placeholder.svg';
-    }
+    // Get public URL for the uploaded image
+    const { data: { publicUrl } } = supabase.storage
+      .from('outfit_images')
+      .getPublicUrl(`public/${fileName}`);
 
     // Get the current date in ISO format
     const currentDate = new Date().toISOString();
