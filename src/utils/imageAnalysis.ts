@@ -25,9 +25,10 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     const userId = user?.id || null;
 
     // Convert image to base64
-    const base64Image = await new Promise<string>((resolve) => {
+    const base64Image = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read image file'));
       reader.readAsDataURL(imageFile);
     });
 
@@ -35,7 +36,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     
     // Set a timeout to handle cases where the function call might hang
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Analysis timed out after 30 seconds')), 30000);
+      setTimeout(() => reject(new Error('Analysis timed out after 20 seconds')), 20000);
     });
     
     // Actual function call
@@ -95,21 +96,54 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
       return;
     }
 
-    // Upload image to Supabase Storage
+    // Upload image to Supabase Storage with proper error handling
     const fileName = `outfit_${Date.now()}_${imageFile.name.replace(/\s+/g, '_')}`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('outfit_images')
-      .upload(`public/${fileName}`, imageFile);
+    
+    // Make sure storage is initialized and bucket exists
+    const { data: bucketList, error: bucketError } = await supabase.storage.listBuckets();
+    
+    let storageError = null;
+    
+    // Check if outfit_images bucket exists
+    const outfitBucketExists = bucketList?.some(bucket => bucket.name === 'outfit_images');
+    
+    if (!outfitBucketExists) {
+      console.log('Creating outfit_images bucket...');
+      const { error } = await supabase.storage.createBucket('outfit_images', {
+        public: true
+      });
+      if (error) {
+        console.error('Error creating bucket:', error);
+        storageError = error;
+      }
+    }
+    
+    // If we encountered an error or bucket exists, try to upload
+    if (!storageError) {
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('outfit_images')
+        .upload(`public/${fileName}`, imageFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
-    if (uploadError) {
-      console.error('Error uploading image:', uploadError);
-      return;
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        storageError = uploadError;
+      }
     }
 
-    // Get public URL for the uploaded image
-    const { data: { publicUrl } } = supabase.storage
-      .from('outfit_images')
-      .getPublicUrl(`public/${fileName}`);
+    // Get public URL for the uploaded image or use a placeholder if upload failed
+    let publicUrl = '';
+    if (!storageError) {
+      const { data: { publicUrl: url } } = supabase.storage
+        .from('outfit_images')
+        .getPublicUrl(`public/${fileName}`);
+      publicUrl = url;
+    } else {
+      // Use a placeholder image if upload failed
+      publicUrl = '/placeholder.svg';
+    }
 
     // Get the current date in ISO format
     const currentDate = new Date().toISOString();
