@@ -15,22 +15,21 @@ serve(async (req) => {
     const { image, style } = await req.json();
     console.log('Analyzing style for: ', style);
 
-    // Get RapidAPI key from environment variable
-    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
+    // Get RapidAPI key from environment variable or use the provided one
+    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY') || '520bb318e7msh5bb39f942a7871bp1a1941jsnc445b679bc78';
     if (!rapidApiKey) {
       throw new Error('RapidAPI key not configured');
     }
 
     // First analysis for overall style assessment
-    const styleAnalysisResponse = await fetch('https://cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com/v1/chat/completions', {
+    const styleAnalysisResponse = await fetch('https://chatgpt-vision1.p.rapidapi.com/gpt4', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-rapidapi-host': 'cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com',
+        'x-rapidapi-host': 'chatgpt-vision1.p.rapidapi.com',
         'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -98,8 +97,7 @@ serve(async (req) => {
             ]
           }
         ],
-        temperature: 0.8,
-        max_tokens: 1000
+        web_access: false
       }),
     });
 
@@ -118,15 +116,14 @@ serve(async (req) => {
     const parsedStyleResponse = JSON.parse(styleContent);
     
     // Now generate custom improvement tips based on the analysis
-    const tipsResponse = await fetch('https://cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com/v1/chat/completions', {
+    const tipsResponse = await fetch('https://chatgpt-vision1.p.rapidapi.com/gpt4', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-rapidapi-host': 'cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com',
+        'x-rapidapi-host': 'chatgpt-vision1.p.rapidapi.com',
         'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -186,8 +183,7 @@ serve(async (req) => {
             ]
           }
         ],
-        temperature: 0.8,
-        max_tokens: 1500
+        web_access: false
       }),
     });
 
