@@ -15,7 +15,6 @@ serve(async (req) => {
     const { image, style } = await req.json();
     console.log('Analyzing style for: ', style);
 
-    // Get RapidAPI key from environment variable or use the provided one
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY') || '520bb318e7msh5bb39f942a7871bp1a1941jsnc445b679bc78';
     if (!rapidApiKey) {
       throw new Error('RapidAPI key not configured');
@@ -104,16 +103,12 @@ serve(async (req) => {
     const styleData = await styleAnalysisResponse.json();
     console.log('Style Analysis Response:', styleData);
 
-    if (!styleData.choices?.[0]?.message?.content) {
-      throw new Error('Invalid response from RapidAPI');
+    if (!styleData.result) {
+      throw new Error('Invalid response format from RapidAPI');
     }
 
-    // Parse the initial style analysis - clean up markdown code formatting if present
-    let styleContent = styleData.choices[0].message.content;
-    // Remove markdown code block formatting if present
-    styleContent = styleContent.replace(/```json\n|\n```|```/g, '');
-    
-    const parsedStyleResponse = JSON.parse(styleContent);
+    // Parse the result string which contains the JSON response
+    const parsedStyleResponse = JSON.parse(styleData.result);
     
     // Now generate custom improvement tips based on the analysis
     const tipsResponse = await fetch('https://chatgpt-42.p.rapidapi.com/gpt4', {
@@ -190,16 +185,12 @@ serve(async (req) => {
     const tipsData = await tipsResponse.json();
     console.log('Tips Response:', tipsData);
 
-    if (!tipsData.choices?.[0]?.message?.content) {
+    if (!tipsData.result) {
       throw new Error('Invalid tips response from RapidAPI');
     }
 
-    // Parse the tips response - clean up markdown code formatting if present
-    let tipsContent = tipsData.choices[0].message.content;
-    // Remove markdown code block formatting if present
-    tipsContent = tipsContent.replace(/```json\n|\n```|```/g, '');
-    
-    const parsedTipsResponse = JSON.parse(tipsContent);
+    // Parse the tips response from the result string
+    const parsedTipsResponse = JSON.parse(tipsData.result);
 
     // Combine both results
     const result = {
