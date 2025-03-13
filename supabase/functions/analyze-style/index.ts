@@ -85,7 +85,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: `Analyze this outfit and provide a detailed style assessment.`
+                text: `Analyze this outfit and provide a detailed style assessment. YOUR RESPONSE MUST BE VALID JSON IN THE EXACT FORMAT SPECIFIED.`
               },
               {
                 type: 'image_url',
@@ -108,12 +108,83 @@ serve(async (req) => {
     const styleData = await styleAnalysisResponse.json();
     console.log('Style Analysis Response:', styleData);
 
+    // Function to convert text response to JSON format
+    const convertResponseToJson = (textResponse) => {
+      console.log('Converting text response to JSON:', textResponse);
+      
+      // Check if the response is already in JSON format
+      try {
+        return JSON.parse(textResponse);
+      } catch (e) {
+        console.log('Response is not in JSON format, parsing manually:', e);
+        
+        // Initialize result object
+        const result = {
+          totalScore: 0,
+          breakdown: [],
+          feedback: ""
+        };
+        
+        // Parse totalScore
+        const totalScoreMatch = textResponse.match(/Total Score.*?(\d+)\/50/i) || 
+                               textResponse.match(/Overall.*?(\d+)\/10/i);
+        if (totalScoreMatch) {
+          result.totalScore = parseInt(totalScoreMatch[1]);
+          // Convert to scale of 10 if needed
+          if (totalScoreMatch[0].includes('/50')) {
+            result.totalScore = Math.round(result.totalScore / 5);
+          }
+        }
+        
+        // Parse categories
+        const categories = [
+          { name: "Overall Style", emoji: "👑", regex: /Overall Style.*?(\d+)\/10(.*?)(?=\n\n|$)/is },
+          { name: "Color Coordination", emoji: "🎨", regex: /Color Coordination.*?(\d+)\/10(.*?)(?=\n\n|$)/is },
+          { name: "Fit & Proportion", emoji: "📏", regex: /Fit & Proportion.*?(\d+)\/10(.*?)(?=\n\n|$)/is },
+          { name: "Accessories", emoji: "⭐", regex: /Accessories.*?(\d+)\/10(.*?)(?=\n\n|$)/is },
+          { name: "Trend Alignment", emoji: "✨", regex: /Trend Alignment.*?(\d+)\/10(.*?)(?=\n\n|$)/is },
+          { name: "Style Expression", emoji: "🪄", regex: /Style Expression.*?(\d+)\/10(.*?)(?=\n\n|$)/is }
+        ];
+        
+        categories.forEach(cat => {
+          const match = textResponse.match(cat.regex);
+          if (match) {
+            result.breakdown.push({
+              category: cat.name,
+              score: parseInt(match[1]),
+              emoji: cat.emoji,
+              details: match[2].trim()
+            });
+          } else {
+            // Default values if category not found
+            result.breakdown.push({
+              category: cat.name,
+              score: 5,
+              emoji: cat.emoji,
+              details: "No specific details provided."
+            });
+          }
+        });
+        
+        // Parse feedback
+        const feedbackMatch = textResponse.match(/Feedback:?(.*?)(?=\n\n|$)/is);
+        if (feedbackMatch) {
+          result.feedback = feedbackMatch[1].trim();
+        } else {
+          result.feedback = "This outfit has some good elements but could use improvement in certain areas.";
+        }
+        
+        console.log('Converted JSON result:', result);
+        return result;
+      }
+    };
+
     if (!styleData.choices || !styleData.choices[0] || !styleData.choices[0].message || !styleData.choices[0].message.content) {
       throw new Error('Invalid response format from Together API');
     }
-
-    // Parse the response content which contains the JSON response
-    const parsedStyleResponse = JSON.parse(styleData.choices[0].message.content);
+    
+    // Convert text response to JSON
+    const parsedStyleResponse = convertResponseToJson(styleData.choices[0].message.content);
     
     // Now generate custom improvement tips based on the analysis
     const tipsResponse = await fetch('https://api.together.xyz/v1/chat/completions', {
@@ -172,7 +243,7 @@ serve(async (req) => {
               {
                 type: 'text',
                 text: `Here's the style analysis of this outfit: ${JSON.stringify(parsedStyleResponse)}. 
-                Generate specific improvement tips for each category based on this analysis and what you can see in the image.`
+                Generate specific improvement tips for each category based on this analysis and what you can see in the image. YOUR RESPONSE MUST BE VALID JSON IN THE EXACT FORMAT SPECIFIED.`
               },
               {
                 type: 'image_url',
@@ -200,7 +271,29 @@ serve(async (req) => {
     }
 
     // Parse the tips response from the result string
-    const parsedTipsResponse = JSON.parse(tipsData.choices[0].message.content);
+    let parsedTipsResponse;
+    try {
+      parsedTipsResponse = JSON.parse(tipsData.choices[0].message.content);
+    } catch (error) {
+      console.error('Error parsing tips JSON:', error);
+      // Provide a fallback if parsing fails
+      parsedTipsResponse = {
+        styleTips: parsedStyleResponse.breakdown.map(item => ({
+          category: item.category,
+          tips: [
+            `Consider ways to improve your ${item.category.toLowerCase()}.`,
+            `Look for inspiration to enhance your ${item.category.toLowerCase()}.`,
+            `Work on developing your ${item.category.toLowerCase()}.`
+          ]
+        })),
+        nextLevelTips: [
+          "Consider consulting with a personal stylist for tailored advice.",
+          "Invest in quality basics that will last longer and look better.",
+          "Study current fashion trends to update your wardrobe strategically.",
+          "Take photos of your outfits to review and refine your style choices."
+        ]
+      };
+    }
 
     // Combine both results
     const result = {
