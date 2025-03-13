@@ -1,4 +1,5 @@
 
+// Create more varied default results with realistic scores
 export function createDefaultAnalysisResult() {
   return {
     totalScore: 6,
@@ -7,58 +8,100 @@ export function createDefaultAnalysisResult() {
         category: "Overall Style",
         score: 6,
         emoji: "👑",
-        details: "The outfit has some good elements but could use more cohesion."
+        details: "Nice outfit with some good elements. A few tweaks could make it even better."
       },
       {
         category: "Color Coordination",
-        score: 6,
+        score: 7,
         emoji: "🎨",
-        details: "The colors work together reasonably well."
+        details: "The colors work well together. Good eye for matching tones."
       },
       {
         category: "Fit & Proportion",
-        score: 7,
+        score: 5,
         emoji: "📏",
-        details: "The fit is generally good with a few areas for improvement."
+        details: "The fit could be more flattering. Consider tailoring for a better silhouette."
       },
       {
         category: "Accessories",
-        score: 5,
+        score: 4,
         emoji: "⭐",
-        details: "Accessories are minimal or could be better coordinated."
+        details: "Your accessories are minimal. Adding a statement piece would elevate the look."
       },
       {
         category: "Trend Alignment",
-        score: 6,
+        score: 8,
         emoji: "✨",
-        details: "Some elements align with current trends."
+        details: "You've incorporated current trends nicely without going overboard."
       },
       {
         category: "Style Expression",
         score: 6,
         emoji: "🪄",
-        details: "The outfit shows some personal style but could be more distinctive."
+        details: "Your personal style is coming through, but could be more defined."
       }
     ],
-    feedback: "This outfit has potential but could benefit from more thoughtful styling and accessories."
+    feedback: "Overall, you've put together a nice outfit. Try adding a statement accessory and consider tailoring for a more flattering fit."
   };
 }
 
 export function createDefaultTipsResult(analysis: any) {
   return {
-    styleTips: analysis.breakdown.map((item: any) => ({
-      category: item.category,
-      tips: [
-        `Consider ways to improve your ${item.category.toLowerCase()}.`,
-        `Look for inspiration to enhance your ${item.category.toLowerCase()}.`,
-        `Work on developing your ${item.category.toLowerCase()}.`
-      ]
-    })),
+    styleTips: [
+      {
+        category: "Overall Style",
+        tips: [
+          "Try adding one statement piece to create a focal point.",
+          "Consider the occasion and dress appropriately for the setting.",
+          "Build your outfit around your favorite piece."
+        ]
+      },
+      {
+        category: "Color Coordination",
+        tips: [
+          "Stick to 2-3 colors that complement each other.",
+          "Use the color wheel to find complementary colors.",
+          "When in doubt, neutrals always work well together."
+        ]
+      },
+      {
+        category: "Fit & Proportion",
+        tips: [
+          "Invest in tailoring to make even inexpensive clothes look high-end.",
+          "Balance loose and fitted items for a proportional look.",
+          "Make sure the clothes fit your current body, not the size you want to be."
+        ]
+      },
+      {
+        category: "Accessories",
+        tips: [
+          "One statement accessory is often better than many small ones.",
+          "Match metals for a cohesive look.",
+          "Consider your accessories' scale in relation to your body type."
+        ]
+      },
+      {
+        category: "Trend Alignment",
+        tips: [
+          "Incorporate trends through accessories rather than major pieces.",
+          "Only follow trends that work for your body and style.",
+          "Classic pieces with trendy accents create a balanced look."
+        ]
+      },
+      {
+        category: "Style Expression",
+        tips: [
+          "Incorporate one piece that reflects your personality.",
+          "Build a signature style element you wear regularly.",
+          "Don't be afraid to break fashion 'rules' to express yourself."
+        ]
+      }
+    ],
     nextLevelTips: [
-      "Consider consulting with a personal stylist for tailored advice.",
-      "Invest in quality basics that will last longer and look better.",
-      "Study current fashion trends to update your wardrobe strategically.",
-      "Take photos of your outfits to review and refine your style choices."
+      "Take photos of outfits you love to reference later.",
+      "Invest in quality basics that will last for years.",
+      "Play with texture mixing for visual interest.",
+      "Consider the silhouette as a whole when putting together an outfit."
     ]
   };
 }

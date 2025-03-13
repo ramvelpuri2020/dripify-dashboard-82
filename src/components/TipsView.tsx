@@ -113,47 +113,31 @@ export const TipsView = () => {
                         </div>
                       </div>
                       
-                      <div className="space-y-4">
-                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(item.score / 10) * 100}%` }}
-                            transition={{ delay: index * 0.1 + 0.3, duration: 0.5 }}
-                            className={`h-full ${
-                              item.score >= 8 ? 'bg-gradient-to-r from-green-500 to-green-400' : 
-                              item.score >= 6 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' : 
-                              'bg-gradient-to-r from-red-500 to-red-400'
-                            }`}
-                          />
+                      {item.details && (
+                        <div className="text-sm text-white/70 mb-3">
+                          {item.details}
+                        </div>
+                      )}
+                      
+                      <div className="bg-black/20 rounded-lg p-4 space-y-2">
+                        <div className="flex items-center gap-2 text-purple-400 font-medium mb-1">
+                          <Sparkles className="w-4 h-4" />
+                          <span>Improvement Tips</span>
                         </div>
                         
-                        {item.details && (
-                          <div className="text-sm text-white/70 mb-3">
-                            {item.details}
+                        {getCategoryTips(item.category).length > 0 ? (
+                          getCategoryTips(item.category).map((tip, i) => (
+                            <div key={i} className="flex gap-2 items-start">
+                              <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                              <p className="text-sm text-white/80">{tip}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex gap-2 items-start">
+                            <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-white/80 italic">Try adding something unique to make this aspect of your outfit stand out.</p>
                           </div>
                         )}
-                        
-                        <div className="bg-black/20 rounded-lg p-4 space-y-2">
-                          <div className="flex items-center gap-2 text-purple-400 font-medium mb-1">
-                            <Sparkles className="w-4 h-4" />
-                            <span>Improvement Tips</span>
-                          </div>
-                          
-                          {getCategoryTips(item.category).length > 0 ? (
-                            getCategoryTips(item.category).map((tip, i) => (
-                              <div key={i} className="flex gap-2 items-start">
-                                <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-sm text-white/80">{tip}</p>
-                              </div>
-                            ))
-                          ) : (
-                            // Fallback to old tips generator if AI tips aren't available
-                            <div className="flex gap-2 items-start">
-                              <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                              <p className="text-sm text-white/80 italic">Personalized tips are being generated for this category.</p>
-                            </div>
-                          )}
-                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -178,7 +162,7 @@ export const TipsView = () => {
                     </div>
                     
                     <p className="text-white/80 text-sm mb-4">
-                      Ready to take your style to a perfect 10? Try these overall recommendations:
+                      Ready to take your style to the next level? Try these quick tips:
                     </p>
                     
                     <div className="space-y-3">
@@ -190,12 +174,12 @@ export const TipsView = () => {
                           </div>
                         ))
                       ) : (
-                        // Fallback tips if nextLevelTips aren't available
+                        // Fallback tips
                         [
-                          "Experiment with layering to add depth and visual interest to simple pieces.",
-                          "Consider adding statement accessories that reflect your personality.",
-                          "Try incorporating one trend piece with your timeless basics for a modern edge.",
-                          "Focus on fabric quality - even simple pieces look elevated in premium materials."
+                          "Try one bold piece that makes you feel confident",
+                          "Quality over quantity - invest in pieces that will last",
+                          "Trust your instincts - if you feel good, you'll look good",
+                          "Experiment with layering to add depth to simple outfits"
                         ].map((tip, i) => (
                           <div key={i} className="flex gap-2 items-start">
                             <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
