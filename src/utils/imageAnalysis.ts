@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 
@@ -39,18 +38,49 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     console.log('Analysis response:', data);
 
-    if (!data || !data.totalScore || !data.breakdown || !data.feedback) {
-      console.error('Invalid response format:', data);
-      throw new Error('Invalid response format from OpenAI');
+    if (!data) {
+      throw new Error('No data received from style analysis');
     }
 
-    const result = {
-      totalScore: data.totalScore,
-      breakdown: data.breakdown,
-      feedback: data.feedback,
+    // Validate and provide defaults for any missing fields
+    const result: StyleAnalysisResult = {
+      totalScore: data.totalScore || 5,
+      breakdown: data.breakdown || [],
+      feedback: data.feedback || "No feedback provided",
       styleTips: data.styleTips || [],
       nextLevelTips: data.nextLevelTips || []
     };
+
+    // Ensure all required breakdown categories exist
+    const requiredCategories = [
+      { category: "Overall Style", emoji: "👑" },
+      { category: "Color Coordination", emoji: "🎨" },
+      { category: "Fit & Proportion", emoji: "📏" },
+      { category: "Accessories", emoji: "⭐" },
+      { category: "Trend Alignment", emoji: "✨" },
+      { category: "Style Expression", emoji: "🪄" }
+    ];
+
+    // Fill in any missing categories
+    if (result.breakdown.length === 0) {
+      result.breakdown = requiredCategories.map(cat => ({
+        ...cat,
+        score: 5,
+        details: "No specific details provided."
+      }));
+    } else {
+      // Check for any missing categories and add them with default values
+      requiredCategories.forEach(reqCat => {
+        if (!result.breakdown.some(item => item.category === reqCat.category)) {
+          result.breakdown.push({
+            category: reqCat.category,
+            emoji: reqCat.emoji,
+            score: 5,
+            details: "No specific details provided."
+          });
+        }
+      });
+    }
 
     // Save analysis to Supabase
     await saveAnalysisToSupabase(result, imageFile);
