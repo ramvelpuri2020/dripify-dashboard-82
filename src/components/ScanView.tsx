@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StyleSelector } from "@/components/StyleSelector";
@@ -26,10 +27,12 @@ export const ScanView = () => {
       const img = new Image();
       
       img.onload = () => {
+        // Set thumbnail size (200x200 px)
         const size = 200;
         canvas.width = size;
         canvas.height = size;
 
+        // Calculate dimensions maintaining aspect ratio
         const scale = Math.min(size / img.width, size / img.height);
         const x = (size - img.width * scale) / 2;
         const y = (size - img.height * scale) / 2;
@@ -89,6 +92,7 @@ export const ScanView = () => {
       const analysisResult = await analyzeStyle(selectedImage);
       console.log('Analysis completed:', analysisResult);
 
+      // Upload image to Supabase Storage
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
@@ -96,6 +100,7 @@ export const ScanView = () => {
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
+      // Upload original image
       const { error: uploadError, data } = await supabase.storage
         .from('style-images')
         .upload(filePath, selectedImage);
@@ -106,6 +111,7 @@ export const ScanView = () => {
         .from('style-images')
         .getPublicUrl(filePath);
 
+      // Generate and upload thumbnail
       const thumbnail = await generateThumbnail(selectedImage);
       const thumbnailPath = `${user.id}/thumb_${fileName}`;
       
@@ -119,6 +125,7 @@ export const ScanView = () => {
         .from('style-thumbnails')
         .getPublicUrl(thumbnailPath);
 
+      // Save analysis with both URLs
       await saveAnalysisToDatabase(analysisResult, publicUrl, thumbnailUrl);
 
       setResult(analysisResult);
@@ -219,8 +226,6 @@ export const ScanView = () => {
               totalScore={result.totalScore}
               breakdown={result.breakdown}
               feedback={result.feedback}
-              styleTips={result.styleTips}
-              nextLevelTips={result.nextLevelTips}
               onShare={handleShare}
               onSave={handleSave}
               profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
