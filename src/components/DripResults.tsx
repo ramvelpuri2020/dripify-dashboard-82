@@ -10,12 +10,12 @@ interface ScoreBreakdown {
   category: string;
   score: number;
   emoji: string;
+  details?: string;
 }
 
-interface Tip {
+interface StyleTip {
   category: string;
-  suggestion: string;
-  priority: 'high' | 'medium' | 'low';
+  tips: string[];
 }
 
 interface DripResultsProps {
@@ -25,7 +25,8 @@ interface DripResultsProps {
   onShare: () => void;
   onSave?: () => void;
   profileImage?: string;
-  tips?: Tip[];
+  styleTips?: StyleTip[];
+  nextLevelTips?: string[];
 }
 
 export const DripResults = ({
@@ -35,7 +36,8 @@ export const DripResults = ({
   onShare,
   onSave,
   profileImage,
-  tips = []
+  styleTips = [],
+  nextLevelTips = []
 }: DripResultsProps) => {
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
@@ -51,7 +53,7 @@ export const DripResults = ({
         <div className="space-y-2">
           <h2 className="text-4xl font-bold text-white">{totalScore}/10</h2>
           <p className="text-xl text-green-400">Style Score</p>
-          <p className="text-sm text-white/60">Based on fit, color coordination, and style elements</p>
+          <p className="text-sm text-white/60 max-w-xs mx-auto">{feedback}</p>
         </div>
       </motion.div>
 
@@ -73,11 +75,22 @@ export const DripResults = ({
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${(item.score / 10) * 100}%` }}
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                    className={`absolute top-0 left-0 h-full rounded-full ${
+                      item.score >= 8 ? 'bg-gradient-to-r from-green-500 to-green-400' : 
+                      item.score >= 6 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' : 
+                      'bg-gradient-to-r from-red-500 to-red-400'
+                    }`}
                     transition={{ duration: 1 }}
                   />
                 </div>
-                <span className="text-lg font-bold text-white">{item.score}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold text-white">{item.score}</span>
+                  {item.details && (
+                    <span className="text-xs text-white/60 truncate max-w-[120px]" title={item.details}>
+                      {item.details.length > 20 ? `${item.details.substring(0, 20)}...` : item.details}
+                    </span>
+                  )}
+                </div>
               </div>
             </Card>
           </motion.div>
@@ -90,36 +103,31 @@ export const DripResults = ({
         transition={{ delay: 0.4 }}
         className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg p-6"
       >
-        <h3 className="text-lg font-semibold text-white mb-4">Style Tips</h3>
+        <h3 className="text-lg font-semibold text-white mb-4">Quick Tips</h3>
         <ScrollArea className="h-[200px] pr-4">
           <div className="space-y-4">
-            {tips.map((tip, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card className="bg-black/20 border-white/5 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-full ${
-                      tip.priority === 'high' ? 'bg-red-500/20' :
-                      tip.priority === 'medium' ? 'bg-yellow-500/20' :
-                      'bg-green-500/20'
-                    }`}>
-                      <ChevronRight className={`w-4 h-4 ${
-                        tip.priority === 'high' ? 'text-red-500' :
-                        tip.priority === 'medium' ? 'text-yellow-500' :
-                        'text-green-500'
-                      }`} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white/90">{tip.category}</p>
-                      <p className="text-sm text-white/60">{tip.suggestion}</p>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
+            {styleTips.slice(0, 3).map((categoryTips, categoryIndex) => (
+              <div key={categoryIndex} className="mb-4">
+                <h4 className="text-sm font-semibold text-white/80 mb-2">{categoryTips.category}</h4>
+                {categoryTips.tips.slice(0, 2).map((tip, tipIndex) => (
+                  <motion.div
+                    key={`${categoryIndex}-${tipIndex}`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: tipIndex * 0.1 }}
+                    className="mb-2"
+                  >
+                    <Card className="bg-black/20 border-white/5 p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-full bg-purple-500/20">
+                          <ChevronRight className="w-4 h-4 text-purple-500" />
+                        </div>
+                        <p className="text-sm text-white/80">{tip}</p>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
             ))}
           </div>
         </ScrollArea>
