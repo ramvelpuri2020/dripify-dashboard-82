@@ -20,9 +20,10 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
             DO NOT use the same score for every category.
             VARY YOUR SCORES REALISTICALLY (use a mix of values from 1-10).
             
-            YOU MUST RESPOND WITH VALID JSON ONLY. NO MARKDOWN, NO EXTRA TEXT.
+            YOU MUST RESPOND WITH VALID JSON ONLY.
+            NO MARKDOWN, NO EXTRA TEXT, JUST VALID JSON.
             
-            Your JSON must follow this structure:
+            Your response must follow this structure exactly:
             {
               "totalScore": number,
               "breakdown": [
@@ -63,7 +64,7 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
                   "details": "specific observation about this outfit"
                 }
               ],
-              "feedback": "brief overall feedback with specific suggestions"
+              "feedback": "brief overall feedback with specific suggestions for improvement"
             }`
           },
           {
@@ -76,7 +77,7 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
                 ACTUALLY LOOK at the outfit and score accordingly - some outfits might deserve 9s, others might be 3s or 4s.
                 BE SPECIFIC in your feedback about what you actually see.
                 
-                YOUR RESPONSE MUST BE VALID JSON ONLY. No additional text.`
+                YOUR RESPONSE MUST BE VALID JSON ONLY WITH NO ADDITIONAL TEXT OR MARKDOWN FORMATTING.`
               },
               {
                 type: 'image_url',
@@ -87,7 +88,7 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
             ]
           }
         ],
-        temperature: 0.85, // Increased for more variety
+        temperature: 0.7,
         top_p: 0.95,
         top_k: 40,
         max_tokens: 800,
@@ -103,6 +104,9 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
     let parsedStyleResponse;
     if (styleData.choices && styleData.choices[0]?.message?.content) {
       try {
+        // Log the raw response
+        console.log('Raw style response content:', styleData.choices[0].message.content);
+        
         // Parse the AI response as JSON
         parsedStyleResponse = extractJsonFromResponse(styleData.choices[0].message.content);
         
