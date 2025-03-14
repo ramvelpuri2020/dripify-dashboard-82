@@ -15,20 +15,20 @@ serve(async (req) => {
     const { image, style } = await req.json();
     console.log('Analyzing style for: ', style);
 
-    const togetherApiKey = Deno.env.get('TOGETHER_API_KEY');
-    if (!togetherApiKey) {
-      throw new Error('Together API key not configured');
+    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY') || '520bb318e7msh5bb39f942a7871bp1a1941jsnc445b679bc78';
+    if (!rapidApiKey) {
+      throw new Error('RapidAPI key not configured');
     }
 
     // First analysis for overall style assessment
-    const styleAnalysisResponse = await fetch('https://api.together.xyz/v1/chat/completions', {
+    const styleAnalysisResponse = await fetch('https://chatgpt-42.p.rapidapi.com/gpt4', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${togetherApiKey}`
+        'x-rapidapi-host': 'chatgpt-42.p.rapidapi.com',
+        'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
-        model: "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
         messages: [
           {
             role: 'system',
@@ -96,34 +96,29 @@ serve(async (req) => {
             ]
           }
         ],
-        temperature: 0.7,
-        top_p: 0.7,
-        top_k: 50,
-        max_tokens: 2048,
-        repetition_penalty: 1,
-        stop: ["<|eot_id|>", "<|eom_id|>"]
+        web_access: false
       }),
     });
 
     const styleData = await styleAnalysisResponse.json();
     console.log('Style Analysis Response:', styleData);
 
-    if (!styleData.choices || !styleData.choices[0] || !styleData.choices[0].message || !styleData.choices[0].message.content) {
-      throw new Error('Invalid response format from Together API');
+    if (!styleData.result) {
+      throw new Error('Invalid response format from RapidAPI');
     }
 
-    // Parse the response content which contains the JSON response
-    const parsedStyleResponse = JSON.parse(styleData.choices[0].message.content);
+    // Parse the result string which contains the JSON response
+    const parsedStyleResponse = JSON.parse(styleData.result);
     
     // Now generate custom improvement tips based on the analysis
-    const tipsResponse = await fetch('https://api.together.xyz/v1/chat/completions', {
+    const tipsResponse = await fetch('https://chatgpt-42.p.rapidapi.com/gpt4', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${togetherApiKey}`
+        'x-rapidapi-host': 'chatgpt-42.p.rapidapi.com',
+        'x-rapidapi-key': rapidApiKey,
       },
       body: JSON.stringify({
-        model: "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
         messages: [
           {
             role: 'system',
@@ -183,24 +178,19 @@ serve(async (req) => {
             ]
           }
         ],
-        temperature: 0.7,
-        top_p: 0.7,
-        top_k: 50,
-        max_tokens: 2048,
-        repetition_penalty: 1,
-        stop: ["<|eot_id|>", "<|eom_id|>"]
+        web_access: false
       }),
     });
 
     const tipsData = await tipsResponse.json();
     console.log('Tips Response:', tipsData);
 
-    if (!tipsData.choices || !tipsData.choices[0] || !tipsData.choices[0].message || !tipsData.choices[0].message.content) {
-      throw new Error('Invalid tips response from Together API');
+    if (!tipsData.result) {
+      throw new Error('Invalid tips response from RapidAPI');
     }
 
     // Parse the tips response from the result string
-    const parsedTipsResponse = JSON.parse(tipsData.choices[0].message.content);
+    const parsedTipsResponse = JSON.parse(tipsData.result);
 
     // Combine both results
     const result = {
