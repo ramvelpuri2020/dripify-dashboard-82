@@ -20,51 +20,24 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
             DO NOT use the same score for every category.
             VARY YOUR SCORES REALISTICALLY (use a mix of values from 1-10).
             
-            YOU MUST RESPOND WITH VALID JSON ONLY. NO MARKDOWN, NO EXTRA TEXT.
+            Structure your response with:
+            **Total Score:** [number]
             
-            Your JSON must follow this structure:
-            {
-              "totalScore": number,
-              "breakdown": [
-                {
-                  "category": "Overall Style",
-                  "score": number,
-                  "emoji": "👑",
-                  "details": "specific observation about this outfit"
-                },
-                {
-                  "category": "Color Coordination",
-                  "score": number,
-                  "emoji": "🎨",
-                  "details": "specific observation about this outfit"
-                },
-                {
-                  "category": "Fit & Proportion",
-                  "score": number,
-                  "emoji": "📏",
-                  "details": "specific observation about this outfit"
-                },
-                {
-                  "category": "Accessories",
-                  "score": number,
-                  "emoji": "⭐",
-                  "details": "specific observation about this outfit"
-                },
-                {
-                  "category": "Trend Alignment",
-                  "score": number,
-                  "emoji": "✨",
-                  "details": "specific observation about this outfit"
-                },
-                {
-                  "category": "Style Expression",
-                  "score": number,
-                  "emoji": "🪄",
-                  "details": "specific observation about this outfit"
-                }
-              ],
-              "feedback": "brief overall feedback with specific suggestions"
-            }`
+            **Breakdown:**
+            * **Overall Style**: [number]
+              * [specific details about style]
+            * **Color Coordination**: [number]
+              * [specific details about colors]
+            * **Fit & Proportion**: [number]
+              * [specific details about fit]
+            * **Accessories**: [number]
+              * [specific details about accessories]
+            * **Trend Alignment**: [number]
+              * [specific details about trends]
+            * **Style Expression**: [number]
+              * [specific details about expression]
+            
+            **Feedback:** [brief overall feedback with specific suggestions]`
           },
           {
             role: 'user',
@@ -74,9 +47,7 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
                 text: `Analyze this outfit and provide a TRULY HONEST style assessment. 
                 USE VARIED SCORES - don't just use 7/10 for everything.
                 ACTUALLY LOOK at the outfit and score accordingly - some outfits might deserve 9s, others might be 3s or 4s.
-                BE SPECIFIC in your feedback about what you actually see.
-                
-                YOUR RESPONSE MUST BE VALID JSON ONLY. No additional text.`
+                BE SPECIFIC in your feedback about what you actually see.`
               },
               {
                 type: 'image_url',
@@ -99,18 +70,15 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
     const styleData = await styleAnalysisResponse.json();
     console.log('Style Analysis Response:', styleData);
 
-    // Extract and validate style analysis JSON
-    let parsedStyleResponse;
+    // Extract and validate style analysis 
     if (styleData.choices && styleData.choices[0]?.message?.content) {
       try {
-        // Parse the AI response as JSON
-        parsedStyleResponse = extractJsonFromResponse(styleData.choices[0].message.content);
+        // Parse the AI response
+        const content = styleData.choices[0].message.content;
+        console.log('Raw response content:', content);
         
-        // Calculate total score if not provided
-        if (parsedStyleResponse && parsedStyleResponse.breakdown && !parsedStyleResponse.totalScore) {
-          const scores = parsedStyleResponse.breakdown.map(item => item.score);
-          parsedStyleResponse.totalScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
-        }
+        // Parse the AI response as JSON or markdown
+        const parsedStyleResponse = extractJsonFromResponse(content);
         
         console.log('Parsed style response:', parsedStyleResponse);
         
