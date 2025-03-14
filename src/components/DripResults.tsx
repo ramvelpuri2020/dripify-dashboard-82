@@ -10,12 +10,12 @@ interface ScoreBreakdown {
   category: string;
   score: number;
   emoji: string;
+  details?: string;
 }
 
-interface Tip {
+interface StyleTip {
   category: string;
-  suggestion: string;
-  priority: 'high' | 'medium' | 'low';
+  tips: string[];
 }
 
 interface DripResultsProps {
@@ -25,7 +25,8 @@ interface DripResultsProps {
   onShare: () => void;
   onSave?: () => void;
   profileImage?: string;
-  tips?: Tip[];
+  styleTips?: StyleTip[];
+  nextLevelTips?: string[];
 }
 
 export const DripResults = ({
@@ -35,7 +36,8 @@ export const DripResults = ({
   onShare,
   onSave,
   profileImage,
-  tips = []
+  styleTips = [],
+  nextLevelTips = []
 }: DripResultsProps) => {
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
@@ -78,6 +80,9 @@ export const DripResults = ({
                   />
                 </div>
                 <span className="text-lg font-bold text-white">{item.score}</span>
+                {item.details && (
+                  <p className="text-xs text-white/70 mt-1">{item.details}</p>
+                )}
               </div>
             </Card>
           </motion.div>
@@ -93,34 +98,51 @@ export const DripResults = ({
         <h3 className="text-lg font-semibold text-white mb-4">Style Tips</h3>
         <ScrollArea className="h-[200px] pr-4">
           <div className="space-y-4">
-            {tips.map((tip, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card className="bg-black/20 border-white/5 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-full ${
-                      tip.priority === 'high' ? 'bg-red-500/20' :
-                      tip.priority === 'medium' ? 'bg-yellow-500/20' :
-                      'bg-green-500/20'
-                    }`}>
-                      <ChevronRight className={`w-4 h-4 ${
-                        tip.priority === 'high' ? 'text-red-500' :
-                        tip.priority === 'medium' ? 'text-yellow-500' :
-                        'text-green-500'
-                      }`} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white/90">{tip.category}</p>
-                      <p className="text-sm text-white/60">{tip.suggestion}</p>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
+            {styleTips.map((categoryTips, categoryIndex) => (
+              <div key={categoryIndex} className="space-y-2">
+                <h4 className="text-md font-medium text-white/90">{categoryTips.category}</h4>
+                {categoryTips.tips.map((tip, tipIndex) => (
+                  <motion.div
+                    key={tipIndex}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: tipIndex * 0.1 }}
+                  >
+                    <Card className="bg-black/20 border-white/5 p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-full bg-purple-500/20">
+                          <ChevronRight className="w-3 h-3 text-purple-500" />
+                        </div>
+                        <p className="text-sm text-white/80">{tip}</p>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
             ))}
+            
+            {nextLevelTips && nextLevelTips.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <h4 className="text-md font-medium text-white/90 mb-2">Next Level Tips</h4>
+                {nextLevelTips.map((tip, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className="bg-black/20 border-white/5 p-3 mb-2">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-full bg-pink-500/20">
+                          <ChevronRight className="w-3 h-3 text-pink-500" />
+                        </div>
+                        <p className="text-sm text-white/80">{tip}</p>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         </ScrollArea>
       </motion.div>

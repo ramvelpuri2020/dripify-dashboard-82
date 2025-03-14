@@ -65,7 +65,7 @@ export const ScanView = () => {
         feedback: analysis.feedback,
         image_url: imageUrl,
         thumbnail_url: thumbnailUrl,
-        tips: analysis.tips,
+        tips: analysis.styleTips,
         scan_date: new Date().toISOString(),
         last_scan_date: new Date().toISOString().split('T')[0]
       });
@@ -89,9 +89,26 @@ export const ScanView = () => {
     setAnalyzing(true);
     try {
       console.log('Starting analysis...');
-      const analysisResult = await analyzeStyle(selectedImage);
-      console.log('Analysis completed:', analysisResult);
-
+      // Convert the image to base64
+      const base64Image = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(selectedImage);
+      });
+      
+      // Call the Supabase function directly
+      console.log('Calling analyze-style function...');
+      const { data, error } = await supabase.functions.invoke('analyze-style', {
+        body: { image: base64Image, style: selectedStyle }
+      });
+      
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error('Failed to analyze image: ' + error.message);
+      }
+      
+      console.log('Analysis completed successfully:', data);
+      
       // Upload image to Supabase Storage
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
@@ -101,7 +118,7 @@ export const ScanView = () => {
       const filePath = `${user.id}/${fileName}`;
 
       // Upload original image
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('style-images')
         .upload(filePath, selectedImage);
 
@@ -126,10 +143,10 @@ export const ScanView = () => {
         .getPublicUrl(thumbnailPath);
 
       // Save analysis with both URLs
-      await saveAnalysisToDatabase(analysisResult, publicUrl, thumbnailUrl);
+      await saveAnalysisToDatabase(data, publicUrl, thumbnailUrl);
 
-      setResult(analysisResult);
-      setLatestScan(analysisResult);
+      setResult(data);
+      setLatestScan(data);
       setShowResults(true);
 
       toast({
@@ -226,6 +243,8 @@ export const ScanView = () => {
               totalScore={result.totalScore}
               breakdown={result.breakdown}
               feedback={result.feedback}
+              styleTips={result.styleTips}
+              nextLevelTips={result.nextLevelTips}
               onShare={handleShare}
               onSave={handleSave}
               profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}

@@ -146,7 +146,13 @@ serve(async (req) => {
       }
       
       try {
-        parsedStyleResponse = JSON.parse(jsonMatch[0]);
+        // Try to fix common JSON structure issues before parsing
+        let jsonText = jsonMatch[0];
+        
+        // Fix issue where feedback is incorrectly added as a separate object in the breakdown array
+        jsonText = jsonText.replace(/\{"feedback":/, '], "feedback":');
+        
+        parsedStyleResponse = JSON.parse(jsonText);
       } catch (innerError) {
         console.error('Error parsing extracted JSON:', innerError);
         throw new Error('Failed to parse extracted JSON: ' + innerError.message);
