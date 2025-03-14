@@ -206,7 +206,7 @@ export const ScanView = () => {
                 {analyzing ? (
                   <div className="flex items-center gap-3">
                     <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    Analyzing...
+                    Analyzing Style...
                   </div>
                 ) : (
                   "Analyze Style"

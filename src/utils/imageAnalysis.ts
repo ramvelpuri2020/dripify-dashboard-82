@@ -34,14 +34,14 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     if (error) {
       console.error('Supabase function error:', error);
-      throw new Error('Failed to analyze image');
+      throw new Error('Failed to analyze image: ' + error.message);
     }
 
     console.log('Analysis response:', data);
 
     if (!data || !data.totalScore || !data.breakdown || !data.feedback) {
       console.error('Invalid response format:', data);
-      throw new Error('Invalid response format from OpenAI');
+      throw new Error('Invalid response format from AI service');
     }
 
     const result = {
