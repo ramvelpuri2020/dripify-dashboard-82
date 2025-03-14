@@ -1,6 +1,6 @@
 
 export function extractJsonFromResponse(text: string): any {
-  // For speed, first try to parse the entire response as JSON
+  // First try to parse the entire response as JSON
   try {
     return JSON.parse(text);
   } catch (firstError) {

@@ -1,6 +1,5 @@
 
 import { extractJsonFromResponse } from "./jsonExtractor.ts";
-import { createDefaultAnalysisResult } from "./defaultResults.ts";
 
 export async function analyzeStyle(imageData: string, apiKey: string) {
   try {
@@ -16,58 +15,55 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
         messages: [
           {
             role: 'system',
-            content: `You're a friendly fashion expert who gives casual, helpful feedback on outfits. 
-            Be realistic and conversational - like a supportive friend giving honest advice.
+            content: `You're a fashion expert giving honest, varied feedback on outfits.
+            Analyze the outfit image and score it on different categories.
+            DO NOT use the same score for every category.
+            VARY YOUR SCORES REALISTICALLY (use a mix of values from 1-10).
             
-            IMPORTANT: Your scores should be varied and realistic - don't default to 7/10 for everything. 
-            Some outfits might deserve 9s, others might be 4s or 5s. Be honest but kind.
+            YOU MUST RESPOND WITH VALID JSON ONLY. NO MARKDOWN, NO EXTRA TEXT.
             
-            Your feedback should be brief, easy to read, and actionable.
-            
-            You MUST respond ONLY with valid JSON with no extra text or explanations.
-            The JSON should follow this exact format:
-
+            Your JSON must follow this structure:
             {
-              "totalScore": 7,
+              "totalScore": number,
               "breakdown": [
                 {
                   "category": "Overall Style",
-                  "score": 8,
+                  "score": number,
                   "emoji": "👑",
-                  "details": "brief explanation"
+                  "details": "specific observation about this outfit"
                 },
                 {
                   "category": "Color Coordination",
-                  "score": 6,
+                  "score": number,
                   "emoji": "🎨",
-                  "details": "brief explanation"
+                  "details": "specific observation about this outfit"
                 },
                 {
                   "category": "Fit & Proportion",
-                  "score": 7,
+                  "score": number,
                   "emoji": "📏",
-                  "details": "brief explanation"
+                  "details": "specific observation about this outfit"
                 },
                 {
                   "category": "Accessories",
-                  "score": 5,
+                  "score": number,
                   "emoji": "⭐",
-                  "details": "brief explanation"
+                  "details": "specific observation about this outfit"
                 },
                 {
                   "category": "Trend Alignment",
-                  "score": 7,
+                  "score": number,
                   "emoji": "✨",
-                  "details": "brief explanation"
+                  "details": "specific observation about this outfit"
                 },
                 {
                   "category": "Style Expression",
-                  "score": 8,
+                  "score": number,
                   "emoji": "🪄",
-                  "details": "brief explanation"
+                  "details": "specific observation about this outfit"
                 }
               ],
-              "feedback": "brief overall feedback with 1-2 specific suggestions"
+              "feedback": "brief overall feedback with specific suggestions"
             }`
           },
           {
@@ -75,8 +71,12 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
             content: [
               {
                 type: 'text',
-                text: `Analyze this outfit and provide a casual, friendly style assessment. Be honest with scoring (vary your scores realistically - don't just give 7/10 for everything). 
-                ONLY respond with the valid JSON object. No additional text or explanations outside the JSON.`
+                text: `Analyze this outfit and provide a TRULY HONEST style assessment. 
+                USE VARIED SCORES - don't just use 7/10 for everything.
+                ACTUALLY LOOK at the outfit and score accordingly - some outfits might deserve 9s, others might be 3s or 4s.
+                BE SPECIFIC in your feedback about what you actually see.
+                
+                YOUR RESPONSE MUST BE VALID JSON ONLY. No additional text.`
               },
               {
                 type: 'image_url',
@@ -87,10 +87,10 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
             ]
           }
         ],
-        temperature: 0.8, // Increased temperature for more variety
-        top_p: 0.9,
+        temperature: 0.85, // Increased for more variety
+        top_p: 0.95,
         top_k: 40,
-        max_tokens: 1024, // Reduced token count for faster responses
+        max_tokens: 800,
         repetition_penalty: 1.1,
         stop: ["<|eot_id|>", "<|eom_id|>"]
       }),
@@ -103,47 +103,35 @@ export async function analyzeStyle(imageData: string, apiKey: string) {
     let parsedStyleResponse;
     if (styleData.choices && styleData.choices[0]?.message?.content) {
       try {
+        // Parse the AI response as JSON
         parsedStyleResponse = extractJsonFromResponse(styleData.choices[0].message.content);
         
-        // Quick validation to ensure we have the correct format
-        if (!parsedStyleResponse || !parsedStyleResponse.breakdown || !parsedStyleResponse.totalScore) {
-          console.log('Invalid style analysis format, using default');
-          parsedStyleResponse = createDefaultAnalysisResult();
+        // Calculate total score if not provided
+        if (parsedStyleResponse && parsedStyleResponse.breakdown && !parsedStyleResponse.totalScore) {
+          const scores = parsedStyleResponse.breakdown.map(item => item.score);
+          parsedStyleResponse.totalScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
         }
         
-        // Ensure we have varied scores by checking standard deviation
-        const scores = parsedStyleResponse.breakdown.map(item => item.score);
-        const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-        const variance = scores.reduce((sum, score) => sum + Math.pow(score - average, 2), 0) / scores.length;
-        const stdDev = Math.sqrt(variance);
+        console.log('Parsed style response:', parsedStyleResponse);
         
-        // If all scores are the same or very similar, adjust them slightly
-        if (stdDev < 0.5) {
-          console.log('Scores too similar, adding variety');
-          parsedStyleResponse.breakdown = parsedStyleResponse.breakdown.map((item, index) => {
-            // Add some variety based on category
-            const adjustment = [-0.5, 0, 0.5, 1, -1][index % 5];
-            const newScore = Math.max(1, Math.min(10, item.score + adjustment));
-            return { ...item, score: newScore };
-          });
-          
-          // Recalculate total score
-          const newScores = parsedStyleResponse.breakdown.map(item => item.score);
-          parsedStyleResponse.totalScore = Math.round(newScores.reduce((sum, score) => sum + score, 0) / newScores.length);
+        // If we have a valid response, return it
+        if (parsedStyleResponse && parsedStyleResponse.breakdown) {
+          return parsedStyleResponse;
         }
+        
+        // If not valid, throw error to retry or handle error case
+        throw new Error('Invalid response format from AI');
         
       } catch (error) {
         console.log('Error parsing style response:', error);
-        parsedStyleResponse = createDefaultAnalysisResult();
+        throw error; // Let the calling function handle this error
       }
     } else {
       console.log('Invalid style analysis response format');
-      parsedStyleResponse = createDefaultAnalysisResult();
+      throw new Error('Invalid response from AI service');
     }
-
-    return parsedStyleResponse;
   } catch (error) {
     console.error('Error in style analysis:', error);
-    return createDefaultAnalysisResult();
+    throw error; // Let the calling function handle this error
   }
 }

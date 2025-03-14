@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 
@@ -33,64 +34,24 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     if (error) {
       console.error('Supabase function error:', error);
-      throw new Error('Failed to analyze image');
+      throw new Error('Failed to analyze image: ' + error.message);
     }
 
     console.log('Analysis response:', data);
 
-    if (!data) {
-      throw new Error('No data received from style analysis');
-    }
-
-    // Validate and provide defaults for any missing fields
-    const result: StyleAnalysisResult = {
-      totalScore: data.totalScore || 5,
-      breakdown: data.breakdown || [],
-      feedback: data.feedback || "No feedback provided",
-      styleTips: data.styleTips || [],
-      nextLevelTips: data.nextLevelTips || []
-    };
-
-    // Ensure all required breakdown categories exist
-    const requiredCategories = [
-      { category: "Overall Style", emoji: "👑" },
-      { category: "Color Coordination", emoji: "🎨" },
-      { category: "Fit & Proportion", emoji: "📏" },
-      { category: "Accessories", emoji: "⭐" },
-      { category: "Trend Alignment", emoji: "✨" },
-      { category: "Style Expression", emoji: "🪄" }
-    ];
-
-    // Fill in any missing categories
-    if (result.breakdown.length === 0) {
-      result.breakdown = requiredCategories.map(cat => ({
-        ...cat,
-        score: 5,
-        details: "No specific details provided."
-      }));
-    } else {
-      // Check for any missing categories and add them with default values
-      requiredCategories.forEach(reqCat => {
-        if (!result.breakdown.some(item => item.category === reqCat.category)) {
-          result.breakdown.push({
-            category: reqCat.category,
-            emoji: reqCat.emoji,
-            score: 5,
-            details: "No specific details provided."
-          });
-        }
-      });
+    if (!data || data.error) {
+      throw new Error(data?.error || 'No data received from style analysis');
     }
 
     // Save analysis to Supabase
-    await saveAnalysisToSupabase(result, imageFile);
+    await saveAnalysisToSupabase(data, imageFile);
 
     // Update the scan store with the new analysis
     const store = useScanStore.getState();
-    store.setLatestScan(result);
+    store.setLatestScan(data);
     store.fetchUserStats();
 
-    return result;
+    return data;
 
   } catch (error) {
     console.error('Error analyzing style:', error);
@@ -122,6 +83,21 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
     const { data: { publicUrl } } = supabase.storage
       .from('outfit_images')
       .getPublicUrl(`public/${fileName}`);
+
+    // Generate thumbnail
+    const thumbnail = await generateThumbnail(imageFile);
+    const thumbnailName = `thumb_${fileName}`;
+    const { error: thumbError } = await supabase.storage
+      .from('outfit_images')
+      .upload(`public/${thumbnailName}`, thumbnail);
+      
+    if (thumbError) {
+      console.error('Error uploading thumbnail:', thumbError);
+    }
+    
+    const { data: { publicUrl: thumbnailUrl } } = supabase.storage
+      .from('outfit_images')
+      .getPublicUrl(`public/${thumbnailName}`);
 
     // Get the current date in ISO format
     const currentDate = new Date().toISOString();
@@ -173,6 +149,7 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
         feedback: result.feedback,
         tips: result.styleTips,
         image_url: publicUrl,
+        thumbnail_url: thumbnailUrl,
         scan_date: currentDate,
         last_scan_date: currentDateString,
         streak_count: streakCount
@@ -187,14 +164,32 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
   }
 };
 
-// Legacy function - we'll keep this for backward compatibility
-export const generateTipsForCategory = (category: string, score: number): string[] => {
-  const defaultTips = [
-    "Consider consulting with a personal stylist for more tailored advice.",
-    "Experiment with different styles to find what works best for you.",
-    "Focus on what makes you feel confident and comfortable."
-  ];
-  
-  // The function now returns default tips, as we'll be using AI-generated tips instead
-  return defaultTips;
+const generateThumbnail = async (file: File): Promise<Blob> => {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      const size = 200;
+      canvas.width = size;
+      canvas.height = size;
+
+      const scale = Math.min(size / img.width, size / img.height);
+      const x = (size - img.width * scale) / 2;
+      const y = (size - img.height * scale) / 2;
+
+      if (ctx) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+      }
+
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+      }, 'image/jpeg', 0.8);
+    };
+
+    img.src = URL.createObjectURL(file);
+  });
 };

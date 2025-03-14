@@ -1,6 +1,5 @@
 
 import { extractJsonFromResponse } from "./jsonExtractor.ts";
-import { createDefaultTipsResult } from "./defaultResults.ts";
 
 export async function generateStyleTips(imageData: string, analysisResult: any, apiKey: string) {
   try {
@@ -16,39 +15,37 @@ export async function generateStyleTips(imageData: string, analysisResult: any, 
         messages: [
           {
             role: 'system',
-            content: `You are a friendly, supportive fashion advisor. Give clear, specific, and actionable style tips.
-            Your tips should be easy to understand and implement - like advice from a helpful friend.
+            content: `You are a supportive fashion advisor. Give specific, actionable style tips based on the outfit you see.
+            Your tips should be brief (1-2 sentences each) and very specific to this outfit.
             
-            IMPORTANT: Your tips should be brief (1-2 sentences each) and very specific.
+            IMPORTANT: YOU MUST RESPOND WITH VALID JSON ONLY. NO MARKDOWN OR EXPLANATORY TEXT.
             
-            You MUST respond ONLY with valid JSON containing no extra text.
-            The JSON should follow this exact format:
-            
+            JSON structure:
             {
               "styleTips": [
                 {
                   "category": "Overall Style",
-                  "tips": ["simple tip 1", "simple tip 2", "simple tip 3"]
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
                 },
                 {
                   "category": "Color Coordination",
-                  "tips": ["simple tip 1", "simple tip 2", "simple tip 3"]
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
                 },
                 {
                   "category": "Fit & Proportion",
-                  "tips": ["simple tip 1", "simple tip 2", "simple tip 3"]
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
                 },
                 {
                   "category": "Accessories",
-                  "tips": ["simple tip 1", "simple tip 2", "simple tip 3"]
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
                 },
                 {
                   "category": "Trend Alignment",
-                  "tips": ["simple tip 1", "simple tip 2", "simple tip 3"]
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
                 },
                 {
                   "category": "Style Expression",
-                  "tips": ["simple tip 1", "simple tip 2", "simple tip 3"]
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
                 }
               ],
               "nextLevelTips": ["quick tip 1", "quick tip 2", "quick tip 3", "quick tip 4"]
@@ -59,9 +56,10 @@ export async function generateStyleTips(imageData: string, analysisResult: any, 
             content: [
               {
                 type: 'text',
-                text: `Here's the style analysis of this outfit: ${JSON.stringify(analysisResult)}. 
-                Give 3 simple, specific, and actionable tips for each category based on what you see in the image.
-                Keep tips brief and easy to follow. ONLY respond with the valid JSON object.`
+                text: `Based on this outfit and the style analysis: ${JSON.stringify(analysisResult)}, 
+                give 3 SPECIFIC and ACTIONABLE tips for each category based ONLY on what you see in this image.
+                
+                YOUR RESPONSE MUST BE VALID JSON ONLY.`
               },
               {
                 type: 'image_url',
@@ -73,9 +71,9 @@ export async function generateStyleTips(imageData: string, analysisResult: any, 
           }
         ],
         temperature: 0.7,
-        top_p: 0.8,
+        top_p: 0.9,
         top_k: 40,
-        max_tokens: 1024, // Reduced for faster responses
+        max_tokens: 1024,
         repetition_penalty: 1.1,
         stop: ["<|eot_id|>", "<|eom_id|>"]
       }),
@@ -90,23 +88,23 @@ export async function generateStyleTips(imageData: string, analysisResult: any, 
       try {
         parsedTipsResponse = extractJsonFromResponse(tipsData.choices[0].message.content);
         
-        // Quick validation
-        if (!parsedTipsResponse || !parsedTipsResponse.styleTips) {
-          console.log('Invalid tips format, using default');
-          parsedTipsResponse = createDefaultTipsResult(analysisResult);
+        // Quick validation - just return what we've got if it has styleTips
+        if (parsedTipsResponse && parsedTipsResponse.styleTips) {
+          return parsedTipsResponse;
         }
+        
+        throw new Error('Invalid tips format from AI');
+        
       } catch (error) {
         console.log('Error parsing tips:', error);
-        parsedTipsResponse = createDefaultTipsResult(analysisResult);
+        throw error; // Let the calling function handle this error
       }
     } else {
       console.log('Invalid tips response format');
-      parsedTipsResponse = createDefaultTipsResult(analysisResult);
+      throw new Error('Invalid response from AI service');
     }
-
-    return parsedTipsResponse;
   } catch (error) {
     console.error('Error in generating tips:', error);
-    return createDefaultTipsResult(analysisResult);
+    throw error; // Let the calling function handle this error
   }
 }

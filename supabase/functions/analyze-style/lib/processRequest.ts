@@ -16,7 +16,7 @@ export async function processRequest(req: Request): Promise<Response> {
       throw new Error('Together API key not configured');
     }
 
-    // Get style analysis - run in parallel with tip generation when possible
+    // Get style analysis
     const styleAnalysisResult = await analyzeStyle(image, togetherApiKey);
     
     // Generate improvement tips based on the analysis
@@ -38,9 +38,9 @@ export async function processRequest(req: Request): Promise<Response> {
   } catch (error) {
     console.error('Error in processRequest:', error);
     
-    // Provide a friendlier error response
+    // Provide a specific error message
     return new Response(JSON.stringify({ 
-      error: 'Sorry, we had trouble analyzing your outfit. Please try again with a clearer photo.',
+      error: 'We had trouble analyzing your outfit. Please try with a clearer photo.',
       details: error.message || 'Unknown error during style analysis'
     }), { 
       status: 500,
