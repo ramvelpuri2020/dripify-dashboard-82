@@ -18,19 +18,37 @@ export async function generateStyleTips(imageData: string, analysisResult: any, 
             content: `You are a supportive fashion advisor. Give specific, actionable style tips based on the outfit you see.
             Your tips should be brief (1-2 sentences each) and very specific to this outfit.
             
-            For example:
+            IMPORTANT: YOU MUST RESPOND WITH VALID JSON ONLY. NO MARKDOWN OR EXPLANATORY TEXT.
+            
+            JSON structure:
             {
               "styleTips": [
                 {
                   "category": "Overall Style",
-                  "tips": ["Try adding a denim jacket for more dimension", "A statement belt would define your waist", "Consider a bold color accent"]
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
                 },
                 {
                   "category": "Color Coordination",
-                  "tips": ["Add a pop of red to brighten this outfit", "Try pairing with navy blue accessories", "Green would complement this color palette"]
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
+                },
+                {
+                  "category": "Fit & Proportion",
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
+                },
+                {
+                  "category": "Accessories",
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
+                },
+                {
+                  "category": "Trend Alignment",
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
+                },
+                {
+                  "category": "Style Expression",
+                  "tips": ["specific tip for this outfit", "another specific tip", "third specific tip"]
                 }
               ],
-              "nextLevelTips": ["Invest in quality accessories", "Try statement shoes with simple outfits", "Consider layering for added interest"]
+              "nextLevelTips": ["quick tip 1", "quick tip 2", "quick tip 3", "quick tip 4"]
             }`
           },
           {
@@ -38,17 +56,10 @@ export async function generateStyleTips(imageData: string, analysisResult: any, 
             content: [
               {
                 type: 'text',
-                text: `Based on this outfit, give me 3 SPECIFIC and ACTIONABLE tips for each category:
-                - Overall Style
-                - Color Coordination
-                - Fit & Proportion
-                - Accessories
-                - Trend Alignment
-                - Style Expression
+                text: `Based on this outfit and the style analysis: ${JSON.stringify(analysisResult)}, 
+                give 3 SPECIFIC and ACTIONABLE tips for each category based ONLY on what you see in this image.
                 
-                Also provide 3-4 "next level" general fashion tips.
-                
-                RESPOND WITH VALID JSON IN THE SPECIFIED FORMAT.`
+                YOUR RESPONSE MUST BE VALID JSON ONLY.`
               },
               {
                 type: 'image_url',
@@ -72,46 +83,14 @@ export async function generateStyleTips(imageData: string, analysisResult: any, 
     console.log('Tips Response:', tipsData);
 
     // Extract and validate tips JSON
+    let parsedTipsResponse;
     if (tipsData.choices && tipsData.choices[0]?.message?.content) {
       try {
-        console.log('Raw tips content:', tipsData.choices[0].message.content);
-        const parsedTipsResponse = extractJsonFromResponse(tipsData.choices[0].message.content);
+        parsedTipsResponse = extractJsonFromResponse(tipsData.choices[0].message.content);
         
-        console.log('Parsed tips response:', parsedTipsResponse);
-        
-        // If we have a valid response with styleTips, return it
+        // Quick validation - just return what we've got if it has styleTips
         if (parsedTipsResponse && parsedTipsResponse.styleTips) {
           return parsedTipsResponse;
-        }
-        
-        // If we have a response without proper structure, try to create a basic structure
-        if (parsedTipsResponse) {
-          const categories = ['Overall Style', 'Color Coordination', 'Fit & Proportion', 
-                            'Accessories', 'Trend Alignment', 'Style Expression'];
-          
-          // Create a basic structure if needed
-          const structuredResponse = { 
-            styleTips: [],
-            nextLevelTips: parsedTipsResponse.nextLevelTips || []
-          };
-          
-          // Try to extract category tips if available
-          for (const category of categories) {
-            if (parsedTipsResponse[category.toLowerCase().replace(/ /g, '_')] || 
-                parsedTipsResponse[category]) {
-              const tips = parsedTipsResponse[category.toLowerCase().replace(/ /g, '_')] || 
-                         parsedTipsResponse[category];
-              
-              structuredResponse.styleTips.push({
-                category,
-                tips: Array.isArray(tips) ? tips : [tips]
-              });
-            }
-          }
-          
-          if (structuredResponse.styleTips.length > 0) {
-            return structuredResponse;
-          }
         }
         
         throw new Error('Invalid tips format from AI');
@@ -126,10 +105,6 @@ export async function generateStyleTips(imageData: string, analysisResult: any, 
     }
   } catch (error) {
     console.error('Error in generating tips:', error);
-    // Return a simplified response with just the analysis
-    return { 
-      styleTips: [],
-      nextLevelTips: [] 
-    };
+    throw error; // Let the calling function handle this error
   }
 }
