@@ -1,3 +1,4 @@
+
 interface Scores {
   colorCoordination: number;
   fitProportion: number;
@@ -9,12 +10,12 @@ interface Scores {
 
 export const parseAnalysis = (analysis: string) => {
   const scores: Scores = {
-    colorCoordination: parseInt(analysis.match(/Color Coordination:?\s*(\d+)/i)?.[1] || "7"),
-    fitProportion: parseInt(analysis.match(/Fit & Proportion:?\s*(\d+)/i)?.[1] || "7"),
-    styleCoherence: parseInt(analysis.match(/Style Coherence:?\s*(\d+)/i)?.[1] || "7"),
-    accessories: parseInt(analysis.match(/Accessories:?\s*(\d+)/i)?.[1] || "7"),
-    outfitCreativity: parseInt(analysis.match(/Outfit Creativity:?\s*(\d+)/i)?.[1] || "7"),
-    trendAwareness: parseInt(analysis.match(/Trend Awareness:?\s*(\d+)/i)?.[1] || "7")
+    colorCoordination: Math.round(parseFloat(analysis.match(/Color Coordination:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    fitProportion: Math.round(parseFloat(analysis.match(/Fit & Proportion:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    styleCoherence: Math.round(parseFloat(analysis.match(/Style Coherence:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    accessories: Math.round(parseFloat(analysis.match(/Accessories:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    outfitCreativity: Math.round(parseFloat(analysis.match(/Outfit Creativity:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    trendAwareness: Math.round(parseFloat(analysis.match(/Trend Awareness:?\s*(\d+\.?\d*)/i)?.[1] || "7"))
   };
 
   const totalScore = Math.round(
