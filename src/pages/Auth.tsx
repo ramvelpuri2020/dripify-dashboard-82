@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Check, ChevronRight, Lock, Star } from "lucide-react";
+import { ChevronRight, Check, Star } from "lucide-react";
 
 // Onboarding steps
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth";
@@ -117,15 +117,26 @@ export const Auth = () => {
             prompt: 'consent',
           },
           redirectTo: window.location.origin,
+        }
+      });
+      
+      // After successful authentication, we'll update the user's metadata with onboarding data
+      if (!error) {
+        // The data will be set when the auth state changes in App.tsx
+        const { error: updateError } = await supabase.auth.updateUser({
           data: {
             gender: gender,
             referral_source: referralSource,
             plan: selectedPlan
           }
+        });
+        
+        if (updateError) {
+          throw updateError;
         }
-      });
-      
-      if (error) throw error;
+      } else {
+        throw error;
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred";
       toast({
@@ -194,22 +205,22 @@ export const Auth = () => {
       <RadioGroup value={gender} onValueChange={setGender} className="gap-3">
         <div className={`relative flex items-center rounded-md border ${gender === 'male' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setGender('male')}>
           <RadioGroupItem value="male" id="male" className="absolute right-4" />
-          <Label htmlFor="male" className="flex-1 cursor-pointer">Male</Label>
+          <Label htmlFor="male" className="flex-1 cursor-pointer text-white">Male</Label>
         </div>
         
         <div className={`relative flex items-center rounded-md border ${gender === 'female' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setGender('female')}>
           <RadioGroupItem value="female" id="female" className="absolute right-4" />
-          <Label htmlFor="female" className="flex-1 cursor-pointer">Female</Label>
+          <Label htmlFor="female" className="flex-1 cursor-pointer text-white">Female</Label>
         </div>
         
         <div className={`relative flex items-center rounded-md border ${gender === 'non-binary' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setGender('non-binary')}>
           <RadioGroupItem value="non-binary" id="non-binary" className="absolute right-4" />
-          <Label htmlFor="non-binary" className="flex-1 cursor-pointer">Non-binary</Label>
+          <Label htmlFor="non-binary" className="flex-1 cursor-pointer text-white">Non-binary</Label>
         </div>
         
         <div className={`relative flex items-center rounded-md border ${gender === 'prefer-not-to-say' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setGender('prefer-not-to-say')}>
           <RadioGroupItem value="prefer-not-to-say" id="prefer-not-to-say" className="absolute right-4" />
-          <Label htmlFor="prefer-not-to-say" className="flex-1 cursor-pointer">Prefer not to say</Label>
+          <Label htmlFor="prefer-not-to-say" className="flex-1 cursor-pointer text-white">Prefer not to say</Label>
         </div>
       </RadioGroup>
       
@@ -239,27 +250,27 @@ export const Auth = () => {
       <RadioGroup value={referralSource} onValueChange={setReferralSource} className="gap-3">
         <div className={`relative flex items-center rounded-md border ${referralSource === 'instagram' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('instagram')}>
           <RadioGroupItem value="instagram" id="instagram" className="absolute right-4" />
-          <Label htmlFor="instagram" className="flex-1 cursor-pointer">Instagram</Label>
+          <Label htmlFor="instagram" className="flex-1 cursor-pointer text-white">Instagram</Label>
         </div>
         
         <div className={`relative flex items-center rounded-md border ${referralSource === 'x' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('x')}>
           <RadioGroupItem value="x" id="x" className="absolute right-4" />
-          <Label htmlFor="x" className="flex-1 cursor-pointer">X (Twitter)</Label>
+          <Label htmlFor="x" className="flex-1 cursor-pointer text-white">X (Twitter)</Label>
         </div>
         
         <div className={`relative flex items-center rounded-md border ${referralSource === 'discord' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('discord')}>
           <RadioGroupItem value="discord" id="discord" className="absolute right-4" />
-          <Label htmlFor="discord" className="flex-1 cursor-pointer">Discord</Label>
+          <Label htmlFor="discord" className="flex-1 cursor-pointer text-white">Discord</Label>
         </div>
         
         <div className={`relative flex items-center rounded-md border ${referralSource === 'linkedin' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('linkedin')}>
           <RadioGroupItem value="linkedin" id="linkedin" className="absolute right-4" />
-          <Label htmlFor="linkedin" className="flex-1 cursor-pointer">LinkedIn</Label>
+          <Label htmlFor="linkedin" className="flex-1 cursor-pointer text-white">LinkedIn</Label>
         </div>
         
         <div className={`relative flex items-center rounded-md border ${referralSource === 'other' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('other')}>
           <RadioGroupItem value="other" id="other" className="absolute right-4" />
-          <Label htmlFor="other" className="flex-1 cursor-pointer">Other</Label>
+          <Label htmlFor="other" className="flex-1 cursor-pointer text-white">Other</Label>
         </div>
       </RadioGroup>
       
@@ -293,16 +304,16 @@ export const Auth = () => {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-medium">Free</h3>
+              <h3 className="font-medium text-white">Free</h3>
               <p className="text-sm text-gray-400">Basic style analysis</p>
             </div>
-            <p className="font-semibold">$0</p>
+            <p className="font-semibold text-white">$0</p>
           </div>
           <ul className="mt-4 space-y-2 text-sm">
-            <li className="flex items-center">
+            <li className="flex items-center text-white">
               <Check className="mr-2 h-4 w-4 text-green-500" /> 3 style scans per month
             </li>
-            <li className="flex items-center">
+            <li className="flex items-center text-white">
               <Check className="mr-2 h-4 w-4 text-green-500" /> Basic style tips
             </li>
           </ul>
@@ -322,21 +333,21 @@ export const Auth = () => {
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-medium">Premium</h3>
+              <h3 className="font-medium text-white">Premium</h3>
               <p className="text-sm text-gray-400">Advanced fashion analysis</p>
             </div>
             <div>
-              <p className="font-semibold">$4.99<span className="text-xs text-gray-400">/month</span></p>
+              <p className="font-semibold text-white">$4.99<span className="text-xs text-gray-400">/month</span></p>
             </div>
           </div>
           <ul className="mt-4 space-y-2 text-sm">
-            <li className="flex items-center">
+            <li className="flex items-center text-white">
               <Check className="mr-2 h-4 w-4 text-green-500" /> Unlimited style scans
             </li>
-            <li className="flex items-center">
+            <li className="flex items-center text-white">
               <Check className="mr-2 h-4 w-4 text-green-500" /> Detailed analysis reports
             </li>
-            <li className="flex items-center">
+            <li className="flex items-center text-white">
               <Check className="mr-2 h-4 w-4 text-green-500" /> Personalized shopping tips
             </li>
           </ul>
@@ -398,7 +409,7 @@ export const Auth = () => {
       <form onSubmit={handleAuth} className="space-y-4">
         {isSignUp && (
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username" className="text-white">Username</Label>
             <Input
               id="username"
               value={username}
@@ -410,7 +421,7 @@ export const Auth = () => {
           </div>
         )}
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email" className="text-white">Email</Label>
           <Input
             id="email"
             type="email"
@@ -422,7 +433,7 @@ export const Auth = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password" className="text-white">Password</Label>
           <Input
             id="password"
             type="password"
