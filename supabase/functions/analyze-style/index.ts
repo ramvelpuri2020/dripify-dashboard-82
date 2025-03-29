@@ -129,79 +129,16 @@ serve(async (req) => {
     const styleContent = styleData.choices[0].message.content;
     console.log('Raw style content:', styleContent);
 
-    // Extract and parse JSON from the response
-    let parsedStyleResponse;
-    try {
-      // First try direct parsing
-      parsedStyleResponse = JSON.parse(styleContent);
-      console.log('Successfully parsed style JSON directly');
-    } catch (e) {
-      // If direct parsing fails, try to extract JSON from the text
-      console.log('Direct JSON parsing failed, attempting to extract JSON...');
-      
-      // Extract anything between curly braces (including nested objects)
-      const jsonMatch = styleContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.error('No JSON object found in response');
-        throw new Error('Could not extract JSON from response');
-      }
-      
-      try {
-        // Try to fix common JSON structure issues before parsing
-        let jsonText = jsonMatch[0];
-        
-        // Fix issue where feedback is incorrectly added as a separate object in the breakdown array
-        if (jsonText.includes('"feedback":') && !jsonText.includes('"feedback":') && jsonText.includes(']')) {
-          const feedbackMatch = jsonText.match(/"feedback":\s*"[^"]*"/);
-          if (feedbackMatch) {
-            // Remove the incorrect feedback object from breakdown array
-            jsonText = jsonText.replace(/,\s*\{\s*"feedback":[^}]*\}\s*\]/, ']');
-            // Add it as a separate property outside the array
-            jsonText = jsonText.replace(/\}\s*$/, `, "feedback": ${feedbackMatch[0].split(':')[1]} }`);
-          }
-        }
-        
-        // Fix numbers that might be parsed as decimals
-        jsonText = jsonText.replace(/"score":\s*(\d+\.\d+)/g, (match, score) => {
-          return `"score": ${Math.round(parseFloat(score))}`;
-        });
-        
-        // Fix totalScore if it's a decimal
-        jsonText = jsonText.replace(/"totalScore":\s*(\d+\.\d+)/g, (match, score) => {
-          return `"totalScore": ${Math.round(parseFloat(score))}`;
-        });
-        
-        parsedStyleResponse = JSON.parse(jsonText);
-        console.log('Successfully parsed extracted style JSON with fixes');
-      } catch (innerError) {
-        console.error('Error parsing extracted JSON:', innerError);
-        throw new Error('Failed to parse extracted JSON: ' + innerError.message);
-      }
-    }
+    // Extract and sanitize JSON from the response
+    let parsedStyleResponse = extractAndSanitizeJson(styleContent);
     
     // Ensure all scores are integers (whole numbers)
-    if (parsedStyleResponse.totalScore && typeof parsedStyleResponse.totalScore === 'number') {
-      parsedStyleResponse.totalScore = Math.round(parsedStyleResponse.totalScore);
-    }
-    
-    if (parsedStyleResponse.breakdown && Array.isArray(parsedStyleResponse.breakdown)) {
-      parsedStyleResponse.breakdown.forEach(item => {
-        if (item.score && typeof item.score === 'number') {
-          item.score = Math.round(item.score);
-        }
-      });
-    }
+    sanitizeScores(parsedStyleResponse);
     
     console.log('Parsed style response:', parsedStyleResponse);
 
-    // Fix the structure if feedback ended up in the breakdown array by mistake
-    if (parsedStyleResponse.breakdown && Array.isArray(parsedStyleResponse.breakdown)) {
-      const feedbackItem = parsedStyleResponse.breakdown.find(item => item.feedback || item.category === 'feedback');
-      if (feedbackItem && !parsedStyleResponse.feedback) {
-        parsedStyleResponse.feedback = feedbackItem.feedback || feedbackItem.details || '';
-        parsedStyleResponse.breakdown = parsedStyleResponse.breakdown.filter(item => !item.feedback && item.category !== 'feedback');
-      }
-    }
+    // Fix the feedback if it ended up in the breakdown array
+    fixFeedbackStructure(parsedStyleResponse);
 
     // Now generate custom improvement tips based on the analysis
     const tipsPrompt = `You are a high-end fashion stylist who provides specific, actionable style improvement tips.
@@ -306,62 +243,11 @@ serve(async (req) => {
     console.log('Raw tips content:', tipsContent);
 
     // Extract and parse JSON from the tips response
-    let parsedTipsResponse;
-    try {
-      // First try direct parsing
-      parsedTipsResponse = JSON.parse(tipsContent);
-      console.log('Successfully parsed tips JSON directly');
-    } catch (e) {
-      // If direct parsing fails, try to extract JSON from the text
-      console.log('Direct JSON parsing failed for tips, attempting to extract JSON...');
-      
-      // Extract anything between curly braces (including nested objects)
-      const jsonMatch = tipsContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.error('No JSON object found in tips response');
-        throw new Error('Could not extract JSON from tips response');
-      }
-      
-      try {
-        let jsonText = jsonMatch[0];
-        
-        // Clean up common issues in the JSON response
-        jsonText = jsonText.replace(/,\s*\]/g, ']'); // Remove trailing commas in arrays
-        jsonText = jsonText.replace(/,\s*\}/g, '}'); // Remove trailing commas in objects
-        
-        // Fix any mismatched quotes or brackets manually
-        const openCurly = (jsonText.match(/\{/g) || []).length;
-        const closeCurly = (jsonText.match(/\}/g) || []).length;
-        if (openCurly > closeCurly) {
-          jsonText += '}';
-        } else if (closeCurly > openCurly) {
-          jsonText = '{' + jsonText.substring(jsonText.indexOf('{') + 1);
-        }
-        
-        parsedTipsResponse = JSON.parse(jsonText);
-        console.log('Successfully parsed extracted tips JSON with fixes');
-      } catch (innerError) {
-        console.error('Error parsing extracted tips JSON:', innerError);
-        
-        // If all else fails, provide a fallback response
-        parsedTipsResponse = {
-          styleTips: parsedStyleResponse.breakdown.map(item => ({
-            category: item.category,
-            tips: [
-              `Consider how to improve your ${item.category.toLowerCase()} based on your current score of ${item.score}/10.`,
-              "Experiment with different combinations to find what works best for you.",
-              "Focus on what makes you feel confident and comfortable."
-            ]
-          })),
-          nextLevelTips: [
-            "Consider consulting with a personal stylist for more tailored advice.",
-            "Build a versatile wardrobe with high-quality basic pieces you can mix and match.",
-            "Study current fashion trends while staying true to your personal style.",
-            "Invest in proper clothing care to maintain the quality of your outfits."
-          ]
-        };
-        console.log('Using fallback tips response after parsing failure');
-      }
+    let parsedTipsResponse = extractAndSanitizeJson(tipsContent);
+    
+    // Create a fallback if parsing failed
+    if (!parsedTipsResponse || Object.keys(parsedTipsResponse).length === 0) {
+      parsedTipsResponse = createFallbackTips(parsedStyleResponse);
     }
     
     console.log('Parsed tips response:', parsedTipsResponse);
@@ -369,14 +255,7 @@ serve(async (req) => {
     // Validate and ensure the response has the expected structure
     if (!parsedTipsResponse.styleTips) {
       console.warn('Tips response missing styleTips property, creating default structure');
-      parsedTipsResponse.styleTips = parsedStyleResponse.breakdown.map(item => ({
-        category: item.category,
-        tips: [
-          `Consider how to improve your ${item.category.toLowerCase()} based on your current score of ${item.score}/10.`,
-          "Experiment with different combinations to find what works best for you.",
-          "Focus on what makes you feel confident and comfortable."
-        ]
-      }));
+      parsedTipsResponse.styleTips = createDefaultTips(parsedStyleResponse);
     }
     
     if (!parsedTipsResponse.nextLevelTips) {
@@ -391,11 +270,11 @@ serve(async (req) => {
 
     // Combine both results
     const result = {
-      totalScore: parsedStyleResponse.totalScore,
-      breakdown: parsedStyleResponse.breakdown,
-      feedback: parsedStyleResponse.feedback,
-      styleTips: parsedTipsResponse.styleTips,
-      nextLevelTips: parsedTipsResponse.nextLevelTips
+      totalScore: parsedStyleResponse.totalScore || 7,
+      breakdown: parsedStyleResponse.breakdown || [],
+      feedback: parsedStyleResponse.feedback || "No feedback available.",
+      styleTips: parsedTipsResponse.styleTips || [],
+      nextLevelTips: parsedTipsResponse.nextLevelTips || []
     };
 
     return new Response(JSON.stringify(result), { 
@@ -455,3 +334,131 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper functions for JSON extraction and sanitization
+function extractAndSanitizeJson(content) {
+  try {
+    // First try direct parsing
+    return JSON.parse(content);
+  } catch (e) {
+    console.log('Direct JSON parsing failed, attempting to extract JSON...');
+    
+    try {
+      // Extract anything between curly braces (including nested objects)
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error('No JSON object found in response');
+        return {};
+      }
+      
+      let jsonText = jsonMatch[0];
+      
+      // Fix common issues in the JSON response
+      jsonText = jsonText.replace(/,\s*\]/g, ']'); // Remove trailing commas in arrays
+      jsonText = jsonText.replace(/,\s*\}/g, '}'); // Remove trailing commas in objects
+      jsonText = jsonText.replace(/:\s*'([^']*)'/g, ': "$1"'); // Replace single quotes with double quotes
+      jsonText = jsonText.replace(/\\/g, ''); // Remove escape characters
+      jsonText = jsonText.replace(/\n/g, ' '); // Remove newlines
+      
+      // Fix issue with feedback being incorrectly formatted
+      jsonText = jsonText.replace(/\{"feedback":\s+"([^"]+)"\}/g, '"feedback": "$1"');
+      
+      // Fix issue with improperly closed arrays
+      const openBrackets = (jsonText.match(/\[/g) || []).length;
+      const closeBrackets = (jsonText.match(/\]/g) || []).length;
+      if (openBrackets > closeBrackets) {
+        jsonText = jsonText + ']'.repeat(openBrackets - closeBrackets);
+      }
+      
+      // Fix issue with improperly closed objects
+      const openCurly = (jsonText.match(/\{/g) || []).length;
+      const closeCurly = (jsonText.match(/\}/g) || []).length;
+      if (openCurly > closeCurly) {
+        jsonText = jsonText + '}'.repeat(openCurly - closeCurly);
+      }
+      
+      return JSON.parse(jsonText);
+    } catch (innerError) {
+      console.error('Error parsing extracted JSON:', innerError);
+      return {};
+    }
+  }
+}
+
+function sanitizeScores(response) {
+  if (!response) return;
+  
+  // Sanitize totalScore
+  if (response.totalScore && typeof response.totalScore === 'number') {
+    response.totalScore = Math.round(response.totalScore);
+  }
+  
+  // Sanitize breakdown scores
+  if (response.breakdown && Array.isArray(response.breakdown)) {
+    response.breakdown.forEach(item => {
+      if (item && item.score && typeof item.score === 'number') {
+        item.score = Math.round(item.score);
+      }
+    });
+  }
+}
+
+function fixFeedbackStructure(response) {
+  if (!response) return;
+  
+  // Check if feedback is in the breakdown array
+  if (response.breakdown && Array.isArray(response.breakdown)) {
+    // Look for an object with a feedback property
+    const feedbackItem = response.breakdown.find(item => item.feedback || item.category === 'feedback');
+    
+    if (feedbackItem) {
+      // If we found a feedback item in the breakdown array
+      if (!response.feedback) {
+        response.feedback = feedbackItem.feedback || feedbackItem.details || '';
+      }
+      // Remove the feedback item from the breakdown array
+      response.breakdown = response.breakdown.filter(item => !item.feedback && item.category !== 'feedback');
+    }
+  }
+}
+
+function createFallbackTips(styleResponse) {
+  if (!styleResponse || !styleResponse.breakdown || !Array.isArray(styleResponse.breakdown)) {
+    return {
+      styleTips: [],
+      nextLevelTips: []
+    };
+  }
+  
+  return {
+    styleTips: styleResponse.breakdown.map(item => ({
+      category: item.category,
+      tips: [
+        `Consider how to improve your ${item.category.toLowerCase()} based on your current score of ${item.score}/10.`,
+        "Experiment with different combinations to find what works best for you.",
+        "Focus on what makes you feel confident and comfortable."
+      ]
+    })),
+    nextLevelTips: [
+      "Consider consulting with a personal stylist for more tailored advice.",
+      "Build a versatile wardrobe with high-quality basic pieces you can mix and match.",
+      "Study current fashion trends while staying true to your personal style.",
+      "Invest in proper clothing care to maintain the quality of your outfits."
+    ]
+  };
+}
+
+function createDefaultTips(styleResponse) {
+  if (!styleResponse || !styleResponse.breakdown || !Array.isArray(styleResponse.breakdown)) {
+    return [];
+  }
+  
+  return styleResponse.breakdown.map(item => ({
+    category: item.category,
+    tips: [
+      `Consider how to improve your ${item.category.toLowerCase()} based on your current score of ${item.score}/10.`,
+      "Experiment with different combinations to find what works best for you.",
+      "Focus on what makes you feel confident and comfortable."
+    ]
+  }));
+}
