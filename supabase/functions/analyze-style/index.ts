@@ -130,15 +130,98 @@ serve(async (req) => {
     console.log('Raw style content:', styleContent);
 
     // Extract and sanitize JSON from the response
-    let parsedStyleResponse = extractAndSanitizeJson(styleContent);
-    
-    // Ensure all scores are integers (whole numbers)
-    sanitizeScores(parsedStyleResponse);
+    let parsedStyleResponse;
+    try {
+      // First try direct parsing
+      parsedStyleResponse = JSON.parse(styleContent);
+      console.log('Successfully parsed style JSON directly');
+    } catch (e) {
+      console.log('Direct JSON parsing failed, attempting to extract JSON...');
+      
+      try {
+        // Extract anything between curly braces (including nested objects)
+        const jsonMatch = styleContent.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          console.error('No JSON object found in response');
+          throw new Error('Failed to extract JSON from response');
+        }
+        
+        let jsonText = jsonMatch[0];
+        
+        // Fix common issues in the JSON response
+        jsonText = jsonText.replace(/,\s*\]/g, ']'); // Remove trailing commas in arrays
+        jsonText = jsonText.replace(/,\s*\}/g, '}'); // Remove trailing commas in objects
+        jsonText = jsonText.replace(/:\s*'([^']*)'/g, ': "$1"'); // Replace single quotes with double quotes
+        jsonText = jsonText.replace(/\\/g, ''); // Remove escape characters
+        
+        // Ensure feedback is properly formatted as a separate field
+        if (jsonText.includes('"feedback":') === false && jsonText.includes('"breakdown":')) {
+          // If feedback is missing but we have a breakdown, look for feedback in breakdown
+          const feedbackItem = jsonText.match(/"details": "(.*?)"/g);
+          if (feedbackItem && feedbackItem.length > 0) {
+            const lastDetail = feedbackItem[feedbackItem.length - 1];
+            const feedback = lastDetail.replace(/"details": "(.*?)"/, '$1');
+            // Add feedback before closing brace
+            jsonText = jsonText.replace(/}$/, `, "feedback": "${feedback}"}`);
+          } else {
+            // Add default feedback
+            jsonText = jsonText.replace(/}$/, `, "feedback": "No specific feedback provided for this outfit."}`);
+          }
+        }
+        
+        parsedStyleResponse = JSON.parse(jsonText);
+      } catch (innerError) {
+        console.error('Error parsing extracted JSON:', innerError);
+        throw new Error('Failed to parse extracted JSON: ' + innerError.message);
+      }
+    }
     
     console.log('Parsed style response:', parsedStyleResponse);
 
+    // Ensure all scores are whole numbers
+    if (parsedStyleResponse.totalScore) {
+      parsedStyleResponse.totalScore = Math.round(Number(parsedStyleResponse.totalScore));
+    } else {
+      parsedStyleResponse.totalScore = 7; // Default if missing
+    }
+    
+    if (parsedStyleResponse.breakdown && Array.isArray(parsedStyleResponse.breakdown)) {
+      parsedStyleResponse.breakdown.forEach(item => {
+        if (item && item.score !== undefined) {
+          item.score = Math.round(Number(item.score));
+        }
+        if (!item.emoji || item.emoji === "") {
+          switch (item.category) {
+            case "Overall Style": item.emoji = "👑"; break;
+            case "Color Coordination": item.emoji = "🎨"; break;
+            case "Fit & Proportion": item.emoji = "📏"; break;
+            case "Accessories": item.emoji = "⭐"; break;
+            case "Trend Alignment": item.emoji = "✨"; break;
+            case "Style Expression": item.emoji = "🪄"; break;
+            default: item.emoji = "✅"; break;
+          }
+        }
+      });
+    }
+
     // Fix the feedback if it ended up in the breakdown array
-    fixFeedbackStructure(parsedStyleResponse);
+    if (parsedStyleResponse.breakdown && Array.isArray(parsedStyleResponse.breakdown)) {
+      // Look for an object with a feedback property
+      const feedbackItem = parsedStyleResponse.breakdown.find(
+        item => item.feedback || item.category === 'feedback'
+      );
+      
+      if (feedbackItem) {
+        // If we found a feedback item in the breakdown array
+        if (!parsedStyleResponse.feedback) {
+          parsedStyleResponse.feedback = feedbackItem.feedback || feedbackItem.details || '';
+        }
+        // Remove the feedback item from the breakdown array
+        parsedStyleResponse.breakdown = parsedStyleResponse.breakdown.filter(
+          item => !item.feedback && item.category !== 'feedback'
+        );
+      }
+    }
 
     // Now generate custom improvement tips based on the analysis
     const tipsPrompt = `You are a high-end fashion stylist who provides specific, actionable style improvement tips.
@@ -149,7 +232,7 @@ serve(async (req) => {
       For categories with medium scores (5-7), focus on specific improvements.
       For categories with low scores (1-4), focus on fundamental improvements.
       
-      Return ONLY raw JSON without any markdown formatting, backticks, or anything else in this EXACT format:
+      Return raw JSON without any markdown formatting, backticks, or anything else in this EXACT format:
       {
         "styleTips": [
           {
@@ -243,30 +326,59 @@ serve(async (req) => {
     console.log('Raw tips content:', tipsContent);
 
     // Extract and parse JSON from the tips response
-    let parsedTipsResponse = extractAndSanitizeJson(tipsContent);
+    let parsedTipsResponse;
+    try {
+      parsedTipsResponse = JSON.parse(tipsContent);
+      console.log('Successfully parsed tips JSON directly');
+    } catch (e) {
+      console.log('Direct JSON parsing failed for tips, attempting to extract JSON...');
+      
+      try {
+        // Try to extract styleTips and nextLevelTips separately
+        let styleTipsMatch = tipsContent.match(/\{"styleTips":\s*\[[\s\S]*?\]\}/);
+        let nextLevelTipsMatch = tipsContent.match(/\{"nextLevelTips":\s*\[[\s\S]*?\]\}/);
+        
+        if (!styleTipsMatch && !nextLevelTipsMatch) {
+          // If we can't extract them separately, try to get the entire JSON object
+          const jsonMatch = tipsContent.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) {
+            console.error('No JSON object found in tips response');
+            throw new Error('No valid JSON found in tips response');
+          }
+          
+          let jsonText = jsonMatch[0];
+          // Clean up the JSON
+          jsonText = jsonText.replace(/,\s*\]/g, ']'); // Remove trailing commas in arrays
+          jsonText = jsonText.replace(/,\s*\}/g, '}'); // Remove trailing commas in objects
+          jsonText = jsonText.replace(/:\s*'([^']*)'/g, ': "$1"'); // Replace single quotes
+          jsonText = jsonText.replace(/\\/g, ''); // Remove escape characters
+          
+          parsedTipsResponse = JSON.parse(jsonText);
+        } else {
+          // Combine the extracted parts
+          const styleTips = styleTipsMatch ? JSON.parse(styleTipsMatch[0]).styleTips : [];
+          const nextLevelTips = nextLevelTipsMatch ? JSON.parse(nextLevelTipsMatch[0]).nextLevelTips : [];
+          
+          parsedTipsResponse = {
+            styleTips: styleTips,
+            nextLevelTips: nextLevelTips
+          };
+        }
+      } catch (innerError) {
+        console.error('Error parsing extracted tips JSON:', innerError);
+        console.log('Using fallback tips response after parsing failure');
+        // Create a fallback using the style analysis data
+        parsedTipsResponse = createFallbackTips(parsedStyleResponse);
+      }
+    }
     
-    // Create a fallback if parsing failed
-    if (!parsedTipsResponse || Object.keys(parsedTipsResponse).length === 0) {
+    // Validate tips response
+    if (!parsedTipsResponse || !parsedTipsResponse.styleTips) {
+      console.log('Tips response missing styleTips, creating fallback');
       parsedTipsResponse = createFallbackTips(parsedStyleResponse);
     }
     
     console.log('Parsed tips response:', parsedTipsResponse);
-
-    // Validate and ensure the response has the expected structure
-    if (!parsedTipsResponse.styleTips) {
-      console.warn('Tips response missing styleTips property, creating default structure');
-      parsedTipsResponse.styleTips = createDefaultTips(parsedStyleResponse);
-    }
-    
-    if (!parsedTipsResponse.nextLevelTips) {
-      console.warn('Tips response missing nextLevelTips property, creating default');
-      parsedTipsResponse.nextLevelTips = [
-        "Consider consulting with a personal stylist for more tailored advice.",
-        "Build a versatile wardrobe with high-quality basic pieces you can mix and match.",
-        "Study current fashion trends while staying true to your personal style.",
-        "Invest in proper clothing care to maintain the quality of your outfits."
-      ];
-    }
 
     // Combine both results
     const result = {
@@ -335,93 +447,7 @@ serve(async (req) => {
   }
 });
 
-// Helper functions for JSON extraction and sanitization
-function extractAndSanitizeJson(content) {
-  try {
-    // First try direct parsing
-    return JSON.parse(content);
-  } catch (e) {
-    console.log('Direct JSON parsing failed, attempting to extract JSON...');
-    
-    try {
-      // Extract anything between curly braces (including nested objects)
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.error('No JSON object found in response');
-        return {};
-      }
-      
-      let jsonText = jsonMatch[0];
-      
-      // Fix common issues in the JSON response
-      jsonText = jsonText.replace(/,\s*\]/g, ']'); // Remove trailing commas in arrays
-      jsonText = jsonText.replace(/,\s*\}/g, '}'); // Remove trailing commas in objects
-      jsonText = jsonText.replace(/:\s*'([^']*)'/g, ': "$1"'); // Replace single quotes with double quotes
-      jsonText = jsonText.replace(/\\/g, ''); // Remove escape characters
-      jsonText = jsonText.replace(/\n/g, ' '); // Remove newlines
-      
-      // Fix issue with feedback being incorrectly formatted
-      jsonText = jsonText.replace(/\{"feedback":\s+"([^"]+)"\}/g, '"feedback": "$1"');
-      
-      // Fix issue with improperly closed arrays
-      const openBrackets = (jsonText.match(/\[/g) || []).length;
-      const closeBrackets = (jsonText.match(/\]/g) || []).length;
-      if (openBrackets > closeBrackets) {
-        jsonText = jsonText + ']'.repeat(openBrackets - closeBrackets);
-      }
-      
-      // Fix issue with improperly closed objects
-      const openCurly = (jsonText.match(/\{/g) || []).length;
-      const closeCurly = (jsonText.match(/\}/g) || []).length;
-      if (openCurly > closeCurly) {
-        jsonText = jsonText + '}'.repeat(openCurly - closeCurly);
-      }
-      
-      return JSON.parse(jsonText);
-    } catch (innerError) {
-      console.error('Error parsing extracted JSON:', innerError);
-      return {};
-    }
-  }
-}
-
-function sanitizeScores(response) {
-  if (!response) return;
-  
-  // Sanitize totalScore
-  if (response.totalScore && typeof response.totalScore === 'number') {
-    response.totalScore = Math.round(response.totalScore);
-  }
-  
-  // Sanitize breakdown scores
-  if (response.breakdown && Array.isArray(response.breakdown)) {
-    response.breakdown.forEach(item => {
-      if (item && item.score && typeof item.score === 'number') {
-        item.score = Math.round(item.score);
-      }
-    });
-  }
-}
-
-function fixFeedbackStructure(response) {
-  if (!response) return;
-  
-  // Check if feedback is in the breakdown array
-  if (response.breakdown && Array.isArray(response.breakdown)) {
-    // Look for an object with a feedback property
-    const feedbackItem = response.breakdown.find(item => item.feedback || item.category === 'feedback');
-    
-    if (feedbackItem) {
-      // If we found a feedback item in the breakdown array
-      if (!response.feedback) {
-        response.feedback = feedbackItem.feedback || feedbackItem.details || '';
-      }
-      // Remove the feedback item from the breakdown array
-      response.breakdown = response.breakdown.filter(item => !item.feedback && item.category !== 'feedback');
-    }
-  }
-}
-
+// Helper function to create fallback tips when parsing fails
 function createFallbackTips(styleResponse) {
   if (!styleResponse || !styleResponse.breakdown || !Array.isArray(styleResponse.breakdown)) {
     return {
@@ -446,19 +472,4 @@ function createFallbackTips(styleResponse) {
       "Invest in proper clothing care to maintain the quality of your outfits."
     ]
   };
-}
-
-function createDefaultTips(styleResponse) {
-  if (!styleResponse || !styleResponse.breakdown || !Array.isArray(styleResponse.breakdown)) {
-    return [];
-  }
-  
-  return styleResponse.breakdown.map(item => ({
-    category: item.category,
-    tips: [
-      `Consider how to improve your ${item.category.toLowerCase()} based on your current score of ${item.score}/10.`,
-      "Experiment with different combinations to find what works best for you.",
-      "Focus on what makes you feel confident and comfortable."
-    ]
-  }));
 }

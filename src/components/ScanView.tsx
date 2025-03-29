@@ -10,15 +10,28 @@ import { motion } from "framer-motion";
 import { analyzeStyle } from "@/utils/imageAnalysis";
 import { useScanStore } from "@/store/scanStore";
 import { supabase } from "@/integrations/supabase/client";
+import { Sparkles } from "lucide-react";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedStyle, setSelectedStyle] = useState("casual");
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisPhase, setAnalysisPhase] = useState<string>("");
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
   const setLatestScan = useScanStore((state) => state.setLatestScan);
   const [result, setResult] = useState<any>(null);
+
+  // Analysis phase messages for loading states
+  const analysisPhrases = [
+    "Scanning outfit details...",
+    "Analyzing color coordination...",
+    "Evaluating fit and proportions...",
+    "Checking style coherence...",
+    "Assessing trend alignment...",
+    "Generating personalized tips...",
+    "Finalizing your style report..."
+  ];
 
   const generateThumbnail = async (file: File): Promise<Blob> => {
     return new Promise((resolve) => {
@@ -76,6 +89,19 @@ export const ScanView = () => {
     }
   };
 
+  const cycleAnalysisPhrases = () => {
+    let phraseIndex = 0;
+    
+    // Start the animation cycle
+    const interval = setInterval(() => {
+      setAnalysisPhase(analysisPhrases[phraseIndex]);
+      phraseIndex = (phraseIndex + 1) % analysisPhrases.length;
+    }, 1500);
+    
+    // Return the interval ID for cleanup
+    return interval;
+  };
+
   const handleAnalyze = async () => {
     if (!selectedImage) {
       toast({
@@ -87,6 +113,9 @@ export const ScanView = () => {
     }
 
     setAnalyzing(true);
+    setAnalysisPhase(analysisPhrases[0]);
+    const phraseCycleInterval = cycleAnalysisPhrases();
+    
     try {
       console.log('Starting analysis...');
       // Convert the image to base64
@@ -147,20 +176,31 @@ export const ScanView = () => {
 
       setResult(data);
       setLatestScan(data);
-      setShowResults(true);
-
+      
+      // Clear the interval once analysis is complete
+      clearInterval(phraseCycleInterval);
+      
       toast({
         title: "Analysis Complete",
         description: "Your style has been analyzed and saved!",
       });
+      
+      // Show results after a slight delay for better UX
+      setTimeout(() => {
+        setShowResults(true);
+        setAnalyzing(false);
+      }, 800);
+      
     } catch (error) {
+      // Clear the interval if there's an error
+      clearInterval(phraseCycleInterval);
+      
       console.error("Analysis error:", error);
       toast({
         title: "Analysis failed",
         description: error instanceof Error ? error.message : "There was an error analyzing your image",
         variant: "destructive",
       });
-    } finally {
       setAnalyzing(false);
     }
   };
@@ -221,9 +261,25 @@ export const ScanView = () => {
                 className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium px-10 py-6 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:-translate-y-1"
               >
                 {analyzing ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    Analyzing Style...
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 animate-pulse text-yellow-300" />
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <Sparkles className="h-5 w-5 animate-pulse text-yellow-300" />
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <p className="text-sm font-medium">{analysisPhase}</p>
+                      <motion.div 
+                        className="h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full mt-1"
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ 
+                          duration: 10,
+                          ease: "easeInOut",
+                          repeat: Infinity,
+                        }}
+                      />
+                    </div>
                   </div>
                 ) : (
                   "Analyze Style"
