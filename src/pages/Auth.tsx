@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronRight, Check, Star } from "lucide-react";
 
-// Onboarding steps
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth";
 
 export const Auth = () => {
@@ -28,7 +26,6 @@ export const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already authenticated
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         navigate("/");
@@ -42,7 +39,6 @@ export const Auth = () => {
 
     try {
       if (isSignUp) {
-        // Validate username
         if (!username.trim()) {
           throw new Error("Username is required");
         }
@@ -64,7 +60,6 @@ export const Auth = () => {
         });
         
         if (signUpError) {
-          // Handle rate limit error specifically
           if (signUpError.status === 429) {
             const errorBody = JSON.parse(signUpError.message.includes('{') ? 
               signUpError.message.substring(signUpError.message.indexOf('{')) : 
@@ -112,29 +107,12 @@ export const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
           redirectTo: window.location.origin,
         }
       });
       
-      // After successful authentication, we'll update the user's metadata with onboarding data
-      if (!error) {
-        // The data will be set when the auth state changes in App.tsx
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: {
-            gender: gender,
-            referral_source: referralSource,
-            plan: selectedPlan
-          }
-        });
-        
-        if (updateError) {
-          throw updateError;
-        }
-      } else {
+      if (error) {
+        console.error("Google sign-in error:", error);
         throw error;
       }
     } catch (error) {
