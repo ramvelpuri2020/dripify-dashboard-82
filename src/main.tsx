@@ -8,11 +8,16 @@ import './index.css'
 
 // Initialize Capacitor plugins when on a native platform
 const isPlatform = () => {
-  return typeof (window as any).Capacitor !== 'undefined'
+  if (typeof window !== 'undefined' && typeof (window as any).Capacitor !== 'undefined') {
+    return (window as any).Capacitor.isNativePlatform();
+  }
+  return false;
 }
 
 // Set up mobile app when running natively
 if (isPlatform()) {
+  console.log('Running on native platform, initializing Capacitor plugins');
+  
   // Set status bar style
   StatusBar.setStyle({ style: Style.Dark })
     .catch(err => console.error('Status bar error:', err))

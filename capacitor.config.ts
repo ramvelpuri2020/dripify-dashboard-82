@@ -9,6 +9,7 @@ const config: CapacitorConfig = {
     url: 'https://7c4d7fc5-c801-4246-b1f3-59518b26b0e8.lovableproject.com?forceHideBadge=true',
     cleartext: true
   },
+  bundledWebRuntime: false,
   ios: {
     contentInset: 'automatic',
     limitsNavigationsToAppBoundDomains: true,
@@ -17,7 +18,9 @@ const config: CapacitorConfig = {
     scheme: 'genstyle',
     allowsLinkPreview: false,
     handleApplicationNotifications: true,
-    statusBarStyle: 'dark'
+    statusBarStyle: 'dark',
+    minVersion: '14.0', // Set minimum iOS version
+    hideLogs: false // Keep logs visible for debugging
   },
   android: {
     allowMixedContent: true,
@@ -29,6 +32,23 @@ const config: CapacitorConfig = {
     },
     minSdkVersion: 22,
     androidScheme: 'https'
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 1000,
+      backgroundColor: "#000000",
+      androidSplashResourceName: "splash",
+      androidScaleType: "CENTER_CROP",
+      showSpinner: true,
+      splashFullScreen: true,
+      splashImmersive: true
+    },
+    CapacitorHttp: {
+      enabled: true
+    },
+    Camera: {
+      presentationStyle: 'fullscreen'
+    }
   }
 };
 

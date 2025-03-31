@@ -20,22 +20,27 @@ export const SubscriptionCheck: React.FC<SubscriptionCheckProps> = ({ children }
     // Only show subscription-related notifications on native platforms
     if (!isNative) return;
     
-    if (error && !hasShownInitialMessage) {
-      toast({
-        title: "Subscription Service",
-        description: "Unable to connect to subscription service. Some features may be limited.",
-        variant: "destructive",
-        duration: 5000,
-      });
-      setHasShownInitialMessage(true);
-    } else if (isInitialized && !isLoading && !isPremium && !hasShownInitialMessage) {
-      toast({
-        title: "Free Plan",
-        description: "Upgrade to Premium for unlimited features",
-        duration: 5000,
-      });
-      setHasShownInitialMessage(true);
-    }
+    // Handle with a slight delay to ensure UI is ready
+    const timer = setTimeout(() => {
+      if (error && !hasShownInitialMessage) {
+        toast({
+          title: "Subscription Service",
+          description: "Unable to connect to subscription service. Some features may be limited.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        setHasShownInitialMessage(true);
+      } else if (isInitialized && !isLoading && !isPremium && !hasShownInitialMessage) {
+        toast({
+          title: "Free Plan",
+          description: "Upgrade to Premium for unlimited features",
+          duration: 5000,
+        });
+        setHasShownInitialMessage(true);
+      }
+    }, 1000);
+    
+    return () => clearTimeout(timer);
   }, [isInitialized, isLoading, isPremium, toast, error, hasShownInitialMessage, isNative]);
   
   return <>{children}</>;
