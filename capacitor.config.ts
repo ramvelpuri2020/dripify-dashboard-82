@@ -13,13 +13,22 @@ const config: CapacitorConfig = {
     contentInset: 'automatic',
     limitsNavigationsToAppBoundDomains: true,
     backgroundColor: '#000000', // Matching the dark theme
-    preferredContentMode: 'mobile'
+    preferredContentMode: 'mobile',
+    scheme: 'genstyle',
+    allowsLinkPreview: false,
+    handleApplicationNotifications: true,
+    statusBarStyle: 'dark'
   },
   android: {
     allowMixedContent: true,
     backgroundColor: '#000000', // Matching the dark theme
     captureInput: true,
-    webContentsDebuggingEnabled: true
+    webContentsDebuggingEnabled: true,
+    initialMargin: {
+      top: 0
+    },
+    minSdkVersion: 22,
+    androidScheme: 'https'
   }
 };
 
