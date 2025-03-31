@@ -11,27 +11,32 @@ import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import { SubscriptionCheck } from "@/components/SubscriptionCheck";
 
+// Create QueryClient outside of component to avoid re-creation on renders
 const queryClient = new QueryClient();
 
 const App = () => {
   const [session, setSession] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(!!session);
     });
 
+    // Set up auth state listener
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(!!session);
     });
 
+    // Clean up subscription
     return () => subscription.unsubscribe();
   }, []);
 
+  // Show loading state when session is null
   if (session === null) {
-    return null; // Loading state
+    return null;
   }
 
   return (

@@ -32,5 +32,13 @@ if (isPlatform()) {
   })
 }
 
-// Mount React app
-createRoot(document.getElementById("root")!).render(<App />)
+// Get the root element
+const rootElement = document.getElementById("root")
+
+// Make sure the root element exists
+if (!rootElement) {
+  throw new Error("Root element not found. Make sure there is a div with id 'root' in your HTML.")
+}
+
+// Create and mount the React root
+createRoot(rootElement).render(<App />)
