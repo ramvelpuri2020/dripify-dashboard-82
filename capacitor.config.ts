@@ -12,9 +12,14 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
     limitsNavigationsToAppBoundDomains: true,
+    backgroundColor: '#000000', // Matching the dark theme
+    preferredContentMode: 'mobile'
   },
   android: {
-    allowMixedContent: true
+    allowMixedContent: true,
+    backgroundColor: '#000000', // Matching the dark theme
+    captureInput: true,
+    webContentsDebuggingEnabled: true
   }
 };
 
