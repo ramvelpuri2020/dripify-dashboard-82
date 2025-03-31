@@ -24,7 +24,7 @@ if (isPlatform()) {
   
   // Hide splash screen with a fade animation
   SplashScreen.hide({
-    fadeOutDuration: 500
+    fadeOutDuration: 1000
   }).catch(err => console.error('Splash screen error:', err))
   
   // Handle back button
@@ -37,13 +37,26 @@ if (isPlatform()) {
   })
 }
 
-// Get the root element
-const rootElement = document.getElementById("root")
+// Ensure DOM is fully loaded before creating React root
+const initializeApp = () => {
+  const rootElement = document.getElementById("root");
 
-// Make sure the root element exists
-if (!rootElement) {
-  throw new Error("Root element not found. Make sure there is a div with id 'root' in your HTML.")
+  if (!rootElement) {
+    console.error("Root element not found. Make sure there is a div with id 'root' in your HTML.");
+    return;
+  }
+
+  try {
+    createRoot(rootElement).render(<App />);
+    console.log("App successfully mounted");
+  } catch (error) {
+    console.error("Error rendering the app:", error);
+  }
+};
+
+// Use the safer approach to ensure DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+  initializeApp();
 }
-
-// Create and mount the React root
-createRoot(rootElement).render(<App />)
