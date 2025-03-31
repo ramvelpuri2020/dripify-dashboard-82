@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
+import { SubscriptionCheck } from "@/components/SubscriptionCheck";
 
 const queryClient = new QueryClient();
 
@@ -39,17 +40,19 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/*" element={session ? <Index /> : <Navigate to="/auth" />} />
-            <Route
-              path="/profile"
-              element={session ? <Profile /> : <Navigate to="/auth" />}
-            />
-            <Route
-              path="/auth"
-              element={!session ? <Auth /> : <Navigate to="/" />}
-            />
-          </Routes>
+          <SubscriptionCheck>
+            <Routes>
+              <Route path="/*" element={session ? <Index /> : <Navigate to="/auth" />} />
+              <Route
+                path="/profile"
+                element={session ? <Profile /> : <Navigate to="/auth" />}
+              />
+              <Route
+                path="/auth"
+                element={!session ? <Auth /> : <Navigate to="/" />}
+              />
+            </Routes>
+          </SubscriptionCheck>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

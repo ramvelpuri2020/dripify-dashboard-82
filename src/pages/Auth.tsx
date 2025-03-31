@@ -3,12 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { Motion } from "@/components/ui/motion";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronRight, Check, Star } from "lucide-react";
+import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth";
 
@@ -16,12 +17,12 @@ export const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("welcome");
-  const [gender, setGender] = useState<string>("");
-  const [referralSource, setReferralSource] = useState<string>("");
-  const [selectedPlan, setSelectedPlan] = useState<string>("free");
+  const [gender, setGender] = useState("male");
+  const [referralSource, setReferralSource] = useState("friend");
+  const [selectedPlan, setSelectedPlan] = useState("free");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -33,76 +34,69 @@ export const Auth = () => {
     });
   }, [navigate]);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoading(true);
 
     try {
       if (isSignUp) {
         if (!username.trim()) {
           throw new Error("Username is required");
         }
-        if (username.length < 3) {
-          throw new Error("Username must be at least 3 characters long");
-        }
-
+      
+        // Sign up with email and password
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              username: username,
+              username,
               gender: gender,
               referral_source: referralSource,
-              plan: selectedPlan
-            }
-          }
+              subscription_plan: selectedPlan,
+              sign_up_date: new Date().toISOString()
+            },
+          },
         });
         
         if (signUpError) {
           if (signUpError.status === 429) {
             const errorBody = JSON.parse(signUpError.message.includes('{') ? 
               signUpError.message.substring(signUpError.message.indexOf('{')) : 
-              '{"message": "Please wait a moment before trying again."}'
-            );
-            throw new Error(errorBody.message || "Please wait before trying again.");
+              '{"reason":"Too many requests"}');
+            throw new Error(errorBody.reason || "Too many attempts, please try again later");
           }
           throw signUpError;
         }
-
+        
         toast({
-          title: "Sign up successful!",
-          description: "Please check your email to verify your account.",
-          variant: "success",
+          title: "Account created",
+          description: "Check your email to confirm your account",
         });
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        // Sign in with email and password
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (signInError) throw signInError;
         
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully signed in.",
-          variant: "success",
-        });
+        if (error) throw error;
+        
         navigate("/");
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
+      console.error("Authentication error:", error);
       toast({
-        title: "Error",
-        description: errorMessage,
+        title: "Authentication failed",
+        description: error instanceof Error ? error.message : "Invalid email or password",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -116,370 +110,295 @@ export const Auth = () => {
         throw error;
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
+      console.error("Google sign-in error:", error);
       toast({
-        title: "Error with Google Sign In",
-        description: errorMessage,
+        title: "Authentication failed",
+        description: error instanceof Error ? error.message : "Could not sign in with Google",
         variant: "destructive",
       });
-      setLoading(false);
     }
   };
 
-  const nextStep = () => {
-    if (currentStep === "welcome") setCurrentStep("gender");
-    else if (currentStep === "gender" && gender) setCurrentStep("referral");
-    else if (currentStep === "referral" && referralSource) setCurrentStep("pricing");
-    else if (currentStep === "pricing") setCurrentStep("auth");
-  };
-
-  const prevStep = () => {
-    if (currentStep === "gender") setCurrentStep("welcome");
-    else if (currentStep === "referral") setCurrentStep("gender");
-    else if (currentStep === "pricing") setCurrentStep("referral");
-    else if (currentStep === "auth") setCurrentStep("pricing");
-  };
-
-  const renderWelcomeScreen = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="text-center"
-    >
-      <div className="py-8 flex justify-center">
-        <img 
-          src="/lovable-uploads/bf9f5efd-772f-47b5-bb2f-5cbc82206ab8.png" 
-          alt="GenStyle Logo" 
-          className="w-32 h-32 object-contain"
-        />
-      </div>
-      
-      <h1 className="text-3xl font-bold bg-gradient-to-r from-[#F97316] to-[#FB923C] text-transparent bg-clip-text mb-4">
-        Welcome to GenStyle
-      </h1>
-      
-      <p className="text-white/70 mb-8">
-        Your AI-powered personal stylist that helps you look your best.
-      </p>
-      
-      <Button 
-        onClick={nextStep} 
-        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-      >
-        Get Started <ChevronRight className="ml-2 h-4 w-4" />
-      </Button>
-    </motion.div>
-  );
-
-  const renderGenderSelection = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-    >
-      <h2 className="text-xl font-semibold text-white mb-6 text-center">How do you identify?</h2>
-      
-      <RadioGroup value={gender} onValueChange={setGender} className="gap-3">
-        <div className={`relative flex items-center rounded-md border ${gender === 'male' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setGender('male')}>
-          <RadioGroupItem value="male" id="male" className="absolute right-4" />
-          <Label htmlFor="male" className="flex-1 cursor-pointer text-white">Male</Label>
-        </div>
-        
-        <div className={`relative flex items-center rounded-md border ${gender === 'female' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setGender('female')}>
-          <RadioGroupItem value="female" id="female" className="absolute right-4" />
-          <Label htmlFor="female" className="flex-1 cursor-pointer text-white">Female</Label>
-        </div>
-        
-        <div className={`relative flex items-center rounded-md border ${gender === 'non-binary' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setGender('non-binary')}>
-          <RadioGroupItem value="non-binary" id="non-binary" className="absolute right-4" />
-          <Label htmlFor="non-binary" className="flex-1 cursor-pointer text-white">Non-binary</Label>
-        </div>
-        
-        <div className={`relative flex items-center rounded-md border ${gender === 'prefer-not-to-say' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setGender('prefer-not-to-say')}>
-          <RadioGroupItem value="prefer-not-to-say" id="prefer-not-to-say" className="absolute right-4" />
-          <Label htmlFor="prefer-not-to-say" className="flex-1 cursor-pointer text-white">Prefer not to say</Label>
-        </div>
-      </RadioGroup>
-      
-      <div className="flex mt-8 gap-3">
-        <Button variant="outline" onClick={prevStep} className="flex-1">
-          Back
-        </Button>
-        <Button 
-          onClick={nextStep} 
-          disabled={!gender}
-          className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-        >
-          Next <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    </motion.div>
-  );
-
-  const renderReferralSource = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-    >
-      <h2 className="text-xl font-semibold text-white mb-6 text-center">How did you find us?</h2>
-      
-      <RadioGroup value={referralSource} onValueChange={setReferralSource} className="gap-3">
-        <div className={`relative flex items-center rounded-md border ${referralSource === 'instagram' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('instagram')}>
-          <RadioGroupItem value="instagram" id="instagram" className="absolute right-4" />
-          <Label htmlFor="instagram" className="flex-1 cursor-pointer text-white">Instagram</Label>
-        </div>
-        
-        <div className={`relative flex items-center rounded-md border ${referralSource === 'x' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('x')}>
-          <RadioGroupItem value="x" id="x" className="absolute right-4" />
-          <Label htmlFor="x" className="flex-1 cursor-pointer text-white">X (Twitter)</Label>
-        </div>
-        
-        <div className={`relative flex items-center rounded-md border ${referralSource === 'discord' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('discord')}>
-          <RadioGroupItem value="discord" id="discord" className="absolute right-4" />
-          <Label htmlFor="discord" className="flex-1 cursor-pointer text-white">Discord</Label>
-        </div>
-        
-        <div className={`relative flex items-center rounded-md border ${referralSource === 'linkedin' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('linkedin')}>
-          <RadioGroupItem value="linkedin" id="linkedin" className="absolute right-4" />
-          <Label htmlFor="linkedin" className="flex-1 cursor-pointer text-white">LinkedIn</Label>
-        </div>
-        
-        <div className={`relative flex items-center rounded-md border ${referralSource === 'other' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'} p-4 cursor-pointer`} onClick={() => setReferralSource('other')}>
-          <RadioGroupItem value="other" id="other" className="absolute right-4" />
-          <Label htmlFor="other" className="flex-1 cursor-pointer text-white">Other</Label>
-        </div>
-      </RadioGroup>
-      
-      <div className="flex mt-8 gap-3">
-        <Button variant="outline" onClick={prevStep} className="flex-1">
-          Back
-        </Button>
-        <Button 
-          onClick={nextStep} 
-          disabled={!referralSource}
-          className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-        >
-          Next <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    </motion.div>
-  );
-
-  const renderPricingPlans = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-    >
-      <h2 className="text-xl font-semibold text-white mb-6 text-center">Choose your plan</h2>
-      
-      <div className="space-y-4">
-        <div 
-          className={`relative rounded-lg border p-4 ${selectedPlan === 'free' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'}`}
-          onClick={() => setSelectedPlan('free')}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-white">Free</h3>
-              <p className="text-sm text-gray-400">Basic style analysis</p>
-            </div>
-            <p className="font-semibold text-white">$0</p>
+  const renderStep = () => {
+    switch (currentStep) {
+      case "welcome":
+        return (
+          <div className="space-y-8 text-center">
+            <h2 className="text-2xl font-bold tracking-tight">Welcome to GenStyle</h2>
+            <p className="text-muted-foreground">
+              Elevate your style with AI-powered fashion analysis and recommendations
+            </p>
+            <Button 
+              className="w-full"
+              onClick={() => setCurrentStep("gender")}
+            >
+              Get Started <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
-          <ul className="mt-4 space-y-2 text-sm">
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> 3 style scans per month
-            </li>
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Basic style tips
-            </li>
-          </ul>
-          {selectedPlan === 'free' && (
-            <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
-              <Check className="h-4 w-4 text-white" />
+        );
+      
+      case "gender":
+        return (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold tracking-tight">Tell us about yourself</h2>
+              <p className="text-muted-foreground">
+                This helps us personalize your style recommendations
+              </p>
             </div>
-          )}
-        </div>
+            
+            <div className="space-y-4">
+              <Label>I identify as</Label>
+              <RadioGroup 
+                defaultValue={gender} 
+                onValueChange={setGender}
+                className="grid grid-cols-2 gap-4"
+              >
+                <Label
+                  htmlFor="male"
+                  className={`flex flex-col items-center justify-between rounded-md border-2 p-4 ${
+                    gender === 'male' ? 'border-primary' : 'border-muted'
+                  } hover:border-primary cursor-pointer`}
+                >
+                  <RadioGroupItem value="male" id="male" className="sr-only" />
+                  <span>Male</span>
+                </Label>
+                <Label
+                  htmlFor="female"
+                  className={`flex flex-col items-center justify-between rounded-md border-2 p-4 ${
+                    gender === 'female' ? 'border-primary' : 'border-muted'
+                  } hover:border-primary cursor-pointer`}
+                >
+                  <RadioGroupItem value="female" id="female" className="sr-only" />
+                  <span>Female</span>
+                </Label>
+                <Label
+                  htmlFor="non_binary"
+                  className={`flex flex-col items-center justify-between rounded-md border-2 p-4 ${
+                    gender === 'non_binary' ? 'border-primary' : 'border-muted'
+                  } hover:border-primary cursor-pointer`}
+                >
+                  <RadioGroupItem value="non_binary" id="non_binary" className="sr-only" />
+                  <span>Non-binary</span>
+                </Label>
+                <Label
+                  htmlFor="prefer_not_to_say"
+                  className={`flex flex-col items-center justify-between rounded-md border-2 p-4 ${
+                    gender === 'prefer_not_to_say' ? 'border-primary' : 'border-muted'
+                  } hover:border-primary cursor-pointer`}
+                >
+                  <RadioGroupItem value="prefer_not_to_say" id="prefer_not_to_say" className="sr-only" />
+                  <span>Prefer not to say</span>
+                </Label>
+              </RadioGroup>
+            </div>
+            
+            <Button 
+              className="w-full"
+              onClick={() => setCurrentStep("referral")}
+            >
+              Continue <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        );
+      
+      case "referral":
+        return (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold tracking-tight">How did you hear about us?</h2>
+              <p className="text-muted-foreground">
+                We'd love to know what brought you to GenStyle
+              </p>
+            </div>
+            
+            <RadioGroup 
+              defaultValue={referralSource} 
+              onValueChange={setReferralSource}
+              className="space-y-2"
+            >
+              <Label
+                htmlFor="friend"
+                className={`flex items-center justify-between rounded-md border-2 p-3 ${
+                  referralSource === 'friend' ? 'border-primary' : 'border-muted'
+                } hover:border-primary cursor-pointer`}
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="friend" id="friend" />
+                  <span>Friend or family</span>
+                </div>
+              </Label>
+              <Label
+                htmlFor="social"
+                className={`flex items-center justify-between rounded-md border-2 p-3 ${
+                  referralSource === 'social' ? 'border-primary' : 'border-muted'
+                } hover:border-primary cursor-pointer`}
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="social" id="social" />
+                  <span>Social media</span>
+                </div>
+              </Label>
+              <Label
+                htmlFor="search"
+                className={`flex items-center justify-between rounded-md border-2 p-3 ${
+                  referralSource === 'search' ? 'border-primary' : 'border-muted'
+                } hover:border-primary cursor-pointer`}
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="search" id="search" />
+                  <span>Search engine</span>
+                </div>
+              </Label>
+              <Label
+                htmlFor="ad"
+                className={`flex items-center justify-between rounded-md border-2 p-3 ${
+                  referralSource === 'ad' ? 'border-primary' : 'border-muted'
+                } hover:border-primary cursor-pointer`}
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="ad" id="ad" />
+                  <span>Advertisement</span>
+                </div>
+              </Label>
+              <Label
+                htmlFor="other"
+                className={`flex items-center justify-between rounded-md border-2 p-3 ${
+                  referralSource === 'other' ? 'border-primary' : 'border-muted'
+                } hover:border-primary cursor-pointer`}
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="other" id="other" />
+                  <span>Other</span>
+                </div>
+              </Label>
+            </RadioGroup>
+            
+            <Button 
+              className="w-full"
+              onClick={() => setCurrentStep("pricing")}
+            >
+              Continue <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        );
         
-        <div 
-          className={`relative rounded-lg border p-4 ${selectedPlan === 'premium' ? 'border-purple-500 bg-purple-500/10' : 'border-white/10'}`}
-          onClick={() => setSelectedPlan('premium')}
-        >
-          <div className="absolute -top-3 right-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black text-xs px-2 py-1 rounded-full">
-            POPULAR
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-white">Premium</h3>
-              <p className="text-sm text-gray-400">Advanced fashion analysis</p>
-            </div>
-            <div>
-              <p className="font-semibold text-white">$4.99<span className="text-xs text-gray-400">/month</span></p>
-            </div>
-          </div>
-          <ul className="mt-4 space-y-2 text-sm">
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Unlimited style scans
-            </li>
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Detailed analysis reports
-            </li>
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Personalized shopping tips
-            </li>
-          </ul>
-          {selectedPlan === 'premium' && (
-            <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
-              <Check className="h-4 w-4 text-white" />
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className="flex mt-8 gap-3">
-        <Button variant="outline" onClick={prevStep} className="flex-1">
-          Back
-        </Button>
-        <Button 
-          onClick={nextStep}
-          className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-        >
-          {selectedPlan === 'free' ? 'Continue with Free' : 'Continue with Premium'}
-        </Button>
-      </div>
-    </motion.div>
-  );
-
-  const renderAuthScreen = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-    >
-      <h2 className="text-xl font-semibold text-white mb-6 text-center">
-        {isSignUp ? "Create your account" : "Sign in to your account"}
-      </h2>
-      
-      <Button
-        onClick={handleGoogleSignIn}
-        disabled={loading}
-        className="w-full mb-4 bg-white text-gray-800 hover:bg-gray-200 flex items-center justify-center gap-2"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px">
-          <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
-          <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
-          <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
-          <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
-        </svg>
-        {isSignUp ? "Sign up with Google" : "Sign in with Google"}
-      </Button>
-      
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-white/20"></div>
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="px-2 bg-black/30 text-white/60">OR</span>
-        </div>
-      </div>
-      
-      <form onSubmit={handleAuth} className="space-y-4">
-        {isSignUp && (
-          <div className="space-y-2">
-            <Label htmlFor="username" className="text-white">Username</Label>
-            <Input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              className="bg-white/5 border-white/10 text-white"
-              placeholder="Choose a username"
-            />
-          </div>
-        )}
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-white">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="bg-white/5 border-white/10 text-white"
-            placeholder="Enter your email"
+      case "pricing":
+        return (
+          <SubscriptionPlans 
+            onContinue={(planSelected) => {
+              setSelectedPlan(planSelected ? 'premium' : 'free');
+              setCurrentStep("auth");
+            }} 
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password" className="text-white">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="bg-white/5 border-white/10 text-white"
-            placeholder="Choose a password"
-          />
-        </div>
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            onClick={prevStep}
-            variant="outline"
-            className="flex-1"
-          >
-            Back
-          </Button>
-          <Button
-            type="submit"
-            disabled={loading}
-            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-          >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                {isSignUp ? "Signing up..." : "Signing in..."}
+        );
+      
+      case "auth":
+        return (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold tracking-tight">{isSignUp ? 'Create an account' : 'Welcome back'}</h2>
+              <p className="text-muted-foreground">
+                {isSignUp ? 'Sign up to get started' : 'Sign in to your account'}
+              </p>
+            </div>
+            
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input 
+                    id="username"
+                    placeholder="johndoe" 
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email"
+                  type="email" 
+                  placeholder="email@example.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
-            ) : (
-              <>{isSignUp ? "Sign up" : "Sign in"}</>
-            )}
-          </Button>
-        </div>
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="text-sm text-white/60 hover:text-white"
-          >
-            {isSignUp
-              ? "Already have an account? Sign in"
-              : "Don't have an account? Sign up"}
-          </button>
-        </div>
-      </form>
-    </motion.div>
-  );
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                  id="password"
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button className="w-full" type="submit" disabled={isLoading}>
+                {isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
+              </Button>
+            </form>
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-muted"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+              </div>
+            </div>
+            
+            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                <path
+                  d="M12.0003 4.75C13.7703 4.75 15.3553 5.36002 16.6053 6.54998L20.0303 3.125C17.9502 1.19 15.2353 0 12.0003 0C7.31028 0 3.25527 2.69 1.28027 6.60998L5.27028 9.70498C6.21525 6.86002 8.87028 4.75 12.0003 4.75Z"
+                  fill="#EA4335"
+                />
+                <path
+                  d="M23.49 12.275C23.49 11.49 23.415 10.73 23.3 10H12V14.51H18.47C18.18 15.99 17.34 17.25 16.08 18.1L19.945 21.1C22.2 19.01 23.49 15.92 23.49 12.275Z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M5.26498 14.2949C5.02498 13.5699 4.88501 12.7999 4.88501 11.9999C4.88501 11.1999 5.01998 10.4299 5.26498 9.7049L1.275 6.60986C0.46 8.22986 0 10.0599 0 11.9999C0 13.9399 0.46 15.7699 1.28 17.3899L5.26498 14.2949Z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M12.0004 24.0001C15.2404 24.0001 17.9654 22.935 19.9454 21.095L16.0804 18.095C15.0054 18.82 13.6204 19.25 12.0004 19.25C8.8704 19.25 6.2104 17.14 5.2654 14.295L1.2754 17.39C3.2504 21.31 7.3104 24.0001 12.0004 24.0001Z"
+                  fill="#34A853"
+                />
+              </svg>
+              Google
+            </Button>
+            
+            <div className="text-center text-sm">
+              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+              <button
+                type="button"
+                className="underline font-medium"
+                onClick={() => setIsSignUp(!isSignUp)}
+              >
+                {isSignUp ? 'Sign In' : 'Sign Up'}
+              </button>
+            </div>
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1A1F2C] to-[#2C1F3D] flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        <Card className="backdrop-blur-xl bg-black/30 border-white/10">
-          <CardContent className="pt-6">
-            <AnimatePresence mode="wait">
-              {currentStep === "welcome" && renderWelcomeScreen()}
-              {currentStep === "gender" && renderGenderSelection()}
-              {currentStep === "referral" && renderReferralSource()}
-              {currentStep === "pricing" && renderPricingPlans()}
-              {currentStep === "auth" && renderAuthScreen()}
-            </AnimatePresence>
-          </CardContent>
-        </Card>
-      </motion.div>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-700 to-pink-600 p-4">
+      <Card className="w-full max-w-md mx-auto overflow-hidden">
+        <CardContent className="p-6">
+          {renderStep()}
+        </CardContent>
+      </Card>
     </div>
   );
 };
