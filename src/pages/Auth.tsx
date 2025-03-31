@@ -2,169 +2,154 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
+import { ChevronRight, ChevronLeft } from "lucide-react";
+
+const STYLE_QUESTIONS = [
+  {
+    question: "What's your fashion style?",
+    options: ["Casual", "Formal", "Streetwear", "Athletic", "Minimalist"]
+  },
+  {
+    question: "What colors do you prefer?",
+    options: ["Neutrals", "Bright Colors", "Pastels", "Earth Tones", "Monochrome"]
+  },
+  {
+    question: "What's your budget range?",
+    options: ["Budget", "Mid-range", "Premium", "Luxury", "Mix"]
+  }
+];
 
 const Auth = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [answers, setAnswers] = useState<string[]>([]);
   const [showSubscription, setShowSubscription] = useState(false);
   const { toast } = useToast();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ 
-        email, 
-        password 
-      });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Login successful",
-        description: "Welcome back!",
-        variant: "success",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Login failed",
-        description: error.message || "Please check your credentials",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  const handleAnswerSelect = (answer: string) => {
+    const newAnswers = [...answers];
+    newAnswers[currentStep] = answer;
+    setAnswers(newAnswers);
+    
+    if (currentStep < STYLE_QUESTIONS.length - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      // Last question answered, proceed to subscription
+      setShowSubscription(true);
     }
   };
-  
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
 
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleContinueAfterSubscription = async (premiumSelected: boolean) => {
     try {
-      const { error } = await supabase.auth.signUp({ 
-        email, 
-        password,
-        options: {
-          emailRedirectTo: window.location.origin
-        }
+      // Create anonymous session
+      const { data, error } = await supabase.auth.signUp({
+        email: `anonymous-${Date.now()}@example.com`,
+        password: `password-${Math.random().toString(36).substring(2, 15)}`,
       });
       
       if (error) throw error;
       
-      setShowSubscription(true);
+      // Store the user's style preferences
+      if (data.user) {
+        await supabase.from('profiles').update({
+          style_preferences: answers
+        }).eq('id', data.user.id);
+      }
+      
       toast({
-        title: "Sign up successful!",
-        description: "Choose a subscription plan to continue",
-        variant: "success",
+        title: premiumSelected ? "Premium plan activated" : "Free plan selected",
+        description: "Welcome to GenStyle! Let's find your perfect look.",
+        variant: premiumSelected ? "success" : "default",
       });
     } catch (error: any) {
+      console.error("Error in onboarding:", error);
       toast({
-        title: "Sign up failed",
+        title: "Error completing setup",
         description: error.message || "Please try again",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleContinueAfterSubscription = (premiumSelected: boolean) => {
-    if (premiumSelected) {
-      toast({
-        title: "Premium plan activated",
-        description: "Thank you for subscribing!",
-        variant: "success",
-      });
-    } else {
-      toast({
-        title: "Free plan selected",
-        description: "You can upgrade anytime in your profile",
-        variant: "default",
-      });
-    }
+  const renderQuestion = () => {
+    const currentQuestion = STYLE_QUESTIONS[currentStep];
+    
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            {STYLE_QUESTIONS.map((_, index) => (
+              <div 
+                key={index} 
+                className={`h-2 w-2 rounded-full ${
+                  index === currentStep ? 'bg-purple-500' : 
+                  index < currentStep ? 'bg-gray-400' : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+          <h2 className="text-2xl font-bold">{currentQuestion.question}</h2>
+        </div>
+        
+        <div className="grid gap-3">
+          {currentQuestion.options.map((option) => (
+            <Button
+              key={option}
+              onClick={() => handleAnswerSelect(option)}
+              variant="outline" 
+              className={`w-full py-6 text-lg justify-between ${
+                answers[currentStep] === option ? 'border-purple-500 bg-purple-50/10 text-purple-500' : ''
+              }`}
+            >
+              {option}
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          ))}
+        </div>
+        
+        {currentStep > 0 && (
+          <Button 
+            variant="ghost" 
+            onClick={handlePrevious}
+            className="mt-4 w-full"
+          >
+            <ChevronLeft className="h-5 w-5 mr-2" /> Back
+          </Button>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black p-4">
       <div className="w-full max-w-md">
-        {showSubscription ? (
-          <Card className="border-0 shadow-xl bg-black/60 backdrop-blur-sm text-white">
-            <CardHeader>
-              <CardTitle className="text-xl text-center">Choose Your Plan</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SubscriptionPlans onContinue={handleContinueAfterSubscription} />
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="border-0 shadow-xl bg-black/60 backdrop-blur-sm text-white">
-            <CardHeader>
-              <CardTitle className="text-xl text-center">
-                {isSignUp ? "Create an Account" : "Welcome Back"}
-              </CardTitle>
+        <Card className="border-0 shadow-xl bg-black/60 backdrop-blur-sm text-white">
+          <CardHeader>
+            <CardTitle className="text-xl text-center">
+              {showSubscription ? "Choose Your Plan" : "Welcome to GenStyle"}
+            </CardTitle>
+            {!showSubscription && (
               <CardDescription className="text-center text-gray-400">
-                {isSignUp ? "Sign up to get started" : "Log in to your account"}
+                Let's personalize your style experience
               </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500"
-                    required
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span>Loading...</span>
-                  ) : isSignUp ? (
-                    "Create Account"
-                  ) : (
-                    "Log In"
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                variant="link" 
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="w-full text-gray-400 hover:text-white"
-              >
-                {isSignUp
-                  ? "Already have an account? Log in"
-                  : "Don't have an account? Sign up"}
-              </Button>
-            </CardFooter>
-          </Card>
-        )}
+            )}
+          </CardHeader>
+          <CardContent>
+            {showSubscription ? (
+              <SubscriptionPlans onContinue={handleContinueAfterSubscription} />
+            ) : (
+              renderQuestion()
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
