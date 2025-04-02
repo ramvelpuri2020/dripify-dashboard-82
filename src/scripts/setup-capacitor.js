@@ -13,7 +13,7 @@ try {
   console.error('❌ Failed to update package.json:', error);
 }
 
-// Install cordova-res if not installed
+// Check for cordova-res and install if needed
 try {
   console.log('📦 Making sure cordova-res is installed...');
   execSync('npm list -g cordova-res || npm install -g cordova-res', { stdio: 'inherit' });
@@ -43,3 +43,4 @@ try {
 }
 
 console.log('🎉 Capacitor setup completed!');
+console.log('👉 To run on iOS, execute "npm run cap:open:ios" or "npm run cap:run:ios" if you have proper setup');

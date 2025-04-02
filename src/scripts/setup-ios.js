@@ -6,7 +6,8 @@ const path = require('path');
 console.log('🚀 Setting up iOS platform for Capacitor...');
 
 // Check if ios directory exists
-if (!fs.existsSync(path.join(process.cwd(), 'ios'))) {
+const iosDir = path.join(process.cwd(), 'ios');
+if (!fs.existsSync(iosDir)) {
   console.log('📱 Adding iOS platform...');
   try {
     execSync('npx cap add ios', { stdio: 'inherit' });

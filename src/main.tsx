@@ -14,6 +14,9 @@ const isPlatform = () => {
   return false;
 }
 
+// Detect if we're running in a CI environment
+const isCI = typeof process !== 'undefined' && process.env.CI === 'true';
+
 // Set up mobile app when running natively
 if (isPlatform()) {
   console.log('Running on native platform, initializing Capacitor plugins');
