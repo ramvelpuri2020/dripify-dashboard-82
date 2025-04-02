@@ -12,7 +12,9 @@ try {
   const scriptsToAdd = {
     'cap:init': 'node src/scripts/init-capacitor.js',
     'setup:ios': 'node src/scripts/setup-ios.js',
+    'ci:setup:ios': 'node src/scripts/ci-setup-ios.js',
     'cap:sync': 'npx cap sync',
+    'cap:add:ios': 'npx cap add ios --force',
     'cap:open:ios': 'npx cap open ios',
     'cap:run:ios': 'npx cap run ios',
     'cap:build:ios': 'npm run build && npx cap sync ios'

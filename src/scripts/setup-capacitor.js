@@ -5,6 +5,9 @@ const path = require('path');
 
 console.log('🚀 Setting up Capacitor...');
 
+// Detect if running in CI environment
+const isCI = process.env.CI === 'true' || process.env.GITLAB_CI === 'true';
+
 // Update package.json with scripts
 console.log('📦 Updating package.json...');
 try {
@@ -34,12 +37,23 @@ try {
   console.error('❌ Failed to create iOS resources:', error);
 }
 
-// Set up iOS platform
-console.log('📱 Setting up iOS platform...');
-try {
-  require('./setup-ios');
-} catch (error) {
-  console.error('❌ Failed to set up iOS platform:', error);
+// If in CI environment, use the CI-specific setup
+if (isCI) {
+  console.log('🔧 CI environment detected. Using CI-specific iOS setup...');
+  try {
+    require('./ci-setup-ios');
+  } catch (error) {
+    console.error('❌ Failed to run CI iOS setup:', error);
+    process.exit(1);
+  }
+} else {
+  // Set up iOS platform
+  console.log('📱 Setting up iOS platform...');
+  try {
+    require('./setup-ios');
+  } catch (error) {
+    console.error('❌ Failed to set up iOS platform:', error);
+  }
 }
 
 console.log('🎉 Capacitor setup completed!');

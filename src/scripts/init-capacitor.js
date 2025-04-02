@@ -31,7 +31,12 @@ if (!runCommand('npm run build', 'Failed to build web assets')) {
 if (!iosExists) {
   console.log('📱 Adding iOS platform...');
   if (!runCommand('npx cap add ios', 'Failed to add iOS platform')) {
-    console.log('⚠️ Attempting to continue...');
+    console.log('⚠️ Failed to add iOS platform. Trying force method...');
+    // Try with force option
+    if (!runCommand('npx cap add ios --force', 'Failed to force add iOS platform')) {
+      console.error('❌ Could not add iOS platform. Please check your environment.');
+      process.exit(1);
+    }
   }
 } else {
   console.log('📱 iOS platform already exists, updating...');
@@ -69,9 +74,31 @@ try {
 console.log('🔄 Generating iOS resources...');
 runCommand('npx cordova-res ios --skip-config --copy', 'Failed to generate iOS resources');
 
+// Verify iOS directory structure after adding platform
+if (fs.existsSync(iosDir)) {
+  const xcodeProjectPath = path.join(iosDir, 'App', 'App.xcodeproj');
+  const xcodeWorkspacePath = path.join(iosDir, 'App', 'App.xcworkspace');
+  
+  if (fs.existsSync(xcodeProjectPath)) {
+    console.log('✅ iOS Xcode project found at:', xcodeProjectPath);
+  } else {
+    console.error('❌ iOS Xcode project not found at expected location:', xcodeProjectPath);
+  }
+  
+  if (fs.existsSync(xcodeWorkspacePath)) {
+    console.log('✅ iOS Xcode workspace found at:', xcodeWorkspacePath);
+  } else {
+    console.error('❌ iOS Xcode workspace not found at expected location:', xcodeWorkspacePath);
+  }
+}
+
 // Sync the project
 console.log('🔄 Syncing Capacitor project...');
 runCommand('npx cap sync', 'Failed to sync Capacitor project');
+
+// Explicitly sync iOS to ensure it's updated
+console.log('🔄 Syncing iOS platform specifically...');
+runCommand('npx cap sync ios', 'Failed to sync iOS platform specifically');
 
 // Set up Info.plist with required permissions
 try {
@@ -109,6 +136,20 @@ try {
 } catch (error) {
   console.error('❌ Failed to modify Info.plist:', error);
 }
+
+// Create a CI specific script to run in the pipeline
+const ciScript = `#!/bin/bash
+echo "Running CI/CD setup for Capacitor iOS..."
+npm run build
+npx cap add ios --force
+npx cap sync ios
+ls -la ios/App/
+`;
+
+const ciScriptPath = path.join(process.cwd(), 'setup-ios-ci.sh');
+fs.writeFileSync(ciScriptPath, ciScript);
+fs.chmodSync(ciScriptPath, '755');
+console.log('✅ CI/CD script created at:', ciScriptPath);
 
 console.log('✅ Capacitor initialization completed!');
 console.log('👉 Run "npx cap open ios" to open the project in Xcode');
