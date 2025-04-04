@@ -2,20 +2,19 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 
+export interface StyleAnalysisCategory {
+  name: string;
+  score: number;
+  details: string;
+}
+
 export interface StyleAnalysisResult {
+  fullAnalysis: string;
   totalScore: number;
-  breakdown: {
-    category: string;
-    score: number;
-    emoji: string;
-    details?: string;
-  }[];
-  feedback: string;
-  styleTips?: {
-    category: string;
-    tips: string[];
-  }[];
-  nextLevelTips?: string[];
+  categories: StyleAnalysisCategory[];
+  tips: string[];
+  nextLevelTips: string[];
+  summary: string;
 }
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
@@ -39,25 +38,19 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     console.log('Analysis response:', data);
 
-    // Check if we got valid data or need to use the default response
-    const validResponse = data && data.totalScore ? data : (data && data.defaultResponse ? data.defaultResponse : null);
-    
-    if (!validResponse) {
+    if (!data || !data.totalScore) {
       console.error('Invalid response format:', data);
       throw new Error('Invalid response format from AI service');
     }
 
-    // Ensure total score is a number
-    const totalScore = typeof validResponse.totalScore === 'number' 
-      ? validResponse.totalScore 
-      : parseInt(validResponse.totalScore) || 7;
-
-    const result = {
-      totalScore: totalScore,
-      breakdown: validResponse.breakdown || [],
-      feedback: validResponse.feedback || "No feedback available.",
-      styleTips: validResponse.styleTips || [],
-      nextLevelTips: validResponse.nextLevelTips || []
+    // Format the result to match our desired structure
+    const result: StyleAnalysisResult = {
+      fullAnalysis: data.fullAnalysis || '',
+      totalScore: data.totalScore,
+      categories: data.categories || [],
+      tips: data.tips || [],
+      nextLevelTips: data.nextLevelTips || [],
+      summary: data.summary || ''
     };
 
     // Save analysis to Supabase
@@ -101,6 +94,22 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
       .from('outfit_images')
       .getPublicUrl(`public/${fileName}`);
 
+    // Generate thumbnail
+    const thumbnail = await generateThumbnail(imageFile);
+    const thumbnailPath = `thumb_${fileName}`;
+    
+    const { error: thumbError } = await supabase.storage
+      .from('outfit_images')
+      .upload(`public/${thumbnailPath}`, thumbnail);
+
+    if (thumbError) {
+      console.error('Error uploading thumbnail:', thumbError);
+    }
+
+    const { data: { publicUrl: thumbnailUrl } } = supabase.storage
+      .from('outfit_images')
+      .getPublicUrl(`public/${thumbnailPath}`);
+
     // Get the current date in ISO format
     const currentDate = new Date().toISOString();
     const currentDateString = currentDate.split('T')[0]; // YYYY-MM-DD format
@@ -141,21 +150,25 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
       }
     }
 
-    // Ensure total_score is a number
-    const totalScore = typeof result.totalScore === 'number' 
-      ? result.totalScore 
-      : parseInt(String(result.totalScore)) || 7;
+    // Convert categories to breakdown format for database
+    const breakdown = result.categories.map(cat => ({
+      category: cat.name,
+      score: cat.score,
+      emoji: getCategoryEmoji(cat.name),
+      details: cat.details
+    }));
 
     // Store analysis in Supabase database
     const { data, error } = await supabase
       .from('style_analyses')
       .insert({
         user_id: user.id,
-        total_score: totalScore,
-        breakdown: result.breakdown,
-        feedback: result.feedback,
-        tips: result.styleTips,
+        total_score: result.totalScore,
+        breakdown: breakdown,
+        feedback: result.summary,
+        tips: result.tips.map(tip => ({ category: "General", tips: [tip] })),
         image_url: publicUrl,
+        thumbnail_url: thumbnailUrl,
         scan_date: currentDate,
         last_scan_date: currentDateString,
         streak_count: streakCount
@@ -170,14 +183,44 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
   }
 };
 
-// Legacy function - we'll keep this for backward compatibility
-export const generateTipsForCategory = (category: string, score: number): string[] => {
-  const defaultTips = [
-    "Consider consulting with a personal stylist for more tailored advice.",
-    "Experiment with different styles to find what works best for you.",
-    "Focus on what makes you feel confident and comfortable."
-  ];
-  
-  // The function now returns default tips, as we'll be using AI-generated tips instead
-  return defaultTips;
+// Helper function to generate thumbnail
+const generateThumbnail = async (file: File): Promise<Blob> => {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      const size = 200;
+      canvas.width = size;
+      canvas.height = size;
+
+      const scale = Math.min(size / img.width, size / img.height);
+      const x = (size - img.width * scale) / 2;
+      const y = (size - img.height * scale) / 2;
+
+      if (ctx) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+      }
+
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+      }, 'image/jpeg', 0.8);
+    };
+
+    img.src = URL.createObjectURL(file);
+  });
+};
+
+// Helper function to get emoji for category
+const getCategoryEmoji = (category: string): string => {
+  const categoryLower = category.toLowerCase();
+  if (categoryLower.includes('overall') || categoryLower.includes('style expression')) return '👑';
+  if (categoryLower.includes('color')) return '🎨';
+  if (categoryLower.includes('fit') || categoryLower.includes('proportion')) return '📏';
+  if (categoryLower.includes('accessor')) return '⭐';
+  if (categoryLower.includes('trend')) return '✨';
+  return '🪄';
 };

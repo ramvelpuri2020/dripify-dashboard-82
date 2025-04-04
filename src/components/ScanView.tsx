@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StyleSelector } from "@/components/StyleSelector";
@@ -6,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { analyzeStyle } from "@/utils/imageAnalysis";
+import { analyzeStyle, StyleAnalysisResult } from "@/utils/imageAnalysis";
 import { useScanStore } from "@/store/scanStore";
-import { supabase } from "@/integrations/supabase/client";
 import { Sparkles } from "lucide-react";
 
 export const ScanView = () => {
@@ -19,7 +19,7 @@ export const ScanView = () => {
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
   const setLatestScan = useScanStore((state) => state.setLatestScan);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<StyleAnalysisResult | null>(null);
 
   const analysisPhrases = [
     "Scanning outfit details...",
@@ -30,69 +30,6 @@ export const ScanView = () => {
     "Generating personalized tips...",
     "Finalizing your style report..."
   ];
-
-  const generateThumbnail = async (file: File): Promise<Blob> => {
-    return new Promise((resolve) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        const size = 200;
-        canvas.width = size;
-        canvas.height = size;
-
-        const scale = Math.min(size / img.width, size / img.height);
-        const x = (size - img.width * scale) / 2;
-        const y = (size - img.height * scale) / 2;
-
-        if (ctx) {
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(0, 0, size, size);
-          ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        }
-
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-        }, 'image/jpeg', 0.8);
-      };
-
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  const saveAnalysisToDatabase = async (analysis, imageUrl, thumbnailUrl) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const totalScore = typeof analysis.totalScore === 'number' 
-        ? analysis.totalScore 
-        : Number(analysis.totalScore) || 7;
-
-      const { error } = await supabase
-        .from('style_analyses')
-        .insert({
-          user_id: user.id,
-          total_score: totalScore,
-          breakdown: analysis.breakdown,
-          feedback: analysis.feedback,
-          image_url: imageUrl,
-          thumbnail_url: thumbnailUrl,
-          tips: analysis.styleTips,
-          scan_date: new Date().toISOString(),
-          last_scan_date: new Date().toISOString().split('T')[0]
-        });
-
-      if (error) {
-        console.error('Error saving analysis:', error);
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error in saveAnalysisToDatabase:', error);
-      throw error;
-    }
-  };
 
   const cycleAnalysisPhrases = () => {
     let phraseIndex = 0;
@@ -121,72 +58,13 @@ export const ScanView = () => {
     
     try {
       console.log('Starting analysis...');
-      const base64Image = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(selectedImage);
-      });
       
-      console.log('Calling analyze-style function...');
-      const { data, error } = await supabase.functions.invoke('analyze-style', {
-        body: { image: base64Image, style: selectedStyle }
-      });
+      // Call the analyzeStyle function with the selected image
+      const analysisResult = await analyzeStyle(selectedImage);
       
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw new Error('Failed to analyze image: ' + error.message);
-      }
-      
-      if (!data || !data.totalScore) {
-        if (data && data.defaultResponse) {
-          console.log('Using default response:', data.defaultResponse);
-          setResult(data.defaultResponse);
-          setLatestScan(data.defaultResponse);
-        } else {
-          throw new Error('Invalid response from style analysis service');
-        }
-      } else {
-        console.log('Analysis completed successfully:', data);
-        setResult(data);
-        setLatestScan(data);
-      }
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const fileExt = selectedImage.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('style-images')
-        .upload(filePath, selectedImage);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('style-images')
-        .getPublicUrl(filePath);
-
-      const thumbnail = await generateThumbnail(selectedImage);
-      const thumbnailPath = `${user.id}/thumb_${fileName}`;
-      
-      const { error: thumbError } = await supabase.storage
-        .from('style-thumbnails')
-        .upload(thumbnailPath, thumbnail);
-
-      if (thumbError) throw thumbError;
-
-      const { data: { publicUrl: thumbnailUrl } } = supabase.storage
-        .from('style-thumbnails')
-        .getPublicUrl(thumbnailPath);
-
-      const resultToSave = data || data.defaultResponse;
-      if (resultToSave && resultToSave.totalScore) {
-        await saveAnalysisToDatabase(resultToSave, publicUrl, thumbnailUrl);
-      } else {
-        console.error('Cannot save analysis: missing totalScore');
-      }
+      console.log('Analysis completed successfully:', analysisResult);
+      setResult(analysisResult);
+      setLatestScan(analysisResult);
       
       clearInterval(phraseCycleInterval);
       
@@ -305,9 +183,17 @@ export const ScanView = () => {
           {result && (
             <DripResults
               totalScore={result.totalScore}
-              breakdown={result.breakdown}
-              feedback={result.feedback}
-              styleTips={result.styleTips}
+              breakdown={result.categories.map(cat => ({
+                category: cat.name,
+                score: cat.score,
+                emoji: getCategoryEmoji(cat.name),
+                details: cat.details
+              }))}
+              feedback={result.summary}
+              styleTips={result.categories.map(cat => ({
+                category: cat.name,
+                tips: result.tips.filter(tip => tip.toLowerCase().includes(cat.name.toLowerCase()))
+              }))}
               nextLevelTips={result.nextLevelTips}
               onShare={handleShare}
               onSave={handleSave}
@@ -318,4 +204,15 @@ export const ScanView = () => {
       )}
     </motion.div>
   );
+};
+
+// Helper function to get emoji for category
+const getCategoryEmoji = (category: string): string => {
+  const categoryLower = category.toLowerCase();
+  if (categoryLower.includes('overall') || categoryLower.includes('style expression')) return '👑';
+  if (categoryLower.includes('color')) return '🎨';
+  if (categoryLower.includes('fit') || categoryLower.includes('proportion')) return '📏';
+  if (categoryLower.includes('accessor')) return '⭐';
+  if (categoryLower.includes('trend')) return '✨';
+  return '🪄';
 };
