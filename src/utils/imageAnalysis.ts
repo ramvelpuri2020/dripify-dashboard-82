@@ -15,8 +15,8 @@ export interface StyleAnalysisResult {
   tips: string[];
   nextLevelTips: string[];
   summary: string;
-  breakdown?: { category: string; score: number; emoji: string; details?: string }[];
-  feedback?: string;
+  breakdown: { category: string; score: number; emoji: string; details?: string }[];
+  feedback: string;
 }
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
@@ -45,20 +45,26 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       throw new Error('Invalid response format from AI service');
     }
 
+    // Process and clean up the AI response
+    const processedTips = processTextArray(data.tips || []);
+    const processedNextLevelTips = processTextArray(data.nextLevelTips || []);
+    
+    // Map categories to breakdown format
+    const breakdown = mapCategoriesToBreakdown(data.categories || []);
+
     // Format the result to match our desired structure
     const result: StyleAnalysisResult = {
       fullAnalysis: data.fullAnalysis || '',
       totalScore: data.totalScore || 0,
       categories: data.categories || [],
-      tips: data.tips || [],
-      nextLevelTips: data.nextLevelTips || [],
+      tips: processedTips,
+      nextLevelTips: processedNextLevelTips,
       summary: data.summary || '',
-      // Add these properties to make it compatible with scanStore interface
-      breakdown: mapCategoriesToBreakdown(data.categories || []),
+      breakdown: breakdown,
       feedback: data.summary || ''
     };
 
-    // Try to save analysis, but don't stop the flow if it fails
+    // Try to save analysis to Supabase, but don't stop the flow if it fails
     try {
       await saveAnalysisToSupabase(result, imageFile);
     } catch (saveError) {
@@ -76,6 +82,22 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     console.error('Error analyzing style:', error);
     throw error;
   }
+};
+
+// Helper function to clean up and process text arrays from the AI response
+const processTextArray = (textArray: string[]): string[] => {
+  if (!textArray || textArray.length === 0) return [];
+  
+  return textArray
+    .filter(tip => tip && tip.trim().length > 0)
+    .filter(tip => !tip.includes('**'))
+    .filter(tip => !tip.startsWith('Next-Level'))
+    .filter(tip => !tip.startsWith('Level Tips'))
+    .map(tip => {
+      // Remove any markdown formatting
+      return tip.replace(/\*\*/g, '').trim();
+    })
+    .filter(tip => tip.length > 5); // Filter out very short tips that might be formatting residue
 };
 
 // Helper function to map categories to breakdown format
@@ -103,7 +125,6 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
     
     if (!outfitBucketExists) {
       console.log('Outfit images bucket not found, skipping image upload');
-      // We'll still save the analysis data without images
     } else {
       // Upload image to Supabase Storage
       const fileName = `outfit_${Date.now()}_${imageFile.name.replace(/\s+/g, '_')}`;
@@ -115,33 +136,15 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
         console.error('Error uploading image:', uploadError);
       }
 
-      let publicUrl = '';
-      let thumbnailUrl = '';
-
-      if (!uploadError) {
-        // Get public URL for the uploaded image
-        const { data: { publicUrl: imgUrl } } = supabase.storage
-          .from('outfit_images')
-          .getPublicUrl(`public/${fileName}`);
-        
-        publicUrl = imgUrl;
-
-        // Generate thumbnail
+      // Try to generate and upload thumbnail if the main image upload was successful
+      if (!uploadError && uploadData) {
         try {
           const thumbnail = await generateThumbnail(imageFile);
           const thumbnailPath = `thumb_${fileName}`;
           
-          const { error: thumbError } = await supabase.storage
+          await supabase.storage
             .from('outfit_images')
             .upload(`public/${thumbnailPath}`, thumbnail);
-
-          if (!thumbError) {
-            const { data: { publicUrl: thumbUrl } } = supabase.storage
-              .from('outfit_images')
-              .getPublicUrl(`public/${thumbnailPath}`);
-            
-            thumbnailUrl = thumbUrl;
-          }
         } catch (thumbErr) {
           console.error('Error creating thumbnail:', thumbErr);
         }
@@ -188,16 +191,13 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
       }
     }
 
-    // Convert categories to breakdown format for database
-    const breakdown = result.breakdown || mapCategoriesToBreakdown(result.categories);
-
     // Store analysis in Supabase database
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('style_analyses')
       .insert({
         user_id: user.id,
         total_score: result.totalScore,
-        breakdown: breakdown,
+        breakdown: result.breakdown,
         feedback: result.summary,
         tips: result.tips.map(tip => ({ category: "General", tips: [tip] })),
         scan_date: currentDate,
@@ -209,6 +209,7 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
 
     if (error) {
       console.error('Error saving analysis to database:', error);
+      throw error;
     }
 
   } catch (error) {
