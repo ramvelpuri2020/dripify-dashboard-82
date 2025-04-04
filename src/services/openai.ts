@@ -1,4 +1,7 @@
 
+// This file is maintained for backward compatibility
+// It now routes calls to the Nebius-powered analyze-style function
+
 import { supabase } from "@/integrations/supabase/client";
 
 export const analyzeOutfit = async (imageBase64: string, style: string) => {
@@ -13,7 +16,7 @@ export const analyzeOutfit = async (imageBase64: string, style: string) => {
       throw new Error('Failed to analyze image: ' + error.message);
     }
 
-    if (!data || !data.totalScore) {
+    if (!data) {
       console.error('Invalid response format:', data);
       throw new Error('Invalid response format from AI service');
     }

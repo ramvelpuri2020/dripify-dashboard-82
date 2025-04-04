@@ -64,13 +64,31 @@ export const ScanView = () => {
       
       console.log('Analysis completed successfully:', analysisResult);
       setResult(analysisResult);
-      setLatestScan(analysisResult);
+      
+      // Convert the result to match the expected format for setLatestScan
+      const formattedResult = {
+        ...analysisResult,
+        breakdown: analysisResult.breakdown || analysisResult.categories.map(cat => ({
+          category: cat.name,
+          score: cat.score,
+          emoji: getCategoryEmoji(cat.name),
+          details: cat.details
+        })),
+        feedback: analysisResult.summary,
+        styleTips: analysisResult.categories.map(cat => ({
+          category: cat.name,
+          tips: analysisResult.tips.filter(tip => tip.toLowerCase().includes(cat.name.toLowerCase()))
+        }))
+      };
+      
+      setLatestScan(formattedResult);
       
       clearInterval(phraseCycleInterval);
       
       toast({
         title: "Analysis Complete",
-        description: "Your style has been analyzed and saved!",
+        description: "Your style has been analyzed!",
+        variant: "success"
       });
       
       setTimeout(() => {
@@ -183,7 +201,7 @@ export const ScanView = () => {
           {result && (
             <DripResults
               totalScore={result.totalScore}
-              breakdown={result.categories.map(cat => ({
+              breakdown={result.breakdown || result.categories.map(cat => ({
                 category: cat.name,
                 score: cat.score,
                 emoji: getCategoryEmoji(cat.name),
@@ -214,5 +232,6 @@ const getCategoryEmoji = (category: string): string => {
   if (categoryLower.includes('fit') || categoryLower.includes('proportion')) return '📏';
   if (categoryLower.includes('accessor')) return '⭐';
   if (categoryLower.includes('trend')) return '✨';
+  if (categoryLower.includes('personal')) return '🪄';
   return '🪄';
 };

@@ -21,48 +21,49 @@ serve(async (req) => {
       throw new Error('Nebius API key not configured');
     }
 
-    // Create a structured prompt for fashion analysis
-    const stylePrompt = `You're a professional fashion stylist who analyzes outfits with honest, human-like feedback.
+    // Create a prompt for fashion analysis in conversational style
+    const prompt = `You're a professional fashion stylist who analyzes outfits with honest, human-like feedback.
     
-    Please analyze this outfit in detail, focusing on these aspects:
-    - Overall style impression
-    - Color coordination
-    - Fit and proportion
-    - Accessorizing
-    - Trend awareness
-    - Personal style expression
+    Analyze this outfit in detail, focusing on these aspects:
+    - Overall style impression (score 1-10)
+    - Color coordination (score 1-10)
+    - Fit and proportion (score 1-10)
+    - Accessorizing (score 1-10)
+    - Trend awareness (score 1-10)
+    - Personal style expression (score 1-10)
     
-    For each aspect, give a score from 1-10 and specific feedback. Be conversational and use natural language.
+    For each aspect, give a score and conversational feedback. Use natural language and talk like a real stylist would.
     
-    Also provide 2-3 specific improvement tips for each category and 3-4 next-level style tips for taking their fashion to the next level.
+    Also provide specific improvement tips for each category and 3-4 next-level style tips for taking their fashion to the next level.
     
-    End with a summary of your overall impression and main recommendations.`;
+    End with a brief summary of the overall impression and main recommendations.`;
 
-    // Messages array for the API request
+    // Prepare the messages for the API request
     const messages = [
       {
         role: 'system',
-        content: stylePrompt
+        content: prompt
       },
       {
         role: 'user',
         content: [
           {
             type: 'text',
-            text: "What do you think of this outfit? Please provide a detailed style assessment focusing on the aspects I mentioned."
+            text: "What do you think of this outfit? Please provide a detailed style assessment."
           },
           {
             type: 'image_url',
             image_url: {
-              url: image
+              url: image // Base64 image data
             }
           }
         ]
       }
     ];
 
-    // Call Nebius API with the Qwen model
     console.log('Calling Nebius API with Qwen model...');
+    
+    // Call the Nebius API with the Qwen model
     const response = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -84,7 +85,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('API Response:', data);
+    console.log('API Response received');
 
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
       throw new Error('Invalid response format from Nebius API');
@@ -92,17 +93,18 @@ serve(async (req) => {
 
     // Extract the content from the response
     const analysisContent = data.choices[0].message.content;
-    console.log('Raw analysis content:', analysisContent);
+    console.log('Raw analysis content received');
 
-    // Parse the natural language response to extract scores and feedback
-    const analysisResult = processAnalysisContent(analysisContent);
-    console.log('Processed analysis result:', analysisResult);
+    // Process the natural language response into structured format
+    const analysisResult = processStyleAnalysis(analysisContent);
+    console.log('Analysis processed successfully');
 
     return new Response(JSON.stringify(analysisResult), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   } catch (error) {
     console.error('Error in analyze-style function:', error);
+    
     return new Response(JSON.stringify({ 
       error: error.message || 'An error occurred during style analysis'
     }), { 
@@ -113,84 +115,132 @@ serve(async (req) => {
 });
 
 // Function to process the AI's natural language response into structured format
-function processAnalysisContent(content) {
-  // Basic structure for the result
-  const result = {
-    fullAnalysis: content,
-    categories: [],
-    tips: [],
-    nextLevelTips: [],
-    totalScore: 0
-  };
-
-  // Extract categories and scores
-  const categoryRegex = /(Overall style|Color coordination|Fit and proportion|Accessori[a-z]+|Trend [a-z]+|Style expression|Personal style)[^\d]*(\d+)\/10/gi;
-  let categoryMatch;
+function processStyleAnalysis(content) {
+  const categories = [];
+  const tips = [];
+  const nextLevelTips = [];
+  let totalScore = 0;
   let scoreCount = 0;
-  let scoreSum = 0;
+  let summary = "";
 
-  while ((categoryMatch = categoryRegex.exec(content)) !== null) {
-    const categoryName = categoryMatch[1].trim();
-    const score = parseInt(categoryMatch[2]);
+  // Regular expressions to extract information
+  const categoryScoreRegex = /(Overall Style|Style Impression|Color Coordination|Fit and Proportion|Accessorizing|Trend|Personal Style)[^:]*:?\s*(\d+)\/10/gi;
+  const summaryRegex = /Summary[\s\n]*([^]*?)(?:$)/i;
+  
+  // Extract categories and scores
+  let match;
+  while ((match = categoryScoreRegex.exec(content)) !== null) {
+    const categoryName = getStandardCategoryName(match[1].trim());
+    const score = parseInt(match[2], 10);
     
-    // Find the description after the score until the next heading or section
-    const startPos = categoryMatch.index + categoryMatch[0].length;
-    const nextSectionRegex = /(Overall style|Color coordination|Fit and proportion|Accessori[a-z]+|Trend [a-z]+|Style expression|Personal style|Improvement tips|Next-level tips)/gi;
-    nextSectionRegex.lastIndex = startPos;
-    const nextMatch = nextSectionRegex.exec(content);
+    // Find the description - start after this match and end before next category or section
+    const startPos = match.index + match[0].length;
+    const sectionEndRegex = /(Overall Style|Style Impression|Color Coordination|Fit|Accessorizing|Trend|Personal Style|Improvement Tips|Next-Level Tips|Summary)/gi;
+    sectionEndRegex.lastIndex = startPos;
+    const nextMatch = sectionEndRegex.exec(content);
     const endPos = nextMatch ? nextMatch.index : content.length;
     
     let details = content.substring(startPos, endPos).trim();
-    // Clean up the details to remove any score mentions
+    // Clean up the details
     details = details.replace(/(\d+)\/10/g, '').trim();
-
-    // Add to categories array
-    result.categories.push({
+    
+    categories.push({
       name: categoryName,
       score: score,
       details: details
     });
-
-    // Add to score totals
+    
+    totalScore += score;
     scoreCount++;
-    scoreSum += score;
   }
-
-  // Calculate average score
+  
+  // Calculate average score (rounded)
   if (scoreCount > 0) {
-    result.totalScore = Math.round(scoreSum / scoreCount);
+    totalScore = Math.round(totalScore / scoreCount);
   }
-
-  // Extract improvement tips
-  const tipsRegex = /Improvement tips[^:]*:([^]*?)(?=Next-level tips|$)/i;
-  const tipsMatch = tipsRegex.exec(content);
-  if (tipsMatch) {
-    const tipsText = tipsMatch[1].trim();
-    // Split by bullet points or numbers
-    const tipsList = tipsText.split(/•|-|\d+\.\s+/).filter(tip => tip.trim().length > 0);
-    result.tips = tipsList.map(tip => tip.trim());
-  }
-
-  // Extract next-level tips
-  const nextLevelRegex = /Next-level tips[^:]*:([^]*?)(?=Overall impression|Summary|$)/i;
-  const nextLevelMatch = nextLevelRegex.exec(content);
-  if (nextLevelMatch) {
-    const nextLevelText = nextLevelMatch[1].trim();
-    // Split by bullet points or numbers
-    const nextLevelList = nextLevelText.split(/•|-|\d+\.\s+/).filter(tip => tip.trim().length > 0);
-    result.nextLevelTips = nextLevelList.map(tip => tip.trim());
-  }
-
-  // Extract overall impression/summary
-  const summaryRegex = /(Overall impression|Summary)[^:]*:([^]*?)$/i;
+  
+  // Extract summary
   const summaryMatch = summaryRegex.exec(content);
   if (summaryMatch) {
-    result.summary = summaryMatch[2].trim();
-  } else {
-    // If no formal summary section, use the last paragraph
+    summary = summaryMatch[1].trim();
+  }
+  
+  // Extract tips and next-level tips (simple approach)
+  const improvementTipsMatch = /Improvement Tips[:\s]*([^]*?)(?=Next-Level Tips|$)/i.exec(content);
+  if (improvementTipsMatch) {
+    const tipsText = improvementTipsMatch[1];
+    const tipsList = tipsText.split(/\d+\.\s+/).filter(Boolean).map(tip => tip.trim());
+    tips.push(...tipsList);
+  }
+  
+  const nextLevelTipsMatch = /Next-Level Tips[:\s]*([^]*?)(?=Summary|$)/i.exec(content);
+  if (nextLevelTipsMatch) {
+    const nextLevelText = nextLevelTipsMatch[1];
+    const nextLevelList = nextLevelText.split(/\d+\.\s+/).filter(Boolean).map(tip => tip.trim());
+    nextLevelTips.push(...nextLevelList);
+  }
+  
+  // If no explicit tips were found, extract points from the content
+  if (tips.length === 0) {
+    const extractedTips = extractKeyPoints(content, 'tips');
+    tips.push(...extractedTips);
+  }
+  
+  if (nextLevelTips.length === 0) {
+    const extractedNextLevel = extractKeyPoints(content, 'next level');
+    nextLevelTips.push(...extractedNextLevel);
+  }
+  
+  // If no explicit summary was found, use the last paragraph
+  if (!summary) {
     const paragraphs = content.split('\n\n');
-    result.summary = paragraphs[paragraphs.length - 1].trim();
+    summary = paragraphs[paragraphs.length - 1].trim();
   }
 
-  return result;
+  return {
+    fullAnalysis: content,
+    totalScore: totalScore,
+    categories: categories,
+    tips: tips,
+    nextLevelTips: nextLevelTips,
+    summary: summary
+  };
+}
+
+// Helper function to extract key points from text
+function extractKeyPoints(text, pointType) {
+  const points = [];
+  const lines = text.split('\n');
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.match(/^\d+\.\s/) && 
+        (pointType === 'tips' && !line.toLowerCase().includes('next level')) || 
+        (pointType === 'next level' && line.toLowerCase().includes('next level'))) {
+      points.push(line.replace(/^\d+\.\s/, '').trim());
+    }
+  }
+  
+  return points;
+}
+
+// Helper function to standardize category names
+function getStandardCategoryName(categoryText) {
+  categoryText = categoryText.toLowerCase();
+  
+  if (categoryText.includes('overall') || categoryText.includes('style impression')) {
+    return 'Overall Style';
+  } else if (categoryText.includes('color')) {
+    return 'Color Coordination';
+  } else if (categoryText.includes('fit')) {
+    return 'Fit and Proportion';
+  } else if (categoryText.includes('accessor')) {
+    return 'Accessorizing';
+  } else if (categoryText.includes('trend')) {
+    return 'Trend Awareness';
+  } else if (categoryText.includes('personal')) {
+    return 'Personal Style';
+  }
+  
+  return categoryText.charAt(0).toUpperCase() + categoryText.slice(1);
 }

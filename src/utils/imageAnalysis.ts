@@ -15,6 +15,8 @@ export interface StyleAnalysisResult {
   tips: string[];
   nextLevelTips: string[];
   summary: string;
+  breakdown?: { category: string; score: number; emoji: string; details?: string }[];
+  feedback?: string;
 }
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
@@ -38,7 +40,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     console.log('Analysis response:', data);
 
-    if (!data || !data.totalScore) {
+    if (!data) {
       console.error('Invalid response format:', data);
       throw new Error('Invalid response format from AI service');
     }
@@ -46,15 +48,22 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     // Format the result to match our desired structure
     const result: StyleAnalysisResult = {
       fullAnalysis: data.fullAnalysis || '',
-      totalScore: data.totalScore,
+      totalScore: data.totalScore || 0,
       categories: data.categories || [],
       tips: data.tips || [],
       nextLevelTips: data.nextLevelTips || [],
-      summary: data.summary || ''
+      summary: data.summary || '',
+      // Add these properties to make it compatible with scanStore interface
+      breakdown: mapCategoriesToBreakdown(data.categories || []),
+      feedback: data.summary || ''
     };
 
-    // Save analysis to Supabase
-    await saveAnalysisToSupabase(result, imageFile);
+    // Try to save analysis, but don't stop the flow if it fails
+    try {
+      await saveAnalysisToSupabase(result, imageFile);
+    } catch (saveError) {
+      console.error('Error saving analysis to Supabase (continuing anyway):', saveError);
+    }
 
     // Update the scan store with the new analysis
     const store = useScanStore.getState();
@@ -69,6 +78,16 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
   }
 };
 
+// Helper function to map categories to breakdown format
+const mapCategoriesToBreakdown = (categories: StyleAnalysisCategory[]) => {
+  return categories.map(cat => ({
+    category: cat.name,
+    score: cat.score,
+    emoji: getCategoryEmoji(cat.name),
+    details: cat.details
+  }));
+};
+
 const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: File) => {
   try {
     // Get current user
@@ -78,37 +97,56 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
       return;
     }
 
-    // Upload image to Supabase Storage
-    const fileName = `outfit_${Date.now()}_${imageFile.name.replace(/\s+/g, '_')}`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('outfit_images')
-      .upload(`public/${fileName}`, imageFile);
-
-    if (uploadError) {
-      console.error('Error uploading image:', uploadError);
-      return;
-    }
-
-    // Get public URL for the uploaded image
-    const { data: { publicUrl } } = supabase.storage
-      .from('outfit_images')
-      .getPublicUrl(`public/${fileName}`);
-
-    // Generate thumbnail
-    const thumbnail = await generateThumbnail(imageFile);
-    const thumbnailPath = `thumb_${fileName}`;
+    // Check if storage bucket exists before uploading
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const outfitBucketExists = buckets?.some(bucket => bucket.name === 'outfit_images');
     
-    const { error: thumbError } = await supabase.storage
-      .from('outfit_images')
-      .upload(`public/${thumbnailPath}`, thumbnail);
+    if (!outfitBucketExists) {
+      console.log('Outfit images bucket not found, skipping image upload');
+      // We'll still save the analysis data without images
+    } else {
+      // Upload image to Supabase Storage
+      const fileName = `outfit_${Date.now()}_${imageFile.name.replace(/\s+/g, '_')}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('outfit_images')
+        .upload(`public/${fileName}`, imageFile);
 
-    if (thumbError) {
-      console.error('Error uploading thumbnail:', thumbError);
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+      }
+
+      let publicUrl = '';
+      let thumbnailUrl = '';
+
+      if (!uploadError) {
+        // Get public URL for the uploaded image
+        const { data: { publicUrl: imgUrl } } = supabase.storage
+          .from('outfit_images')
+          .getPublicUrl(`public/${fileName}`);
+        
+        publicUrl = imgUrl;
+
+        // Generate thumbnail
+        try {
+          const thumbnail = await generateThumbnail(imageFile);
+          const thumbnailPath = `thumb_${fileName}`;
+          
+          const { error: thumbError } = await supabase.storage
+            .from('outfit_images')
+            .upload(`public/${thumbnailPath}`, thumbnail);
+
+          if (!thumbError) {
+            const { data: { publicUrl: thumbUrl } } = supabase.storage
+              .from('outfit_images')
+              .getPublicUrl(`public/${thumbnailPath}`);
+            
+            thumbnailUrl = thumbUrl;
+          }
+        } catch (thumbErr) {
+          console.error('Error creating thumbnail:', thumbErr);
+        }
+      }
     }
-
-    const { data: { publicUrl: thumbnailUrl } } = supabase.storage
-      .from('outfit_images')
-      .getPublicUrl(`public/${thumbnailPath}`);
 
     // Get the current date in ISO format
     const currentDate = new Date().toISOString();
@@ -151,12 +189,7 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
     }
 
     // Convert categories to breakdown format for database
-    const breakdown = result.categories.map(cat => ({
-      category: cat.name,
-      score: cat.score,
-      emoji: getCategoryEmoji(cat.name),
-      details: cat.details
-    }));
+    const breakdown = result.breakdown || mapCategoriesToBreakdown(result.categories);
 
     // Store analysis in Supabase database
     const { data, error } = await supabase
@@ -167,11 +200,11 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
         breakdown: breakdown,
         feedback: result.summary,
         tips: result.tips.map(tip => ({ category: "General", tips: [tip] })),
-        image_url: publicUrl,
-        thumbnail_url: thumbnailUrl,
         scan_date: currentDate,
         last_scan_date: currentDateString,
-        streak_count: streakCount
+        streak_count: streakCount,
+        image_url: "placeholder.svg", // Use placeholder if image upload failed
+        thumbnail_url: "placeholder.svg" // Use placeholder if thumbnail upload failed
       });
 
     if (error) {
@@ -180,6 +213,7 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
 
   } catch (error) {
     console.error('Error in saveAnalysisToSupabase:', error);
+    throw error;
   }
 };
 
@@ -222,5 +256,6 @@ const getCategoryEmoji = (category: string): string => {
   if (categoryLower.includes('fit') || categoryLower.includes('proportion')) return '📏';
   if (categoryLower.includes('accessor')) return '⭐';
   if (categoryLower.includes('trend')) return '✨';
+  if (categoryLower.includes('personal')) return '🪄';
   return '🪄';
 };
