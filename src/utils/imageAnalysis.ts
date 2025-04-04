@@ -39,17 +39,25 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     console.log('Analysis response:', data);
 
-    if (!data || !data.totalScore || !data.breakdown || !data.feedback) {
+    // Check if we got valid data or need to use the default response
+    const validResponse = data && data.totalScore ? data : (data && data.defaultResponse ? data.defaultResponse : null);
+    
+    if (!validResponse) {
       console.error('Invalid response format:', data);
       throw new Error('Invalid response format from AI service');
     }
 
+    // Ensure total score is a number
+    const totalScore = typeof validResponse.totalScore === 'number' 
+      ? validResponse.totalScore 
+      : parseInt(validResponse.totalScore) || 7;
+
     const result = {
-      totalScore: data.totalScore,
-      breakdown: data.breakdown,
-      feedback: data.feedback,
-      styleTips: data.styleTips || [],
-      nextLevelTips: data.nextLevelTips || []
+      totalScore: totalScore,
+      breakdown: validResponse.breakdown || [],
+      feedback: validResponse.feedback || "No feedback available.",
+      styleTips: validResponse.styleTips || [],
+      nextLevelTips: validResponse.nextLevelTips || []
     };
 
     // Save analysis to Supabase
@@ -133,12 +141,17 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
       }
     }
 
+    // Ensure total_score is a number
+    const totalScore = typeof result.totalScore === 'number' 
+      ? result.totalScore 
+      : parseInt(String(result.totalScore)) || 7;
+
     // Store analysis in Supabase database
     const { data, error } = await supabase
       .from('style_analyses')
       .insert({
         user_id: user.id,
-        total_score: result.totalScore,
+        total_score: totalScore,
         breakdown: result.breakdown,
         feedback: result.feedback,
         tips: result.styleTips,

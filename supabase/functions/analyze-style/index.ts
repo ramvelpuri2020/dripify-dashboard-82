@@ -69,7 +69,7 @@ serve(async (req) => {
         "feedback": "3-4 sentences of overall feedback about the outfit"
       }`;
 
-    // Create the messages array for Nebius API
+    // Fix for the Nebius API format - needs text and image as separate parts of the message
     const styleMessages = [
       {
         role: 'system',
@@ -77,18 +77,15 @@ serve(async (req) => {
       },
       {
         role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: `Analyze this outfit and provide a detailed style assessment as raw JSON without any markdown formatting. USE ONLY WHOLE NUMBERS for scores (no decimals).`
-          },
-          {
-            type: 'image',
-            image_url: {
-              url: image
-            }
+        content: [{
+          type: 'text',
+          text: "Analyze this outfit and provide a detailed style assessment as raw JSON without any markdown formatting. USE ONLY WHOLE NUMBERS for scores (no decimals)."
+        }, {
+          type: 'image_url',
+          image_url: {
+            url: image
           }
-        ]
+        }]
       }
     ];
 
@@ -267,20 +264,17 @@ serve(async (req) => {
       },
       {
         role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: `Here's the style analysis of this outfit: ${JSON.stringify(parsedStyleResponse)}. 
+        content: [{
+          type: 'text',
+          text: `Here's the style analysis of this outfit: ${JSON.stringify(parsedStyleResponse)}. 
               Generate specific improvement tips for each category based on this analysis and what you can see in the image.
               Return ONLY raw JSON without markdown formatting.`
-          },
-          {
-            type: 'image',
-            image_url: {
-              url: image
-            }
+        }, {
+          type: 'image_url',
+          image_url: {
+            url: image
           }
-        ]
+        }]
       }
     ];
 

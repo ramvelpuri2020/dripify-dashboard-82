@@ -13,8 +13,16 @@ export const analyzeOutfit = async (imageBase64: string, style: string) => {
       throw new Error('Failed to analyze image: ' + error.message);
     }
 
-    console.log('Analysis completed successfully:', data);
-    return data;
+    // Check if we got valid data or need to use the default response
+    const validResponse = data && data.totalScore ? data : (data && data.defaultResponse ? data.defaultResponse : null);
+    
+    if (!validResponse) {
+      console.error('Invalid response format:', data);
+      throw new Error('Invalid response format from AI service');
+    }
+
+    console.log('Analysis completed successfully:', validResponse);
+    return validResponse;
   } catch (error) {
     console.error('Analysis error:', error);
     throw error;
