@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -15,9 +14,9 @@ serve(async (req) => {
     const { image, style } = await req.json();
     console.log('Analyzing style for: ', style);
 
-    const togetherApiKey = Deno.env.get('TOGETHER_API_KEY') || 'a9dbf7a05dc54a9ae5ce8bf4434eb40a9c6a6c78fc72da3a16e1b2db6e075aca';
-    if (!togetherApiKey) {
-      throw new Error('Together API key not configured');
+    const nebiusApiKey = Deno.env.get('NEBIUS_API_KEY');
+    if (!nebiusApiKey) {
+      throw new Error('Nebius API key not configured');
     }
 
     // First analysis for overall style assessment
@@ -69,7 +68,7 @@ serve(async (req) => {
         "feedback": "3-4 sentences of overall feedback about the outfit"
       }`;
 
-    // Create the messages array for Together API
+    // Create the messages array for Nebius API
     const styleMessages = [
       {
         role: 'system',
@@ -83,7 +82,7 @@ serve(async (req) => {
             text: `Analyze this outfit and provide a detailed style assessment as raw JSON without any markdown formatting. USE ONLY WHOLE NUMBERS for scores (no decimals).`
           },
           {
-            type: 'image_url',
+            type: 'image',
             image_url: {
               url: image
             }
@@ -92,37 +91,33 @@ serve(async (req) => {
       }
     ];
 
-    // Call Together.ai API for style analysis
-    console.log('Calling Together API for style analysis...');
-    const styleAnalysisResponse = await fetch('https://api.together.xyz/v1/chat/completions', {
+    // Call Nebius API for style analysis
+    console.log('Calling Nebius API for style analysis...');
+    const styleAnalysisResponse = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${togetherApiKey}`,
+        'Authorization': `Bearer ${nebiusApiKey}`,
         'Content-Type': 'application/json',
+        'Accept': '*/*'
       },
       body: JSON.stringify({
-        model: "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
-        messages: styleMessages,
-        max_tokens: 1000,
+        model: "Qwen/Qwen2.5-VL-72B-Instruct",
         temperature: 0.7,
-        top_p: 0.7,
-        top_k: 50,
-        repetition_penalty: 1,
-        stream: false
+        messages: styleMessages
       }),
     });
 
     if (!styleAnalysisResponse.ok) {
       const errorText = await styleAnalysisResponse.text();
-      console.error('Together API error:', errorText);
-      throw new Error(`Together API returned status ${styleAnalysisResponse.status}: ${errorText}`);
+      console.error('Nebius API error:', errorText);
+      throw new Error(`Nebius API returned status ${styleAnalysisResponse.status}: ${errorText}`);
     }
 
     const styleData = await styleAnalysisResponse.json();
     console.log('Style Analysis Response:', styleData);
 
     if (!styleData.choices || !styleData.choices[0] || !styleData.choices[0].message) {
-      throw new Error('Invalid response format from Together API');
+      throw new Error('Invalid response format from Nebius API');
     }
 
     // Extract the content from the response
@@ -279,7 +274,7 @@ serve(async (req) => {
               Return ONLY raw JSON without markdown formatting.`
           },
           {
-            type: 'image_url',
+            type: 'image',
             image_url: {
               url: image
             }
@@ -288,37 +283,33 @@ serve(async (req) => {
       }
     ];
 
-    // Call Together.ai API for tips
-    console.log('Calling Together API for tips...');
-    const tipsResponse = await fetch('https://api.together.xyz/v1/chat/completions', {
+    // Call Nebius API for tips
+    console.log('Calling Nebius API for tips...');
+    const tipsResponse = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${togetherApiKey}`,
+        'Authorization': `Bearer ${nebiusApiKey}`,
         'Content-Type': 'application/json',
+        'Accept': '*/*'
       },
       body: JSON.stringify({
-        model: "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
-        messages: tipsMessages,
-        max_tokens: 1500,
+        model: "Qwen/Qwen2.5-VL-72B-Instruct",
         temperature: 0.7,
-        top_p: 0.7,
-        top_k: 50,
-        repetition_penalty: 1,
-        stream: false
+        messages: tipsMessages
       }),
     });
 
     if (!tipsResponse.ok) {
       const errorText = await tipsResponse.text();
-      console.error('Together API error for tips:', errorText);
-      throw new Error(`Together API returned status ${tipsResponse.status} for tips: ${errorText}`);
+      console.error('Nebius API error for tips:', errorText);
+      throw new Error(`Nebius API returned status ${tipsResponse.status} for tips: ${errorText}`);
     }
 
     const tipsData = await tipsResponse.json();
     console.log('Tips Response:', tipsData);
 
     if (!tipsData.choices || !tipsData.choices[0] || !tipsData.choices[0].message) {
-      throw new Error('Invalid tips response from Together API');
+      throw new Error('Invalid tips response from Nebius API');
     }
 
     // Extract the content from the response
