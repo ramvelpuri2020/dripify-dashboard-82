@@ -1,3 +1,4 @@
+
 interface Scores {
   colorCoordination: number;
   fitProportion: number;
@@ -7,14 +8,16 @@ interface Scores {
   trendAwareness: number;
 }
 
+export interface ScoreBreakdown {
+  category: string;
+  score: number;
+  emoji: string;
+  details?: string;
+}
+
 interface MarkdownParseResult {
   totalScore: number;
-  breakdown: Array<{
-    category: string;
-    score: number;
-    emoji: string;
-    details: string;
-  }>;
+  breakdown: ScoreBreakdown[];
   feedback: string;
   styleTips?: Array<{
     category: string;

@@ -25,7 +25,6 @@ export interface StyleAnalysis {
   streak_count?: number | null;
   last_scan_date?: string | null;
   breakdown?: ScoreBreakdown[] | Json;
-  raw_analysis?: string | null;
   tips?: any;
   user_id?: string | null;
 }

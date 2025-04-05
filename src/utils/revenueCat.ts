@@ -1,142 +1,66 @@
 
-// Fix the errors in this file
-import { Capacitor } from '@capacitor/core';
-import { 
-  Purchases, 
-  PurchasesOfferings, 
+import Purchases, { 
+  CustomerInfo, 
   PurchasesConfiguration,
-  CustomerInfo
+  LOG_LEVEL 
 } from '@revenuecat/purchases-capacitor';
+import { isPlatform } from '@capacitor/core';
 
-const isPlatformSupported = () => {
-  const platform = Capacitor.getPlatform();
-  return platform === 'ios' || platform === 'android';
-};
-
-const isRevenueCatAvailable = async (): Promise<boolean> => {
-  const isSupported = isPlatformSupported();
-  if (!isSupported) {
-    console.log('RevenueCat is only available on iOS and Android');
-    return false;
-  }
-  return true;
-};
-
-export const initializeRevenueCat = async (apiKey: string): Promise<boolean> => {
+export const initializePurchases = async () => {
   try {
-    const available = await isRevenueCatAvailable();
-    if (!available) return false;
-
-    // Detect platform
-    const platform = Capacitor.getPlatform();
-  
     // Only initialize on mobile platforms
-    if (platform === "ios" || platform === "android") {
-      const configuration: PurchasesConfiguration = {
-        apiKey,
-        observerMode: false, // Change this based on your needs
-        userDefaultsSuiteName: "com.styleapp.userdefaults",
-      };
-
-      await Purchases.configure(configuration);
-      console.log('RevenueCat initialized successfully');
-      return true;
-    } else {
-      console.log('RevenueCat not initialized on web platform');
-      return false;
+    if (!isPlatform('ios') && !isPlatform('android')) {
+      console.log('RevenueCat: Not initializing on web platform');
+      return;
     }
+
+    const apiKey = isPlatform('ios') 
+      ? import.meta.env.VITE_REVENUECAT_IOS_KEY
+      : import.meta.env.VITE_REVENUECAT_ANDROID_KEY;
+
+    if (!apiKey) {
+      console.error('RevenueCat: API key not found for platform');
+      return;
+    }
+
+    console.log(`RevenueCat: Initializing for ${isPlatform('ios') ? 'iOS' : 'Android'}`);
+
+    const configuration: PurchasesConfiguration = {
+      apiKey,
+      logLevel: LOG_LEVEL.DEBUG
+    };
+
+    await Purchases.configure(configuration);
+    console.log('RevenueCat: Successfully initialized');
   } catch (error) {
-    console.error('Failed to initialize RevenueCat:', error);
-    return false;
+    console.error('RevenueCat: Failed to initialize:', error);
   }
 };
 
-export const getOfferings = async (): Promise<PurchasesOfferings | null> => {
+export const getCustomerInfo = async (): Promise<CustomerInfo | null> => {
   try {
-    const available = await isRevenueCatAvailable();
-    if (!available) return null;
-
-    const offerings = await Purchases.getOfferings();
-    console.log('RevenueCat offerings:', offerings);
-    return offerings;
-  } catch (error) {
-    console.error('Failed to get offerings:', error);
-    return null;
-  }
-};
-
-export const getCurrentUser = async (): Promise<CustomerInfo | null> => {
-  try {
-    const available = await isRevenueCatAvailable();
-    if (!available) return null;
+    if (!isPlatform('ios') && !isPlatform('android')) {
+      return null;
+    }
 
     const { customerInfo } = await Purchases.getCustomerInfo();
     return customerInfo;
   } catch (error) {
-    console.error('Failed to get customer info:', error);
+    console.error('RevenueCat: Failed to get customer info:', error);
     return null;
   }
 };
 
-export const purchasePackage = async (
-  packageId: string,
-  offeringId: string
-): Promise<CustomerInfo | null> => {
+export const checkSubscriptionStatus = async (): Promise<boolean> => {
   try {
-    const available = await isRevenueCatAvailable();
-    if (!available) return null;
-
-    const offerings = await Purchases.getOfferings();
-    const offering = offerings.current;
+    const customerInfo = await getCustomerInfo();
+    if (!customerInfo) return false;
     
-    if (!offering) {
-      console.error('No offering available');
-      return null;
-    }
-    
-    const pkg = offering.availablePackages.find(p => p.identifier === packageId);
-    if (!pkg) {
-      console.error('Package not found:', packageId);
-      return null;
-    }
-    
-    const { customerInfo } = await Purchases.purchasePackage({ 
-      aPackage: pkg
-    });
-    
-    return customerInfo;
+    // Check if user has active entitlement
+    return customerInfo.entitlements.active && 
+           Object.keys(customerInfo.entitlements.active).length > 0;
   } catch (error) {
-    console.error('Failed to purchase package:', error);
-    return null;
-  }
-};
-
-export const restorePurchases = async (): Promise<CustomerInfo | null> => {
-  try {
-    const available = await isRevenueCatAvailable();
-    if (!available) return null;
-
-    const { customerInfo } = await Purchases.restorePurchases();
-    return customerInfo;
-  } catch (error) {
-    console.error('Failed to restore purchases:', error);
-    return null;
-  }
-};
-
-export const checkEntitlementAccess = async (
-  entitlementId: string
-): Promise<boolean> => {
-  try {
-    const available = await isRevenueCatAvailable();
-    if (!available) return false;
-
-    const { customerInfo } = await Purchases.getCustomerInfo();
-    
-    const entitlements = customerInfo.entitlements.active;
-    return !!entitlements[entitlementId];
-  } catch (error) {
-    console.error('Failed to check entitlement access:', error);
+    console.error('RevenueCat: Failed to check subscription status:', error);
     return false;
   }
 };
