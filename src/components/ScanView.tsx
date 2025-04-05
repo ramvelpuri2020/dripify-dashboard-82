@@ -92,18 +92,10 @@ export const ScanView = () => {
     }
   };
 
-  const handleShare = () => {
-    toast({
-      title: "Sharing",
-      description: "Opening share dialog...",
-    });
-  };
-
-  const handleSave = () => {
-    toast({
-      title: "Saved",
-      description: "Your style analysis has been saved!",
-    });
+  const handleRestart = () => {
+    setShowResults(false);
+    setSelectedImage(null);
+    setResult(null);
   };
 
   return (
@@ -179,18 +171,41 @@ export const ScanView = () => {
           initial={{ opacity: 0, x: 100 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
+          className="pb-20" // Added padding to ensure content doesn't get cut off
         >
           {result && (
-            <DripResults
-              totalScore={result.totalScore}
-              breakdown={result.breakdown}
-              feedback={result.feedback}
-              styleTips={result.styleTips || []}
-              nextLevelTips={result.nextLevelTips || []}
-              onShare={handleShare}
-              onSave={handleSave}
-              profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
-            />
+            <>
+              <DripResults
+                totalScore={result.totalScore}
+                breakdown={result.breakdown}
+                feedback={result.feedback}
+                styleTips={result.styleTips || []}
+                nextLevelTips={result.nextLevelTips || []}
+                onShare={() => {
+                  toast({
+                    title: "Shared",
+                    description: "Your style analysis has been shared!",
+                    variant: "success"
+                  });
+                }}
+                onSave={() => {
+                  toast({
+                    title: "Saved",
+                    description: "Your style analysis has been saved to your profile!",
+                    variant: "success"
+                  });
+                }}
+                profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
+              />
+              <div className="mt-8 flex justify-center">
+                <Button
+                  onClick={handleRestart}
+                  className="bg-white/10 hover:bg-white/20 text-white transition-all"
+                >
+                  Analyze Another Outfit
+                </Button>
+              </div>
+            </>
           )}
         </motion.div>
       )}

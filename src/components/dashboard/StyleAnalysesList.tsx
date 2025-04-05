@@ -16,14 +16,30 @@ interface StyleAnalysis {
 
 const getImageUrl = (path: string) => {
   if (!path) return '/placeholder.svg';
-  if (path.startsWith('http')) return path;
-  const { data } = supabase.storage
-    .from('style-images')
-    .getPublicUrl(path);
-  return data?.publicUrl || '/placeholder.svg';
+  return path; // URLs from storage are already public
 };
 
 export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) => {
+  if (!analyses || analyses.length === 0) {
+    return (
+      <Card className="bg-[#1A1F2C]/80 backdrop-blur-lg border-[#403E43]">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-white text-lg flex items-center gap-2">
+              <History className="w-4 h-4 text-[#9b87f5]" />
+              Recent Style Analyses
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-[#C8C8C9]">
+            No style analyses yet. Try scanning an outfit!
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="bg-[#1A1F2C]/80 backdrop-blur-lg border-[#403E43]">
       <CardHeader className="pb-2">
@@ -68,7 +84,7 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                             {format(new Date(analysis.created_at), 'MMM d, yyyy')}
                           </span>
                         </div>
-                        <p className="text-[#C8C8C9] text-sm mt-1">
+                        <p className="text-[#C8C8C9] text-sm mt-1 line-clamp-3">
                           {analysis.feedback}
                         </p>
                       </div>

@@ -48,6 +48,35 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     // Ensure we have valid data structure
     const validatedResult = validateAndCleanResult(data);
     
+    // Upload image to Supabase Storage
+    const imageUrl = await uploadImageToSupabase(imageFile);
+    console.log('Image uploaded to Supabase:', imageUrl);
+    
+    // Save the analysis to the database
+    const { user } = await supabase.auth.getUser();
+    if (user) {
+      const analysisData = {
+        user_id: user.id,
+        total_score: validatedResult.totalScore,
+        breakdown: validatedResult.breakdown,
+        feedback: validatedResult.feedback,
+        image_url: imageUrl,
+        scan_date: new Date().toISOString(),
+      };
+      
+      const { error: insertError } = await supabase
+        .from('style_analyses')
+        .insert(analysisData);
+        
+      if (insertError) {
+        console.error('Error saving analysis to database:', insertError);
+      } else {
+        console.log('Analysis saved to database successfully');
+      }
+    } else {
+      console.log('User not logged in, skipping database save');
+    }
+    
     // Update the scan store with the new analysis
     const store = useScanStore.getState();
     store.setLatestScan(validatedResult);
@@ -60,15 +89,52 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
   }
 };
 
+// Upload image to Supabase Storage
+const uploadImageToSupabase = async (imageFile: File): Promise<string> => {
+  try {
+    const timestamp = new Date().getTime();
+    const filePath = `outfit_${timestamp}_${imageFile.name.replace(/\s+/g, '_')}`;
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('style_images')
+      .upload(filePath, imageFile);
+      
+    if (uploadError) {
+      console.error('Error uploading image:', uploadError);
+      throw new Error('Failed to upload image to storage');
+    }
+    
+    // Get public URL for the uploaded image
+    const { data: { publicUrl } } = supabase.storage
+      .from('style_images')
+      .getPublicUrl(filePath);
+      
+    return publicUrl;
+  } catch (error) {
+    console.error('Image upload error:', error);
+    throw error;
+  }
+};
+
 // Helper function to validate and clean up the AI response
 const validateAndCleanResult = (data: any): StyleAnalysisResult => {
+  // Clean up text fields to remove markdown formatting and extra asterisks
+  const cleanupText = (text: string): string => {
+    if (!text) return '';
+    return text
+      .replace(/^\*\*/g, '') // Remove leading **
+      .replace(/\*\*$/g, '') // Remove trailing **
+      .replace(/\*\*/g, '') // Remove all other **
+      .trim();
+  };
+
   // Ensure breakdown is valid
   const breakdown = Array.isArray(data.breakdown) 
     ? data.breakdown.map(item => ({
         category: item.category || "Style Category",
         score: typeof item.score === 'number' ? Math.round(item.score) : 7,
         emoji: item.emoji || getCategoryEmoji(item.category || "Style Category"),
-        details: item.details ? cleanText(item.details) : "No details available"
+        details: item.details ? cleanupText(item.details) : "No details available"
       }))
     : defaultCategories();
   
@@ -77,19 +143,25 @@ const validateAndCleanResult = (data: any): StyleAnalysisResult => {
     ? data.styleTips.map(category => ({
         category: category.category || "Style Tips",
         tips: Array.isArray(category.tips) 
-          ? category.tips.filter(tip => typeof tip === 'string' && tip.trim().length > 0).map(cleanText)
+          ? category.tips
+              .filter(tip => typeof tip === 'string' && tip.trim().length > 0)
+              .map(cleanupText)
+              .slice(0, 3) // Limit to 3 tips per category
           : ["No specific tips available for this category"]
       }))
     : [];
   
   // Ensure nextLevelTips is valid
   const nextLevelTips = Array.isArray(data.nextLevelTips)
-    ? data.nextLevelTips.filter(tip => typeof tip === 'string' && tip.trim().length > 0).map(cleanText)
+    ? data.nextLevelTips
+        .filter(tip => typeof tip === 'string' && tip.trim().length > 0)
+        .map(cleanupText)
+        .slice(0, 4) // Limit to 4 next level tips
     : [];
   
   // Create a clean summary/feedback
   const feedback = data.feedback 
-    ? cleanText(data.feedback) 
+    ? cleanupText(data.feedback) 
     : "Your outfit shows potential. Focus on accessorizing and color coordination to take it to the next level.";
   
   // Calculate total score as average of breakdown scores if not provided
@@ -117,19 +189,6 @@ const defaultCategories = () => [
   { category: "Trend Awareness", score: 7, emoji: "✨", details: "There's good awareness of current trends in this outfit." },
   { category: "Personal Style", score: 7, emoji: "🪄", details: "Your personality shows through in this outfit." }
 ];
-
-// Helper function to clean up text
-const cleanText = (text: string): string => {
-  if (!text || typeof text !== 'string') return '';
-  
-  // Remove any leading/trailing asterisks, markdown formatting, and excessive whitespace
-  return text
-    .replace(/^\*+\s*|\s*\*+$/g, '')
-    .replace(/\*\*/g, '')
-    .replace(/\n\n+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-};
 
 // Helper function to get emoji for category
 const getCategoryEmoji = (category: string): string => {

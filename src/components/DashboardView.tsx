@@ -35,56 +35,59 @@ export const DashboardView = () => {
   });
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchAnalyses = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          navigate('/auth');
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from('style_analyses')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const processedData = data.map(analysis => ({
-            ...analysis,
-            image_url: analysis.thumbnail_url || analysis.image_url
-          }));
-          
-          setAnalyses(processedData);
-          
-          const scores = data.map(a => a.total_score);
-          const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-          const bestScore = Math.max(...scores);
-          const currentStreak = data[0].streak_count || 0;
-
-          setStats({
-            averageScore: Math.round(averageScore * 10) / 10,
-            streak: currentStreak,
-            totalScans: data.length,
-            bestScore: bestScore
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching analyses:', error);
-        toast({
-          title: "Error loading analyses",
-          description: "Failed to load your style analyses.",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
+  const fetchAnalyses = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/auth');
+        return;
       }
-    };
 
+      const { data, error } = await supabase
+        .from('style_analyses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const processedData = data.map(analysis => ({
+          ...analysis,
+          image_url: analysis.thumbnail_url || analysis.image_url
+        }));
+        
+        setAnalyses(processedData);
+        
+        const scores = data.map(a => a.total_score);
+        const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+        const bestScore = Math.max(...scores);
+        const currentStreak = data[0].streak_count || 0;
+
+        setStats({
+          averageScore: Math.round(averageScore * 10) / 10,
+          streak: currentStreak,
+          totalScans: data.length,
+          bestScore: bestScore
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching analyses:', error);
+      toast({
+        title: "Error loading analyses",
+        description: "Failed to load your style analyses.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalyses();
+
+    // Set up real-time subscription for changes
     const subscription = supabase
       .channel('style_analyses_changes')
       .on('postgres_changes', 
@@ -98,8 +101,6 @@ export const DashboardView = () => {
         }
       )
       .subscribe();
-
-    fetchAnalyses();
 
     return () => {
       subscription.unsubscribe();
