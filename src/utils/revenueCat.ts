@@ -1,243 +1,154 @@
 
-import { Purchases, PurchasesConfiguration } from '@revenuecat/purchases-capacitor';
 import { Capacitor } from '@capacitor/core';
+import Purchases from '@revenuecat/purchases-capacitor';
 
-// RevenueCat API keys
-const REVENUECAT_API_KEYS = {
-  apple: 'appl_YOUR_IOS_KEY_HERE',
-  google: 'goog_YOUR_ANDROID_KEY_HERE',
-  amazon: 'amzn_YOUR_AMAZON_KEY_HERE'
+const isNativePlatform = () => {
+  return Capacitor.isNativePlatform() && (Capacitor.getPlatform() === 'ios' || Capacitor.getPlatform() === 'android');
 };
 
-// Product identifiers
-export const PRODUCT_IDS = {
-  monthly: 'genstyle_monthly_subscription',
-  freeTrial: 'genstyle_free_trial'
-};
-
-/**
- * Initialize RevenueCat SDK with proper platform configuration
- */
-export const initializePurchases = async () => {
+// Initialize RevenueCat with your public API key
+export const initializeRevenueCat = async () => {
   try {
-    const platform = Capacitor.getPlatform();
-    let apiKey = '';
-
-    // Get the appropriate API key for the platform
-    switch (platform) {
-      case 'ios':
-        apiKey = REVENUECAT_API_KEYS.apple;
-        break;
-      case 'android':
-        apiKey = REVENUECAT_API_KEYS.google;
-        break;
-      case 'web':
-        console.log('RevenueCat is not supported on web. Using simulation mode.');
-        return true;
-      default:
-        console.warn('Unknown platform for RevenueCat initialization');
-        return false;
+    if (!isNativePlatform()) {
+      console.info('RevenueCat is not supported on web. Using simulation mode.');
+      return;
     }
 
-    // Skip initialization in development web environment
-    if (platform === 'web') {
-      return true;
-    }
-
-    // Configure RevenueCat
-    const configuration: PurchasesConfiguration = {
-      apiKey,
-      // Enable debug logs for development
-      debugLogsEnabled: true,
-      // Handle purchases across user accounts
-      observerMode: false,
+    // Set up RevenueCat
+    const purchasesConfiguration = {
+      apiKey: 'your_api_key_here', // API key placeholder
+      observerMode: false
     };
 
-    // Initialize the SDK
-    await Purchases.configure(configuration);
+    await Purchases.configure(purchasesConfiguration);
     console.log('RevenueCat initialized successfully');
-    return true;
   } catch (error) {
-    console.error('Failed to initialize RevenueCat:', error);
-    return false;
+    console.error('Error initializing RevenueCat:', error);
   }
 };
 
-/**
- * Get available packages for the current user
- */
-export const getOfferings = async () => {
-  try {
-    // Skip for web platform
-    if (Capacitor.getPlatform() === 'web') {
-      return mockOfferings();
-    }
-    
-    const offerings = await Purchases.getOfferings();
-    return offerings;
-  } catch (error) {
-    console.error('Failed to get offerings:', error);
-    throw error;
-  }
-};
-
-/**
- * Purchase a package
- * @param packageToPurchase The package to purchase
- */
-export const purchasePackage = async (productId: string) => {
-  try {
-    // Skip for web platform
-    if (Capacitor.getPlatform() === 'web') {
-      return mockPurchase(productId);
-    }
-    
-    const offerings = await Purchases.getOfferings();
-    const offering = offerings.current;
-    
-    if (!offering) {
-      throw new Error('No offerings available');
-    }
-    
-    const availablePackages = offering.availablePackages;
-    const packageToPurchase = availablePackages.find(
-      pkg => pkg.product.identifier === productId
-    );
-    
-    if (!packageToPurchase) {
-      throw new Error(`Package with id ${productId} not found`);
-    }
-    
-    const { customerInfo } = await Purchases.purchasePackage({ 
-      package: packageToPurchase 
-    });
-    
-    return customerInfo;
-  } catch (error) {
-    console.error('Purchase failed:', error);
-    throw error;
-  }
-};
-
-/**
- * Get current customer info
- */
+// Get current customer info
 export const getCustomerInfo = async () => {
   try {
-    // Skip for web platform
-    if (Capacitor.getPlatform() === 'web') {
-      return mockCustomerInfo();
+    if (!isNativePlatform()) {
+      return {
+        customerInfo: {
+          entitlements: {
+            active: {},
+            all: {}
+          }
+        }
+      };
     }
-    
+
     const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo;
   } catch (error) {
-    console.error('Failed to get customer info:', error);
+    console.error('Error getting customer info:', error);
     throw error;
   }
 };
 
-/**
- * Check if user has active subscription
- */
+// Check if user has an active subscription
 export const hasActiveSubscription = async () => {
   try {
-    // Skip for web platform
-    if (Capacitor.getPlatform() === 'web') {
-      return true; // For testing purposes
+    if (!isNativePlatform()) {
+      // In web, return false or a simulation value
+      return false;
     }
-    
-    const customerInfo = await Purchases.getCustomerInfo();
-    
-    // Check if the user has any active subscription
-    return customerInfo.entitlements.active.premium !== undefined;
+
+    const customerInfo = await getCustomerInfo();
+    return Object.keys(customerInfo.customerInfo.entitlements.active).length > 0;
   } catch (error) {
-    console.error('Failed to check subscription status:', error);
+    console.error('Error checking subscription status:', error);
     return false;
   }
 };
 
-/**
- * Restore purchases
- */
-export const restorePurchases = async () => {
+// Purchase a package
+export const purchasePackage = async (packageIdentifier: string) => {
   try {
-    // Skip for web platform
-    if (Capacitor.getPlatform() === 'web') {
-      return mockCustomerInfo();
+    if (!isNativePlatform()) {
+      console.info('Purchase function not available on web');
+      return {
+        customerInfo: {
+          entitlements: {
+            active: {},
+            all: {}
+          }
+        }
+      };
     }
+
+    const options = {
+      aPackage: packageIdentifier,
+    };
     
-    const customerInfo = await Purchases.restorePurchases();
-    return customerInfo;
+    const purchaseResult = await Purchases.purchasePackage({ packageIdentifier });
+    return purchaseResult;
   } catch (error) {
-    console.error('Failed to restore purchases:', error);
+    console.error('Error making purchase:', error);
     throw error;
   }
 };
 
-// Mock functions for web development
-const mockOfferings = () => {
-  return {
-    current: {
-      identifier: 'default',
-      availablePackages: [
-        {
-          identifier: 'monthly',
-          packageType: 'MONTHLY',
-          product: {
-            identifier: PRODUCT_IDS.monthly,
-            description: 'Monthly subscription to GenStyle Premium',
-            title: 'GenStyle Premium Monthly',
-            price: 4.99,
-            priceString: '$4.99',
-            currencyCode: 'USD'
-          }
-        },
-        {
-          identifier: 'free_trial',
-          packageType: 'FREE_TRIAL',
-          product: {
-            identifier: PRODUCT_IDS.freeTrial,
-            description: '7-day free trial to GenStyle Premium',
-            title: 'GenStyle Premium Trial',
-            price: 0,
-            priceString: 'Free',
-            currencyCode: 'USD'
-          }
+// Get available packages
+export const getOfferings = async () => {
+  try {
+    if (!isNativePlatform()) {
+      // Return mock data for web
+      return {
+        current: {
+          identifier: 'standard',
+          availablePackages: [
+            {
+              identifier: 'monthly',
+              product: {
+                price: 9.99,
+                priceString: '$9.99',
+                title: 'Monthly Subscription'
+              }
+            },
+            {
+              identifier: 'annual',
+              product: {
+                price: 99.99,
+                priceString: '$99.99',
+                title: 'Annual Subscription'
+              }
+            }
+          ]
         }
-      ]
+      };
     }
-  };
+    
+    const offerings = await Purchases.getOfferings();
+    return offerings.current;
+  } catch (error) {
+    console.error('Error getting offerings:', error);
+    throw error;
+  }
 };
 
-const mockPurchase = (productId: string) => {
-  return {
-    entitlements: {
-      active: {
-        premium: {
-          identifier: 'premium',
-          isActive: true,
-          willRenew: true,
-          periodType: productId === PRODUCT_IDS.freeTrial ? 'TRIAL' : 'NORMAL',
-          expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+// Restore purchases
+export const restorePurchases = async () => {
+  try {
+    if (!isNativePlatform()) {
+      console.info('Restore purchases function not available on web');
+      return {
+        customerInfo: {
+          entitlements: {
+            active: {},
+            all: {}
+          }
         }
-      }
+      };
     }
-  };
-};
-
-const mockCustomerInfo = () => {
-  return {
-    entitlements: {
-      active: {
-        premium: {
-          identifier: 'premium',
-          isActive: true,
-          willRenew: true,
-          periodType: 'NORMAL',
-          expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      }
-    }
-  };
+    
+    const restoreResult = await Purchases.restorePurchases();
+    return restoreResult;
+  } catch (error) {
+    console.error('Error restoring purchases:', error);
+    throw error;
+  }
 };

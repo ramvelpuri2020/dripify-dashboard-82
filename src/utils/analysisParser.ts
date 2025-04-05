@@ -33,7 +33,7 @@ export const parseMarkdownToJSON = (markdownContent: string): MarkdownParseResul
   // Extract overall score if available
   const totalScoreMatch = markdownContent.match(/Overall Score:?\s*(\d+\.?\d*)/i) || 
                           markdownContent.match(/Total Score:?\s*(\d+\.?\d*)/i);
-  const totalScore = totalScoreMatch ? Math.round(parseFloat(totalScoreMatch[1])) : 7;
+  const totalScore = totalScoreMatch ? Math.round(Number(totalScoreMatch[1])) : 7;
   
   // Extract category sections
   const categoryPatterns = [
@@ -87,12 +87,12 @@ export const parseMarkdownToJSON = (markdownContent: string): MarkdownParseResul
 // Basic analysis parser for backward compatibility
 export const parseAnalysis = (analysis: string) => {
   const scores: any = {
-    colorCoordination: Math.round(parseFloat(analysis.match(/Color Coordination:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    fitProportion: Math.round(parseFloat(analysis.match(/Fit & Proportion:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    styleCoherence: Math.round(parseFloat(analysis.match(/Style Coherence:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    accessories: Math.round(parseFloat(analysis.match(/Accessories:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    outfitCreativity: Math.round(parseFloat(analysis.match(/Outfit Creativity:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    trendAwareness: Math.round(parseFloat(analysis.match(/Trend Awareness:?\s*(\d+\.?\d*)/i)?.[1] || "7"))
+    colorCoordination: Math.round(Number(analysis.match(/Color Coordination:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    fitProportion: Math.round(Number(analysis.match(/Fit & Proportion:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    styleCoherence: Math.round(Number(analysis.match(/Style Coherence:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    accessories: Math.round(Number(analysis.match(/Accessories:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    outfitCreativity: Math.round(Number(analysis.match(/Outfit Creativity:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
+    trendAwareness: Math.round(Number(analysis.match(/Trend Awareness:?\s*(\d+\.?\d*)/i)?.[1] || "7"))
   };
 
   const totalScore = Math.round(
