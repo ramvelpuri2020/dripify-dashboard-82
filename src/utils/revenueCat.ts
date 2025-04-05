@@ -38,7 +38,8 @@ export const initializePurchases = async () => {
       apiKey
     };
 
-    await Purchases.setup(configuration);
+    // Using configure instead of setup as per the correct API
+    await Purchases.configure(configuration);
     console.log('RevenueCat: Successfully initialized');
   } catch (error) {
     console.error('RevenueCat: Failed to initialize:', error);
@@ -51,7 +52,8 @@ export const getCustomerInfo = async (): Promise<CustomerInfo | null> => {
       return null;
     }
 
-    const customerInfo = await Purchases.getCustomerInfo();
+    // Using the correct API format which returns { customerInfo }
+    const { customerInfo } = await Purchases.getCustomerInfo();
     return customerInfo;
   } catch (error) {
     console.error('RevenueCat: Failed to get customer info:', error);
