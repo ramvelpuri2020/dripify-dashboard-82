@@ -46,12 +46,12 @@ export const DripResults = ({
   const displayScore = typeof totalScore === 'number' ? Math.round(totalScore) : 7;
 
   // Ensure breakdown items have valid scores
-  const validBreakdown = breakdown?.map(item => ({
+  const validBreakdown = breakdown.map(item => ({
     ...item,
     score: typeof item.score === 'number' ? Math.round(item.score) : 7,
     emoji: item.emoji || "⭐",
     details: item.details || `Score: ${item.score}/10`
-  })) || [];
+  }));
   
   const toggleCategory = (category: string) => {
     if (expandedCategory === category) {

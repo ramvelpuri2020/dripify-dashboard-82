@@ -35,9 +35,6 @@ YOU MUST PROVIDE YOUR ANALYSIS IN THIS MARKDOWN FORMAT (do not deviate from this
 
 **Overall Score:** [1-10]
 
-**Overall Style:** [1-10]
-[3-4 sentences of detailed feedback about the overall style]
-
 **Color Coordination:** [1-10]
 [3-4 sentences of detailed feedback about the color palette, specific color combinations, and how they work together]
 
@@ -147,11 +144,13 @@ DO NOT explain the scoring system. DO NOT begin with "As a fashion stylist" or a
       throw new Error('Invalid response format from Nebius API');
     }
 
-    // Extract the markdown content - no longer trying to parse as JSON
+    // Extract the content from the response - this is markdown text, not JSON
     const markdownContent = data.choices[0].message.content;
     console.log('Analysis content (first 300 chars):', markdownContent.substring(0, 300) + '...');
+
+    // We're not trying to parse JSON anymore - we'll return the markdown content as is
+    // Our client-side parser will handle converting it to structured data
     
-    // Simply return the raw markdown feedback
     return new Response(JSON.stringify({ feedback: markdownContent }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
