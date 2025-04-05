@@ -30,9 +30,22 @@ export interface StyleAnalysis {
 }
 
 export interface StyleAnalysisResult {
-  overallScore: number;
-  rawAnalysis: string;
-  imageUrl?: string;
+  totalScore: number;
+  breakdown: {
+    category: string;
+    score: number;
+    emoji: string;
+    details?: string;
+  }[];
+  feedback: string;
+  styleTips?: {
+    category: string;
+    tips: string[];
+  }[];
+  nextLevelTips?: string[];
   timestamp?: Date;
-  breakdown?: ScoreBreakdown[];
+  fullAnalysis?: string;
+  tips?: string[];
+  summary?: string;
+  categories?: StyleAnalysisCategory[];
 }

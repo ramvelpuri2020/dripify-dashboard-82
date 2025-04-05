@@ -7,11 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { analyzeStyle } from "@/utils/imageAnalysis";
-import { useScanStore } from "@/store/scanStore";
 import { Sparkles } from "lucide-react";
-import { DripResults } from "@/components/DripResults";
-import { parseMarkdownToJSON } from "@/utils/analysisParser";
-import { ScoreBreakdown } from "@/types/styleTypes";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import ReactMarkdown from 'react-markdown';
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -20,12 +18,10 @@ export const ScanView = () => {
   const [analysisPhase, setAnalysisPhase] = useState<string>("");
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
-  const setLatestScan = useScanStore((state) => state.setLatestScan);
   const [result, setResult] = useState<{
-    overallScore: number;
     rawAnalysis: string;
+    overallScore: number | null;
     imageUrl?: string;
-    breakdown?: ScoreBreakdown[];
   } | null>(null);
 
   const analysisPhrases = [
@@ -69,9 +65,8 @@ export const ScanView = () => {
       // Call the analyzeStyle function with the selected image
       const analysisResult = await analyzeStyle(selectedImage);
       
-      console.log('Analysis completed successfully:', analysisResult);
+      console.log('Analysis completed successfully');
       setResult(analysisResult);
-      setLatestScan(analysisResult);
       
       clearInterval(phraseCycleInterval);
       
@@ -103,22 +98,6 @@ export const ScanView = () => {
     setShowResults(false);
     setSelectedImage(null);
     setResult(null);
-  };
-
-  const handleShare = () => {
-    toast({
-      title: "Shared",
-      description: "Your style analysis has been shared!",
-      variant: "success"
-    });
-  };
-
-  const handleSave = () => {
-    toast({
-      title: "Saved",
-      description: "Your style analysis has been saved to your profile!",
-      variant: "success"
-    });
   };
 
   return (
@@ -197,28 +176,49 @@ export const ScanView = () => {
           className="pb-20"
         >
           {result && (
-            <DripResults
-              totalScore={result.overallScore}
-              breakdown={result.breakdown || []}
-              feedback={
-                parseMarkdownToJSON(result.rawAnalysis).feedback ||
-                "Your outfit shows potential. Focus on accessorizing and color coordination to take it to the next level."
-              }
-              profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
-              onShare={handleShare}
-              onSave={handleSave}
-              styleTips={parseMarkdownToJSON(result.rawAnalysis).styleTips}
-              nextLevelTips={parseMarkdownToJSON(result.rawAnalysis).nextLevelTips}
-            />
+            <div className="space-y-6">
+              <div className="flex items-center justify-center">
+                {selectedImage && (
+                  <div className="relative rounded-lg overflow-hidden border-4 border-purple-500/30 w-32 h-32">
+                    <img 
+                      src={URL.createObjectURL(selectedImage)} 
+                      alt="Analyzed outfit" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {result.overallScore !== null && (
+                <div className="text-center">
+                  <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                    {result.overallScore}/10
+                  </h2>
+                  <p className="text-lg text-green-400 font-medium">Style Score</p>
+                </div>
+              )}
+
+              <Card className="bg-black/30 backdrop-blur-lg border-white/10">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">Style Analysis</h3>
+                  <ScrollArea className="h-[500px] pr-4">
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <ReactMarkdown>{result.rawAnalysis}</ReactMarkdown>
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-center">
+                <Button
+                  onClick={handleRestart}
+                  className="bg-white/10 hover:bg-white/20 text-white transition-all"
+                >
+                  Analyze Another Outfit
+                </Button>
+              </div>
+            </div>
           )}
-          <div className="mt-8 flex justify-center">
-            <Button
-              onClick={handleRestart}
-              className="bg-white/10 hover:bg-white/20 text-white transition-all"
-            >
-              Analyze Another Outfit
-            </Button>
-          </div>
         </motion.div>
       )}
     </motion.div>

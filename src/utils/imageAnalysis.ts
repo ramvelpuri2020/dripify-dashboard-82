@@ -1,10 +1,14 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { useScanStore } from '@/store/scanStore';
-import type { StyleAnalysisResult } from '@/types/styleTypes';
-import { parseMarkdownToJSON } from './analysisParser';
 
-export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
+// Define a simpler type for the analysis result
+export interface SimpleStyleAnalysisResult {
+  rawAnalysis: string;
+  overallScore: number | null;
+  imageUrl?: string;
+}
+
+export const analyzeStyle = async (imageFile: File): Promise<SimpleStyleAnalysisResult> => {
   try {
     // Convert image to base64
     const base64Image = await fileToBase64(imageFile);
@@ -23,22 +27,23 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     const endTime = performance.now();
     console.log(`Analysis completed in ${Math.round(endTime - startTime)}ms`);
-    console.log('Analysis response:', data);
-
-    if (!data || !data.feedback) {
-      throw new Error('Invalid response format from AI service');
+    
+    if (!data) {
+      throw new Error('Invalid response from AI service');
     }
-    
-    const rawFeedback = data.feedback;
-    
-    // Parse the raw analysis to get structured data
-    const parsedAnalysis = parseMarkdownToJSON(rawFeedback);
     
     // Upload image to Supabase Storage
     const imageUrl = await uploadImageToSupabase(imageFile);
     console.log('Image uploaded to Supabase:', imageUrl);
     
-    // Save the analysis to the database
+    // Create a simple result object with the raw analysis text
+    const result: SimpleStyleAnalysisResult = {
+      rawAnalysis: data.rawAnalysis || 'No analysis available',
+      overallScore: data.overallScore,
+      imageUrl
+    };
+    
+    // Save the raw analysis to the database
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError) {
       console.error('Error getting user:', userError);
@@ -46,14 +51,11 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     }
     
     if (userData && userData.user) {
-      // Important: Convert breakdown to JSON for database storage
       const analysisData = {
         user_id: userData.user.id,
-        total_score: parsedAnalysis.totalScore,
-        feedback: parsedAnalysis.feedback.substring(0, 200) + '...', // First 200 chars as summary
-        breakdown: JSON.stringify(parsedAnalysis.breakdown), // Convert to JSON string for DB storage
+        total_score: result.overallScore,
+        raw_analysis: result.rawAnalysis,
         image_url: imageUrl,
-        thumbnail_url: imageUrl,
         scan_date: new Date().toISOString(),
       };
       
@@ -70,19 +72,8 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       console.log('User not logged in, skipping database save');
     }
     
-    // Create result with proper breakdown for UI
-    const result: StyleAnalysisResult = {
-      overallScore: parsedAnalysis.totalScore,
-      rawAnalysis: rawFeedback,
-      imageUrl,
-      breakdown: parsedAnalysis.breakdown
-    };
-    
-    // Update the scan store with the new analysis
-    const store = useScanStore.getState();
-    store.setLatestScan(result);
-    
     return result;
+
   } catch (error) {
     console.error('Error analyzing style:', error);
     throw error;
