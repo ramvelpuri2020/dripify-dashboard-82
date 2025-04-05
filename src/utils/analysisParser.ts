@@ -46,18 +46,15 @@ export const parseMarkdownToJSON = (markdownContent: string): MarkdownParseResul
                           markdownContent.match(/Total Score:?\s*(\d+\.?\d*)/i);
   const totalScore = totalScoreMatch ? Math.round(parseFloat(totalScoreMatch[1])) : 7;
   
-  // Extract category sections
+  // Extract category sections - only look for them, don't create defaults
   const categoryPatterns = [
+    { name: "Overall Style", emoji: "👑", pattern: /Overall Style:?\s*(\d+\.?\d*)/i },
     { name: "Color Coordination", emoji: "🎨", pattern: /Color Coordination:?\s*(\d+\.?\d*)/i },
     { name: "Fit & Proportion", emoji: "📏", pattern: /Fit (?:&|and) Proportion:?\s*(\d+\.?\d*)/i },
     { name: "Style Coherence", emoji: "✨", pattern: /Style Coherence:?\s*(\d+\.?\d*)/i },
     { name: "Accessories", emoji: "💍", pattern: /Accessories:?\s*(\d+\.?\d*)/i },
     { name: "Outfit Creativity", emoji: "🎯", pattern: /(?:Outfit|Style) Creativity:?\s*(\d+\.?\d*)/i },
-    { name: "Trend Awareness", emoji: "🌟", pattern: /Trend Awareness:?\s*(\d+\.?\d*)/i },
-    // Additional possible categories
-    { name: "Overall Style", emoji: "👑", pattern: /Overall Style:?\s*(\d+\.?\d*)/i },
-    { name: "Style Expression", emoji: "🪄", pattern: /Style Expression:?\s*(\d+\.?\d*)/i },
-    { name: "Trend Alignment", emoji: "✨", pattern: /Trend Alignment:?\s*(\d+\.?\d*)/i }
+    { name: "Trend Awareness", emoji: "🌟", pattern: /Trend Awareness:?\s*(\d+\.?\d*)/i }
   ];
   
   // Extract feedback - try to find a summary section
@@ -66,17 +63,18 @@ export const parseMarkdownToJSON = (markdownContent: string): MarkdownParseResul
     ? feedbackMatch[1].trim() 
     : markdownContent.split('\n').slice(0, 3).join(' ').trim(); // Fallback to first few lines
   
-  // Build breakdown from categories found in the content
+  // Build breakdown only from categories found in the content - no defaults
   const breakdown = categoryPatterns
     .map(category => {
-      const score = extractScore(markdownContent, category.pattern);
+      const score = extractScore(markdownContent, category.pattern, 0);
+      
+      // Only include categories that were actually found in the response
+      if (score === 0) return null;
       
       // Try to extract details about this category
       const categoryDetailsRegex = new RegExp(`\\*\\*${category.name}\\*\\*:?\\s*([^*]+)`, 'i');
       const detailsMatch = markdownContent.match(categoryDetailsRegex);
-      const details = detailsMatch 
-        ? detailsMatch[1].trim() 
-        : `Your ${category.name.toLowerCase()} demonstrates good potential but could be enhanced with targeted improvements.`;
+      const details = detailsMatch ? detailsMatch[1].trim() : "";
       
       return {
         category: category.name,
@@ -85,37 +83,9 @@ export const parseMarkdownToJSON = (markdownContent: string): MarkdownParseResul
         details
       };
     })
-    // Filter out categories with default scores (which likely weren't found)
-    .filter((item, index, self) => 
-      // Only keep items where we either found a non-default score
-      // or it's one of the essential 6 categories
-      (item.category === "Color Coordination" || 
-       item.category === "Fit & Proportion" ||
-       item.category === "Style Coherence" ||
-       item.category === "Accessories" ||
-       item.category === "Outfit Creativity" ||
-       item.category === "Trend Awareness")
-    );
+    .filter(item => item !== null) as ScoreBreakdown[];
   
-  // Add default categories if we don't have enough
-  if (breakdown.length < 6) {
-    const defaultCategories = [
-      { category: "Color Coordination", score: 7, emoji: "🎨", details: "Your color choices work well together, but could benefit from more intentional pairing." },
-      { category: "Fit & Proportion", score: 7, emoji: "📏", details: "The proportions are generally flattering to your body shape." },
-      { category: "Style Coherence", score: 7, emoji: "✨", details: "Your outfit has a cohesive direction but could be more focused." },
-      { category: "Accessories", score: 6, emoji: "💍", details: "Consider adding more strategic accessories to elevate your look." },
-      { category: "Outfit Creativity", score: 7, emoji: "🎯", details: "Your outfit shows creativity but could push boundaries more." },
-      { category: "Trend Awareness", score: 7, emoji: "🌟", details: "There's evidence of trend awareness in your styling choices." }
-    ];
-    
-    defaultCategories.forEach(defaultCat => {
-      if (!breakdown.some(item => item.category === defaultCat.category)) {
-        breakdown.push(defaultCat);
-      }
-    });
-  }
-  
-  // Extract style tips - look for bulleted lists
+  // Extract style tips if present, but don't create defaults
   let styleTips: Array<{category: string, tips: string[]}> = [];
   const tipSections = markdownContent.match(/\*\*([\w\s&]+)\*\*\s*Tips?:([^*]+)/ig);
   
@@ -133,24 +103,12 @@ export const parseMarkdownToJSON = (markdownContent: string): MarkdownParseResul
       
       return {
         category: categoryName.trim(),
-        tips: tips.length > 0 ? tips : ["Consider adding more complementary elements to enhance this aspect of your style."]
+        tips: tips.length > 0 ? tips : []
       };
     });
   }
   
-  // If no tips were found, create some default ones
-  if (styleTips.length === 0) {
-    styleTips = breakdown.map(item => ({
-      category: item.category,
-      tips: [
-        `Consider how to enhance your ${item.category.toLowerCase()} with more intentional choices.`,
-        `Explore different options to improve this aspect of your style.`,
-        `Work on developing this area to take your outfit to the next level.`
-      ]
-    }));
-  }
-  
-  // Extract next level tips
+  // Extract next level tips if they exist
   const nextLevelTipSection = markdownContent.match(/(?:\*\*Next Level|Advanced)\s*Tips?:?([^*]+)(?:\*\*|$)/i);
   const nextLevelTips = nextLevelTipSection 
     ? nextLevelTipSection[1]
@@ -158,13 +116,7 @@ export const parseMarkdownToJSON = (markdownContent: string): MarkdownParseResul
         .filter(line => line.trim().startsWith('-') || line.trim().startsWith('*') || line.trim().match(/^\d+\./))
         .map(tip => tip.replace(/^[-*]\s+|^\d+\.\s+/, '').trim())
         .filter(tip => tip.length > 0)
-    : [
-        "Develop a personal style board to help focus your fashion direction.",
-        "Invest in quality foundation pieces that can be styled multiple ways.",
-        "Learn basic alterations to customize off-the-rack pieces to your proportions.",
-        "Study color theory to create more sophisticated outfit color palettes.",
-        "Master the art of accessorizing to elevate even simple outfits."
-      ];
+    : [];
 
   return {
     totalScore,
@@ -176,29 +128,5 @@ export const parseMarkdownToJSON = (markdownContent: string): MarkdownParseResul
 };
 
 export const parseAnalysis = (analysis: string) => {
-  const scores: Scores = {
-    colorCoordination: Math.round(parseFloat(analysis.match(/Color Coordination:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    fitProportion: Math.round(parseFloat(analysis.match(/Fit & Proportion:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    styleCoherence: Math.round(parseFloat(analysis.match(/Style Coherence:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    accessories: Math.round(parseFloat(analysis.match(/Accessories:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    outfitCreativity: Math.round(parseFloat(analysis.match(/Outfit Creativity:?\s*(\d+\.?\d*)/i)?.[1] || "7")),
-    trendAwareness: Math.round(parseFloat(analysis.match(/Trend Awareness:?\s*(\d+\.?\d*)/i)?.[1] || "7"))
-  };
-
-  const totalScore = Math.round(
-    Object.values(scores).reduce((acc, curr) => acc + curr, 0) / 6
-  );
-
-  return {
-    totalScore,
-    breakdown: [
-      { category: "Color Coordination", score: scores.colorCoordination, emoji: "🎨" },
-      { category: "Fit & Proportion", score: scores.fitProportion, emoji: "📏" },
-      { category: "Style Coherence", score: scores.styleCoherence, emoji: "✨" },
-      { category: "Accessories", score: scores.accessories, emoji: "💍" },
-      { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🎯" },
-      { category: "Trend Awareness", score: scores.trendAwareness, emoji: "🌟" },
-    ],
-    feedback: analysis
-  };
+  return parseMarkdownToJSON(analysis);
 };

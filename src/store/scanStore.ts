@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
-import { StyleAnalysisResult } from '@/types/styleTypes';
+import { StyleAnalysisResult, ScoreBreakdown } from '@/types/styleTypes';
 
 interface ScanStoreState {
   latestScan: StyleAnalysisResult | null;
@@ -32,7 +32,12 @@ export const useScanStore = create<ScanStore>((set, get) => ({
   },
   
   setLatestScan: (scan) => set({ 
-    latestScan: { ...scan, timestamp: new Date() }
+    latestScan: { 
+      ...scan, 
+      timestamp: new Date(),
+      // Ensure breakdown is always defined
+      breakdown: scan.breakdown || []
+    }
   }),
   
   fetchUserStats: async (userId) => {

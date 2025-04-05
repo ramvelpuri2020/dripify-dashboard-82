@@ -35,4 +35,5 @@ export interface StyleAnalysisResult {
   rawAnalysis: string;
   imageUrl?: string;
   timestamp?: Date;
+  breakdown?: ScoreBreakdown[];
 }

@@ -35,6 +35,9 @@ YOU MUST PROVIDE YOUR ANALYSIS IN THIS MARKDOWN FORMAT (do not deviate from this
 
 **Overall Score:** [1-10]
 
+**Overall Style:** [1-10]
+[3-4 sentences of detailed feedback about the overall style]
+
 **Color Coordination:** [1-10]
 [3-4 sentences of detailed feedback about the color palette, specific color combinations, and how they work together]
 
