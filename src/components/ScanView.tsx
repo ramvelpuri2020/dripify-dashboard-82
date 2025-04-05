@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StyleSelector } from "@/components/StyleSelector";
-import { DripResults } from "@/components/DripResults";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +9,10 @@ import { motion } from "framer-motion";
 import { analyzeStyle } from "@/utils/imageAnalysis";
 import { useScanStore } from "@/store/scanStore";
 import { Sparkles } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Share2, Save } from "lucide-react";
+import ReactMarkdown from 'react-markdown';
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -19,7 +22,7 @@ export const ScanView = () => {
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
   const setLatestScan = useScanStore((state) => state.setLatestScan);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<{ overallScore: number; rawAnalysis: string; imageUrl?: string } | null>(null);
 
   const analysisPhrases = [
     "Scanning outfit details...",
@@ -98,6 +101,22 @@ export const ScanView = () => {
     setResult(null);
   };
 
+  const handleShare = () => {
+    toast({
+      title: "Shared",
+      description: "Your style analysis has been shared!",
+      variant: "success"
+    });
+  };
+
+  const handleSave = () => {
+    toast({
+      title: "Saved",
+      description: "Your style analysis has been saved to your profile!",
+      variant: "success"
+    });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -171,32 +190,78 @@ export const ScanView = () => {
           initial={{ opacity: 0, x: 100 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
-          className="pb-20" // Added padding to ensure content doesn't get cut off
+          className="pb-20"
         >
           {result && (
-            <>
-              <DripResults
-                totalScore={result.totalScore}
-                breakdown={result.breakdown}
-                feedback={result.feedback}
-                styleTips={result.styleTips || []}
-                nextLevelTips={result.nextLevelTips || []}
-                onShare={() => {
-                  toast({
-                    title: "Shared",
-                    description: "Your style analysis has been shared!",
-                    variant: "success"
-                  });
-                }}
-                onSave={() => {
-                  toast({
-                    title: "Saved",
-                    description: "Your style analysis has been saved to your profile!",
-                    variant: "success"
-                  });
-                }}
-                profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
-              />
+            <div className="w-full max-w-2xl mx-auto space-y-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center space-y-4"
+              >
+                <Avatar className="w-24 h-24 mx-auto border-2 border-purple-500/30">
+                  <AvatarImage src={selectedImage ? URL.createObjectURL(selectedImage) : undefined} alt="Profile" className="object-cover" />
+                  <AvatarFallback className="bg-gradient-to-br from-purple-700 to-pink-500 text-white text-2xl">👕</AvatarFallback>
+                </Avatar>
+                
+                <div className="space-y-2">
+                  <h2 className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">{result.overallScore}/10</h2>
+                  <p className="text-xl text-green-400 font-semibold">Style Score</p>
+                  <div className="h-1.5 w-32 mx-auto bg-gray-800 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(result.overallScore / 10) * 100}%` }}
+                      transition={{ delay: 0.5, duration: 1.2 }}
+                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg"
+              >
+                <ScrollArea className="h-[400px]">
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Style Analysis</h3>
+                    <div className="prose prose-invert max-w-none">
+                      <ReactMarkdown>
+                        {result.rawAnalysis}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="flex justify-center gap-4"
+              >
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full bg-white hover:bg-white/90 text-black border-none"
+                  onClick={handleSave}
+                >
+                  <Save className="w-5 h-5 mr-2" />
+                  Save
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full bg-white hover:bg-white/90 text-black border-none"
+                  onClick={handleShare}
+                >
+                  <Share2 className="w-5 h-5 mr-2" />
+                  Share
+                </Button>
+              </motion.div>
+              
               <div className="mt-8 flex justify-center">
                 <Button
                   onClick={handleRestart}
@@ -205,7 +270,7 @@ export const ScanView = () => {
                   Analyze Another Outfit
                 </Button>
               </div>
-            </>
+            </div>
           )}
         </motion.div>
       )}

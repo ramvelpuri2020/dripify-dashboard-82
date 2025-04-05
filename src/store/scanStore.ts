@@ -1,16 +1,17 @@
+
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { StyleAnalysisResult } from '@/types/styleTypes';
 
 interface ScanStoreState {
   latestScan: StyleAnalysisResult | null;
-  styleStats: {
+  isLoading: boolean;
+  stats: {
     averageScore: number;
     bestScore: number;
     streak: number;
     totalScans: number;
   };
-  isLoading: boolean;
 }
 
 interface ScanStoreActions {
@@ -22,13 +23,13 @@ type ScanStore = ScanStoreState & ScanStoreActions;
 
 export const useScanStore = create<ScanStore>((set, get) => ({
   latestScan: null,
-  styleStats: {
+  isLoading: false,
+  stats: {
     averageScore: 0,
     bestScore: 0,
     streak: 0,
     totalScans: 0
   },
-  isLoading: false,
   
   setLatestScan: (scan) => set({ 
     latestScan: { ...scan, timestamp: new Date() }
@@ -101,7 +102,7 @@ export const useScanStore = create<ScanStore>((set, get) => ({
       }
       
       set({
-        styleStats: {
+        stats: {
           averageScore,
           bestScore,
           streak,
