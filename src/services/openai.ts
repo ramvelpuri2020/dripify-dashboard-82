@@ -21,13 +21,8 @@ export const analyzeOutfit = async (imageBase64: string, style: string) => {
       throw new Error('Invalid response format from AI service');
     }
 
-    console.log('Analysis completed successfully');
-    
-    // Return the raw analysis as is
-    return {
-      feedback: data.rawAnalysis,
-      totalScore: data.overallScore
-    };
+    console.log('Analysis completed successfully:', data);
+    return data;
   } catch (error) {
     console.error('Analysis error:', error);
     throw error;
