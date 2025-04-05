@@ -25,15 +25,27 @@ export interface StyleAnalysis {
   streak_count?: number | null;
   last_scan_date?: string | null;
   breakdown?: ScoreBreakdown[] | Json;
-  raw_analysis?: string | null;
   tips?: any;
   user_id?: string | null;
 }
 
 export interface StyleAnalysisResult {
-  overallScore: number;
-  rawAnalysis: string;
-  breakdown?: ScoreBreakdown[];
-  imageUrl?: string;
+  totalScore: number;
+  breakdown: {
+    category: string;
+    score: number;
+    emoji: string;
+    details?: string;
+  }[];
+  feedback: string;
+  styleTips?: {
+    category: string;
+    tips: string[];
+  }[];
+  nextLevelTips?: string[];
   timestamp?: Date;
+  fullAnalysis?: string;
+  tips?: string[];
+  summary?: string;
+  categories?: StyleAnalysisCategory[];
 }

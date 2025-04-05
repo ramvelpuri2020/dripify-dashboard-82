@@ -6,13 +6,17 @@ import { motion } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-import ReactMarkdown from 'react-markdown';
 
 interface ScoreBreakdown {
   category: string;
   score: number;
   emoji: string;
   details?: string;
+}
+
+interface StyleTip {
+  category: string;
+  tips: string[];
 }
 
 interface DripResultsProps {
@@ -22,6 +26,8 @@ interface DripResultsProps {
   onShare: () => void;
   onSave?: () => void;
   profileImage?: string;
+  styleTips?: StyleTip[];
+  nextLevelTips?: string[];
 }
 
 export const DripResults = ({
@@ -31,14 +37,21 @@ export const DripResults = ({
   onShare,
   onSave,
   profileImage,
+  styleTips = [],
+  nextLevelTips = []
 }: DripResultsProps) => {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   
   // Ensure totalScore is a number and round it
   const displayScore = typeof totalScore === 'number' ? Math.round(totalScore) : 7;
 
-  // Extract a short summary from the feedback
-  const summaryFeedback = feedback.split('\n').slice(0, 2).join(' ').substring(0, 200);
+  // Ensure breakdown items have valid scores
+  const validBreakdown = breakdown.map(item => ({
+    ...item,
+    score: typeof item.score === 'number' ? Math.round(item.score) : 7,
+    emoji: item.emoji || "⭐",
+    details: item.details || `Score: ${item.score}/10`
+  }));
   
   const toggleCategory = (category: string) => {
     if (expandedCategory === category) {
@@ -47,28 +60,6 @@ export const DripResults = ({
       setExpandedCategory(category);
     }
   };
-
-  // Essential categories we want to display (even if they're not in the breakdown)
-  const essentialCategories = [
-    { category: "Overall Style", emoji: "👑", score: totalScore },
-    { category: "Color Coordination", emoji: "🎨", score: 7 },
-    { category: "Fit & Proportion", emoji: "📏", score: 7 },
-    { category: "Accessories", emoji: "💍", score: 6 }
-  ];
-  
-  // Combine actual breakdown with essential categories, prioritizing actual data
-  const displayBreakdown = essentialCategories.map(essentialCat => {
-    const foundCategory = breakdown.find(item => 
-      item.category.toLowerCase() === essentialCat.category.toLowerCase() ||
-      item.category.toLowerCase().includes(essentialCat.category.toLowerCase().replace(' ', ''))
-    );
-    
-    if (foundCategory) {
-      return foundCategory;
-    }
-    
-    return essentialCat;
-  });
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
@@ -102,11 +93,11 @@ export const DripResults = ({
         className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg p-6"
       >
         <h3 className="text-lg font-semibold text-white mb-3">Overall Feedback</h3>
-        <p className="text-white/80 text-sm leading-relaxed">{summaryFeedback}</p>
+        <p className="text-white/80 text-sm leading-relaxed">{feedback}</p>
       </motion.div>
 
       <div className="grid grid-cols-2 gap-4">
-        {displayBreakdown.map((item, index) => (
+        {validBreakdown.map((item, index) => (
           <motion.div
             key={`${item.category}-${index}`}
             initial={{ opacity: 0, y: 20 }}
@@ -175,12 +166,87 @@ export const DripResults = ({
         transition={{ delay: 0.4 }}
         className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg p-6"
       >
-        <h3 className="text-lg font-semibold text-white mb-4">Full Analysis</h3>
+        <h3 className="text-lg font-semibold text-white mb-4">Style Tips</h3>
         <ScrollArea className="h-[300px] pr-4">
-          <div className="prose prose-invert max-w-none prose-pre:bg-black/30 prose-pre:border prose-pre:border-white/10">
-            <ReactMarkdown>
-              {feedback}
-            </ReactMarkdown>
+          <div className="space-y-4">
+            {styleTips && styleTips.length > 0 ? (
+              styleTips.map((categoryTips, categoryIndex) => (
+                <div key={`category-${categoryIndex}`} className="space-y-2">
+                  <h4 className="text-md font-medium text-white/90 flex items-center gap-2">
+                    {categoryTips.category}
+                    <div className={`h-1.5 w-1.5 rounded-full ${
+                      validBreakdown.find(b => b.category === categoryTips.category)?.score >= 8 ? 'bg-green-400' : 
+                      validBreakdown.find(b => b.category === categoryTips.category)?.score >= 6 ? 'bg-yellow-400' : 
+                      'bg-red-400'
+                    }`} />
+                  </h4>
+                  {Array.isArray(categoryTips.tips) && categoryTips.tips.length > 0 ? (
+                    categoryTips.tips.map((tip, tipIndex) => {
+                      if (!tip) return null;
+                      
+                      return (
+                        <motion.div
+                          key={`tip-${categoryIndex}-${tipIndex}`}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: tipIndex * 0.1 }}
+                        >
+                          <Card className="bg-black/20 border-white/5 p-3">
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 rounded-full bg-purple-500/20 flex-shrink-0">
+                                <ChevronRight className="w-3 h-3 text-purple-500" />
+                              </div>
+                              <p className="text-sm text-white/80 leading-relaxed">{tip}</p>
+                            </div>
+                          </Card>
+                        </motion.div>
+                      );
+                    })
+                  ) : (
+                    <Card className="bg-black/20 border-white/5 p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-full bg-purple-500/20 flex-shrink-0">
+                          <ChevronRight className="w-3 h-3 text-purple-500" />
+                        </div>
+                        <p className="text-sm text-white/80">Consider exploring different styles and combinations to enhance your look.</p>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+              ))
+            ) : (
+              <Card className="bg-black/20 border-white/5 p-3">
+                <p className="text-sm text-white/80">
+                  Explore different styles and color combinations to enhance your look.
+                </p>
+              </Card>
+            )}
+            
+            {nextLevelTips && nextLevelTips.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-white/10">
+                <h4 className="text-md font-medium text-white/90 mb-3 flex items-center gap-2">
+                  Next Level Tips
+                  <div className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">Advanced</div>
+                </h4>
+                {nextLevelTips.map((tip, index) => (
+                  <motion.div
+                    key={`next-level-tip-${index}`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 border-purple-500/10 p-3 mb-2">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-full bg-pink-500/20 flex-shrink-0">
+                          <ChevronRight className="w-3 h-3 text-pink-500" />
+                        </div>
+                        <p className="text-sm text-white/80 leading-relaxed">{tip}</p>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         </ScrollArea>
       </motion.div>
