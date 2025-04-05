@@ -8,11 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { analyzeStyle } from "@/utils/imageAnalysis";
 import { useScanStore } from "@/store/scanStore";
-import { Sparkles, Crown, Palette, Shirt, DollarSign, ChevronDown, Star, Check } from "lucide-react";
+import { Sparkles, Camera, Share2, Save } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Share2, Save } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
+import { CategoryBreakdown } from "./analysis/CategoryBreakdown";
+import type { ScoreBreakdown } from "@/types/styleTypes";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -22,8 +23,7 @@ export const ScanView = () => {
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
   const setLatestScan = useScanStore((state) => state.setLatestScan);
-  const [result, setResult] = useState<{ overallScore: number; rawAnalysis: string; imageUrl?: string; breakdown?: any[] } | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const [result, setResult] = useState<{ overallScore: number; rawAnalysis: string; imageUrl: string; breakdown?: ScoreBreakdown[] } | null>(null);
 
   const analysisPhrases = [
     "Scanning outfit details...",
@@ -46,37 +46,10 @@ export const ScanView = () => {
     return interval;
   };
 
-  const toggleCategory = (category: string) => {
-    if (expandedCategories.includes(category)) {
-      setExpandedCategories(expandedCategories.filter(c => c !== category));
-    } else {
-      setExpandedCategories([...expandedCategories, category]);
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "Color Coordination":
-        return <Palette className="w-5 h-5 text-yellow-400" />;
-      case "Fit & Proportion":
-        return <Shirt className="w-5 h-5 text-blue-400" />;
-      case "Style Coherence":
-        return <Crown className="w-5 h-5 text-purple-400" />;
-      case "Accessories":
-        return <DollarSign className="w-5 h-5 text-green-400" />;
-      case "Outfit Creativity":
-        return <Sparkles className="w-5 h-5 text-pink-400" />;
-      case "Trend Awareness":
-        return <Star className="w-5 h-5 text-amber-400" />;
-      default:
-        return <Check className="w-5 h-5 text-teal-400" />;
-    }
-  };
-
   const getScoreColor = (score: number) => {
-    if (score >= 8) return "from-green-400 to-emerald-500";
-    if (score >= 6) return "from-yellow-400 to-amber-500";
-    return "from-red-400 to-rose-500";
+    if (score >= 8) return "text-green-400";
+    if (score >= 6) return "text-amber-400";
+    return "text-rose-400";
   };
 
   const handleAnalyze = async () => {
@@ -133,7 +106,6 @@ export const ScanView = () => {
     setShowResults(false);
     setSelectedImage(null);
     setResult(null);
-    setExpandedCategories([]);
   };
 
   const handleShare = () => {
@@ -214,7 +186,10 @@ export const ScanView = () => {
                     </div>
                   </div>
                 ) : (
-                  "Analyze Style"
+                  <>
+                    <Camera className="mr-2 h-5 w-5" />
+                    Analyze Style
+                  </>
                 )}
               </Button>
             </motion.div>
@@ -262,62 +237,14 @@ export const ScanView = () => {
                 <div className="p-6">
                   <h3 className="text-xl font-semibold text-white mb-4">Overall Feedback</h3>
                   <p className="text-white/80 leading-relaxed">
-                    Your outfit shows potential. Focus on accessorizing and color coordination to take it to the next level.
+                    {result.rawAnalysis.split('\n')[0]}
                   </p>
                 </div>
               </motion.div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {result.breakdown && result.breakdown.map((category, index) => (
-                  <motion.div
-                    key={category.category}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + (index * 0.1) }}
-                  >
-                    <Card className="bg-black/20 border-white/10 overflow-hidden">
-                      <div 
-                        className="p-4 cursor-pointer" 
-                        onClick={() => toggleCategory(category.category)}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            {getCategoryIcon(category.category)}
-                            <span className="font-medium text-white">{category.category}</span>
-                          </div>
-                          <ChevronDown className={`w-5 h-5 text-white/60 transition-transform ${expandedCategories.includes(category.category) ? 'rotate-180' : ''}`} />
-                        </div>
-                        
-                        <div className="mt-4">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-2xl font-bold text-white">{category.score}</span>
-                            <span className="text-sm text-white/60">out of 10</span>
-                          </div>
-                          <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                            <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${(category.score / 10) * 100}%` }}
-                              transition={{ delay: 0.5, duration: 0.8 }}
-                              className={`h-full bg-gradient-to-r ${getScoreColor(category.score)}`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {expandedCategories.includes(category.category) && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          transition={{ duration: 0.3 }}
-                          className="px-4 pb-4"
-                        >
-                          <p className="text-sm text-white/70">{category.details}</p>
-                        </motion.div>
-                      )}
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
+              {result.breakdown && result.breakdown.length > 0 && (
+                <CategoryBreakdown categories={result.breakdown} />
+              )}
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -358,18 +285,18 @@ export const ScanView = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="hidden"
+                className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg overflow-hidden mt-8"
               >
-                <ScrollArea className="h-[400px]">
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Full Analysis</h3>
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">Full Analysis</h3>
+                  <ScrollArea className="h-[300px] pr-4">
                     <div className="prose prose-invert max-w-none">
                       <ReactMarkdown>
                         {result.rawAnalysis}
                       </ReactMarkdown>
                     </div>
-                  </div>
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
               </motion.div>
             </div>
           )}

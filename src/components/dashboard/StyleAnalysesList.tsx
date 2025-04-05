@@ -10,36 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StyleAnalysis, ScoreBreakdown } from "@/types/styleTypes";
-import type { Json } from "@/integrations/supabase/types";
+import { CategoryBreakdown } from "../analysis/CategoryBreakdown";
 
 const getImageUrl = (path: string) => {
   if (!path) return '/placeholder.svg';
   return path; // URLs from storage are already public
 };
 
-// Helper function to safely handle array operations on breakdown
-const safeArrayOperation = <T extends unknown>(breakdown: ScoreBreakdown[] | Json | undefined, operation: 'slice' | 'map' | 'length', callback?: (item: any, index: number) => T): T[] | number => {
-  if (!breakdown) return operation === 'length' ? 0 : [];
-  
-  if (Array.isArray(breakdown)) {
-    if (operation === 'slice' && Array.isArray(callback)) {
-      return breakdown.slice(callback[0], callback[1]) as unknown as T[];
-    }
-    if (operation === 'map' && callback) {
-      return breakdown.map(callback);
-    }
-    if (operation === 'length') {
-      return breakdown.length;
-    }
-  }
-  
-  return operation === 'length' ? 0 : [];
-};
-
 export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) => {
   const navigate = useNavigate();
   const [selectedAnalysis, setSelectedAnalysis] = useState<StyleAnalysis | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const handleViewDetails = (analysis: StyleAnalysis) => {
     setSelectedAnalysis(analysis);
@@ -47,19 +27,10 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
 
   const handleCloseDialog = () => {
     setSelectedAnalysis(null);
-    setSelectedCategory(null);
   };
 
   const handleNewScan = () => {
     navigate('/scan');
-  };
-  
-  const toggleCategory = (category: string) => {
-    if (selectedCategory === category) {
-      setSelectedCategory(null);
-    } else {
-      setSelectedCategory(category);
-    }
   };
 
   if (!analyses || analyses.length === 0) {
@@ -144,12 +115,30 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                           </span>
                         </div>
                         <div className="mt-1 flex gap-2 flex-wrap">
-                          {analysis.breakdown && Array.isArray(analysis.breakdown) && analysis.breakdown.slice(0, 3).map((item: any, i: number) => (
-                            <div key={i} className="flex items-center gap-1">
-                              <span className="text-sm">{item.emoji}</span>
-                              <span className="text-xs text-[#C8C8C9]">{item.score}</span>
-                            </div>
-                          ))}
+                          {analysis.breakdown && typeof analysis.breakdown === 'string' ? (
+                            // Handle string JSON
+                            (() => {
+                              try {
+                                const parsed = JSON.parse(analysis.breakdown as string);
+                                return Array.isArray(parsed) ? parsed.slice(0, 3).map((item, i) => (
+                                  <div key={i} className="flex items-center gap-1">
+                                    <span className="text-sm">{item.emoji}</span>
+                                    <span className="text-xs text-[#C8C8C9]">{item.score}/10</span>
+                                  </div>
+                                )) : null;
+                              } catch (e) {
+                                return null;
+                              }
+                            })()
+                          ) : Array.isArray(analysis.breakdown) ? (
+                            // Handle array
+                            analysis.breakdown.slice(0, 3).map((item, i) => (
+                              <div key={i} className="flex items-center gap-1">
+                                <span className="text-sm">{item.emoji}</span>
+                                <span className="text-xs text-[#C8C8C9]">{item.score}/10</span>
+                              </div>
+                            ))
+                          ) : null}
                         </div>
                         <p className="text-[#C8C8C9] text-sm mt-2 line-clamp-2">
                           {analysis.feedback}
@@ -219,52 +208,38 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                     <p className="text-sm text-[#C8C8C9] leading-relaxed">{selectedAnalysis.feedback}</p>
                   </div>
                   
-                  {selectedAnalysis.breakdown && Array.isArray(selectedAnalysis.breakdown) && selectedAnalysis.breakdown.length > 0 && (
-                    <div className="space-y-2">
+                  {selectedAnalysis.breakdown && (
+                    <div className="space-y-4">
                       <h4 className="font-medium text-white/90 mb-2">Breakdown</h4>
-                      <div className="grid grid-cols-1 gap-3">
-                        {selectedAnalysis.breakdown.map((item: any, i: number) => (
-                          <Card 
-                            key={i} 
-                            className={`bg-black/20 border-white/5 p-4 cursor-pointer hover:bg-black/30 transition-colors ${
-                              selectedCategory === item.category ? 'border-purple-500/30' : ''
-                            }`}
-                            onClick={() => toggleCategory(item.category)}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="flex items-center gap-2">
-                                <div className="text-center text-xl">{item.emoji || "✓"}</div>
-                                <div>
-                                  <p className="text-sm font-medium text-white/90">
-                                    {item.category}
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-xs text-white/60">
-                                      Score: {item.score}/10
-                                    </p>
-                                    <div className={`text-xs px-1.5 py-0.5 rounded-full ${
-                                      item.score >= 8 ? 'bg-green-500/20 text-green-400' : 
-                                      item.score >= 6 ? 'bg-yellow-500/20 text-yellow-400' : 
-                                      'bg-red-500/20 text-red-400'
-                                    }`}>
-                                      {item.score >= 8 ? 'Great' : item.score >= 6 ? 'Good' : 'Needs Work'}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              <ChevronRight className={`w-4 h-4 text-white/40 transition-transform ${
-                                selectedCategory === item.category ? 'rotate-90' : ''
-                              }`} />
-                            </div>
-                            
-                            {selectedCategory === item.category && item.details && (
-                              <div className="mt-3 pt-3 border-t border-white/10">
-                                <p className="text-xs text-[#C8C8C9] leading-relaxed">{item.details}</p>
-                              </div>
-                            )}
-                          </Card>
-                        ))}
-                      </div>
+                      {typeof selectedAnalysis.breakdown === 'string' ? (
+                        // Parse if it's a string
+                        (() => {
+                          try {
+                            const parsedBreakdown = JSON.parse(selectedAnalysis.breakdown as string);
+                            return Array.isArray(parsedBreakdown) ? (
+                              <CategoryBreakdown categories={parsedBreakdown} />
+                            ) : null;
+                          } catch (e) {
+                            return <p className="text-sm text-red-400">Error parsing breakdown data</p>;
+                          }
+                        })()
+                      ) : Array.isArray(selectedAnalysis.breakdown) ? (
+                        // Use if it's already an array
+                        <CategoryBreakdown categories={selectedAnalysis.breakdown as ScoreBreakdown[]} />
+                      ) : null}
+                    </div>
+                  )}
+                  
+                  {selectedAnalysis.raw_analysis && (
+                    <div className="space-y-2 bg-black/20 rounded-lg p-4 mt-4">
+                      <h4 className="font-medium text-white/90">Full Analysis</h4>
+                      <ScrollArea className="h-[200px]">
+                        <div className="text-sm text-[#C8C8C9] leading-relaxed whitespace-pre-line">
+                          <ReactMarkdown>
+                            {selectedAnalysis.raw_analysis}
+                          </ReactMarkdown>
+                        </div>
+                      </ScrollArea>
                     </div>
                   )}
                   
