@@ -1,8 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
-import { StyleAnalysisResult, StyleAnalysisCategory } from '@/types/styleTypes';
-
-export { StyleAnalysisResult, StyleAnalysisCategory };
+import type { StyleAnalysisResult, StyleAnalysisCategory } from '@/types/styleTypes';
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
   try {

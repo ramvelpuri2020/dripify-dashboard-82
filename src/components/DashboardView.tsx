@@ -1,3 +1,4 @@
+
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +11,7 @@ import { DashboardHeader } from "./dashboard/DashboardHeader";
 import { StyleStats } from "./dashboard/StyleStats";
 import { StyleAnalysesList } from "./dashboard/StyleAnalysesList";
 import { QuickStartSection } from "./dashboard/QuickStartSection";
-import { StyleAnalysis } from "@/types/styleTypes";
+import { StyleAnalysis, ScoreBreakdown } from "@/types/styleTypes";
 
 export const DashboardView = () => {
   const navigate = useNavigate();
@@ -42,10 +43,32 @@ export const DashboardView = () => {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const processedData = data.map(analysis => ({
-          ...analysis,
-          image_url: analysis.thumbnail_url || analysis.image_url
-        }));
+        // Transform the data to ensure it matches the StyleAnalysis type
+        const processedData: StyleAnalysis[] = data.map(analysis => {
+          // Transform breakdown from Json to ScoreBreakdown[] if needed
+          let typedBreakdown: ScoreBreakdown[] = [];
+          
+          if (analysis.breakdown && typeof analysis.breakdown === 'object') {
+            // If it's already an array, cast it
+            if (Array.isArray(analysis.breakdown)) {
+              typedBreakdown = analysis.breakdown as ScoreBreakdown[];
+            } 
+            // If it's a JSON string that needs parsing
+            else if (typeof analysis.breakdown === 'string') {
+              try {
+                typedBreakdown = JSON.parse(analysis.breakdown) as ScoreBreakdown[];
+              } catch (e) {
+                console.error('Error parsing breakdown JSON:', e);
+              }
+            }
+          }
+          
+          return {
+            ...analysis,
+            breakdown: typedBreakdown,
+            image_url: analysis.thumbnail_url || analysis.image_url
+          };
+        });
         
         setAnalyses(processedData);
         
