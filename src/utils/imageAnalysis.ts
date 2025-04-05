@@ -128,23 +128,13 @@ const uploadImageToSupabase = async (imageFile: File): Promise<string> => {
 
 // Helper function to validate and clean up the AI response
 const validateAndCleanResult = (data: any): StyleAnalysisResult => {
-  // Clean up text fields to remove markdown formatting and extra asterisks
-  const cleanupText = (text: string): string => {
-    if (!text) return '';
-    return text
-      .replace(/^\*\*/g, '') // Remove leading **
-      .replace(/\*\*$/g, '') // Remove trailing **
-      .replace(/\*\*/g, '') // Remove all other **
-      .trim();
-  };
-
   // Ensure breakdown is valid
   const breakdown = Array.isArray(data.breakdown) 
     ? data.breakdown.map(item => ({
         category: item.category || "Style Category",
         score: typeof item.score === 'number' ? Math.round(item.score) : 7,
         emoji: item.emoji || getCategoryEmoji(item.category || "Style Category"),
-        details: item.details ? cleanupText(item.details) : "No details available"
+        details: item.details || "No details available"
       }))
     : defaultCategories();
   
@@ -156,7 +146,6 @@ const validateAndCleanResult = (data: any): StyleAnalysisResult => {
           ? category.tips
               .filter(tip => typeof tip === 'string' && tip.trim().length > 0)
               .map(cleanupText)
-              .slice(0, 3) // Limit to 3 tips per category
           : ["No specific tips available for this category"]
       }))
     : [];
@@ -166,7 +155,6 @@ const validateAndCleanResult = (data: any): StyleAnalysisResult => {
     ? data.nextLevelTips
         .filter(tip => typeof tip === 'string' && tip.trim().length > 0)
         .map(cleanupText)
-        .slice(0, 4) // Limit to 4 next level tips
     : [];
   
   // Create a clean summary/feedback
@@ -190,12 +178,22 @@ const validateAndCleanResult = (data: any): StyleAnalysisResult => {
   };
 };
 
+// Clean up text by removing markdown formatting
+const cleanupText = (text: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/^\*\*/g, '') // Remove leading **
+    .replace(/\*\*$/g, '') // Remove trailing **
+    .replace(/\*\*/g, '') // Remove all other **
+    .trim();
+};
+
 // Default categories if missing from response
 const defaultCategories = () => [
   { category: "Overall Style", score: 7, emoji: "👑", details: "The outfit has a nice balance but could use more cohesion." },
   { category: "Color Coordination", score: 6, emoji: "🎨", details: "The colors work together, but could use more intentional choices." },
   { category: "Fit and Proportion", score: 7, emoji: "📏", details: "The fit is generally flattering to your body shape." },
-  { category: "Accessorizing", score: 5, emoji: "⭐", details: "The outfit lacks accessories that could elevate the look." },
+  { category: "Accessories", score: 5, emoji: "⭐", details: "The outfit lacks accessories that could elevate the look." },
   { category: "Trend Awareness", score: 7, emoji: "✨", details: "There's good awareness of current trends in this outfit." },
   { category: "Personal Style", score: 7, emoji: "🪄", details: "Your personality shows through in this outfit." }
 ];

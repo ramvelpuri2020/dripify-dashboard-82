@@ -3,10 +3,23 @@ import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronRight, Star, Palette, Ruler, Crown, Sparkles, Wand2, Camera, LightbulbIcon } from "lucide-react";
+import { 
+  ChevronRight, 
+  Star, 
+  Palette, 
+  Ruler, 
+  Crown, 
+  Sparkles, 
+  Wand2, 
+  Camera, 
+  Lightbulb,
+  ChevronDown,
+  ChevronUp
+} from "lucide-react";
 import { useScanStore } from "@/store/scanStore";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 const getIconForCategory = (category: string) => {
   switch (category) {
@@ -30,6 +43,14 @@ const getIconForCategory = (category: string) => {
 export const TipsView = () => {
   const latestScan = useScanStore((state) => state.latestScan);
   const navigate = useNavigate();
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
 
   if (!latestScan) {
     return (
@@ -77,7 +98,7 @@ export const TipsView = () => {
           </div>
           
           <ScrollArea className="h-[70vh] pr-4">
-            <div className="grid gap-4">
+            <div className="space-y-5">
               {latestScan.breakdown.map((item, index) => (
                 <motion.div
                   key={index}
@@ -111,6 +132,18 @@ export const TipsView = () => {
                             </div>
                           </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-white/60 hover:text-white hover:bg-white/10"
+                          onClick={() => toggleCategory(item.category)}
+                        >
+                          {expandedCategories[item.category] ? (
+                            <ChevronUp className="h-5 w-5" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5" />
+                          )}
+                        </Button>
                       </div>
                       
                       <div className="space-y-4">
@@ -128,31 +161,60 @@ export const TipsView = () => {
                         </div>
                         
                         {item.details && (
-                          <div className="text-sm text-white/70 mb-3">
+                          <div className="text-sm text-white/80 mb-3 leading-relaxed">
                             {item.details}
                           </div>
                         )}
                         
                         <div className="bg-black/20 rounded-lg p-4 space-y-2">
-                          <div className="flex items-center gap-2 text-purple-400 font-medium mb-1">
-                            <Sparkles className="w-4 h-4" />
+                          <div className="flex items-center gap-2 text-purple-400 font-medium mb-3">
+                            <Lightbulb className="w-4 h-4" />
                             <span>Improvement Tips</span>
                           </div>
                           
-                          {getCategoryTips(item.category).length > 0 ? (
-                            getCategoryTips(item.category).map((tip, i) => (
-                              <div key={i} className="flex gap-2 items-start">
+                          <div className={expandedCategories[item.category] ? "" : "space-y-2"}>
+                            {getCategoryTips(item.category).length > 0 ? (
+                              expandedCategories[item.category] ? (
+                                // Show all tips when expanded
+                                getCategoryTips(item.category).map((tip, i) => (
+                                  <div key={i} className="flex gap-2 items-start mb-3">
+                                    <ChevronRight className="w-4 h-4 text-purple-400 mt-1 flex-shrink-0" />
+                                    <p className="text-sm text-white/80 leading-relaxed">{tip}</p>
+                                  </div>
+                                ))
+                              ) : (
+                                // Show only first 2 tips when collapsed
+                                <>
+                                  {getCategoryTips(item.category).slice(0, 2).map((tip, i) => (
+                                    <div key={i} className="flex gap-2 items-start">
+                                      <ChevronRight className="w-4 h-4 text-purple-400 mt-1 flex-shrink-0" />
+                                      <p className="text-sm text-white/80 leading-relaxed">{tip}</p>
+                                    </div>
+                                  ))}
+                                  {getCategoryTips(item.category).length > 2 && (
+                                    <div className="mt-2 text-center">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs text-purple-400 hover:text-purple-300"
+                                        onClick={() => toggleCategory(item.category)}
+                                      >
+                                        Show {getCategoryTips(item.category).length - 2} more tips
+                                        <ChevronDown className="ml-1 h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            ) : (
+                              <div className="flex gap-2 items-start">
                                 <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-sm text-white/80">{tip}</p>
+                                <p className="text-sm text-white/80 italic">
+                                  Personalized tips are being generated for this category.
+                                </p>
                               </div>
-                            ))
-                          ) : (
-                            // Fallback to old tips generator if AI tips aren't available
-                            <div className="flex gap-2 items-start">
-                              <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                              <p className="text-sm text-white/80 italic">Personalized tips are being generated for this category.</p>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -185,8 +247,8 @@ export const TipsView = () => {
                       {latestScan.nextLevelTips && latestScan.nextLevelTips.length > 0 ? (
                         latestScan.nextLevelTips.map((tip, i) => (
                           <div key={i} className="flex gap-2 items-start">
-                            <ChevronRight className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                            <p className="text-sm text-white/80">{tip}</p>
+                            <ChevronRight className="w-4 h-4 text-purple-400 mt-1 flex-shrink-0" />
+                            <p className="text-sm text-white/80 leading-relaxed">{tip}</p>
                           </div>
                         ))
                       ) : (
@@ -207,6 +269,15 @@ export const TipsView = () => {
                   </CardContent>
                 </Card>
               </motion.div>
+              
+              <div className="flex justify-center mt-6">
+                <Button 
+                  onClick={() => navigate('/scan')}
+                  className="bg-purple-500 hover:bg-purple-600"
+                >
+                  Analyze Another Outfit
+                </Button>
+              </div>
             </div>
           </ScrollArea>
         </CardContent>

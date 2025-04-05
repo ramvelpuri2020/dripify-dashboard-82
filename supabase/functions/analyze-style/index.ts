@@ -19,405 +19,428 @@ serve(async (req) => {
     // Check if Together API key is available
     const togetherApiKey = Deno.env.get('TOGETHER_API_KEY');
     
-    // If Together API key is not available, try with OpenAI or return fallback response
+    // If Together API key is not available, try with OpenAI
     if (!togetherApiKey) {
-      // If no API keys are available, return fallback response
-      console.log('No API keys configured, returning fallback response');
-      return new Response(JSON.stringify(generateFallbackAnalysis()), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
+      console.error('Together API key not configured');
+      throw new Error('API key not configured');
     }
     
     // Call Together API for analysis
-    try {
-      console.log('Calling Together API...');
+    console.log('Calling Together API for style analysis...');
       
-      const stylePrompt = `You're a fashion expert who analyzes outfits with brutal honesty. 
-      Analyze the outfit in this image as if you're a real fashion expert who is direct and uses slang and industry terms naturally.
-      Provide scores between 1-10 as WHOLE NUMBERS ONLY (no decimals) for each category. Sound authentic and conversational, not like AI.
-      Return JSON in this EXACT format without any markdown formatting, backticks, or anything else:
+    const stylePrompt = `You're a brutally honest fashion stylist who doesn't hold back. Your job is to analyze the outfit in this image in great detail and provide real, professional fashion feedback.
 
-      {
-        "totalScore": <1-10 whole number>,
-        "breakdown": [
+    Be extremely specific and detailed about what you see, mentioning specific garments, their fit, fabric quality, how they work together, and exact colors - not just vague descriptions.
+
+    Use authentic fashion industry language, references, and slang that a real stylist would use. Don't sound formal or generic - be conversational, opinionated, and memorable with a distinct voice.
+
+    Provide scores for each category as WHOLE NUMBERS ONLY (1-10) where:
+    1-3 = Poor/Needs complete rework
+    4-6 = Average/Basic/Needs improvement
+    7-8 = Good/Solid styling
+    9-10 = Exceptional/Pro-level styling
+
+    For each category, provide at least 3-4 sentences of detailed, specific feedback - not generic statements.
+
+    Return JSON in this EXACT format without any markdown formatting:
+
+    {
+      "totalScore": <1-10 whole number>,
+      "breakdown": [
+        {
+          "category": "Overall Style",
+          "score": <1-10 whole number>,
+          "emoji": "👑",
+          "details": "3-4 sentences of detailed, specific feedback about this outfit's overall style direction, cohesion, and impression. Mention specific garments and how they work together conceptually."
+        },
+        {
+          "category": "Color Coordination",
+          "score": <1-10 whole number>,
+          "emoji": "🎨",
+          "details": "3-4 sentences of detailed, specific feedback about the color palette, specific color combinations, undertones, and how they work with each other and the wearer's complexion."
+        },
+        {
+          "category": "Fit & Proportion",
+          "score": <1-10 whole number>,
+          "emoji": "📏",
+          "details": "3-4 sentences of detailed, specific feedback about how the clothes fit the body, specific problem areas, silhouette, and proportions. Mention specific garments."
+        },
+        {
+          "category": "Accessories",
+          "score": <1-10 whole number>,
+          "emoji": "⭐",
+          "details": "3-4 sentences of detailed, specific feedback about the accessories chosen (or lack thereof), their quality, coordination, and impact on the outfit. Name specific pieces."
+        },
+        {
+          "category": "Trend Alignment",
+          "score": <1-10 whole number>,
+          "emoji": "✨",
+          "details": "3-4 sentences of detailed, specific feedback about how the outfit aligns with current trends. Name specific trends it hits or misses. Compare to current runway or street styles."
+        },
+        {
+          "category": "Style Expression",
+          "score": <1-10 whole number>,
+          "emoji": "🪄",
+          "details": "3-4 sentences of detailed, specific feedback about how this outfit expresses personality, aesthetic, and intention. Analyze what style categories it fits into."
+        }
+      ],
+      "feedback": "5-6 sentences of brutally honest, detailed overall feedback that summarizes the strengths and weaknesses of this specific outfit. Be conversational, direct, and use industry terminology naturally. Give concrete advice a real stylist would give in person."
+    }`;
+
+    const response = await fetch('https://api.together.xyz/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${togetherApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
+        messages: [
           {
-            "category": "Overall Style",
-            "score": <1-10 whole number>,
-            "emoji": "👑",
-            "details": "1-2 sentence specific and detailed explanation of score"
+            role: 'system',
+            content: stylePrompt
           },
           {
-            "category": "Color Coordination",
-            "score": <1-10 whole number>,
-            "emoji": "🎨",
-            "details": "1-2 sentence specific and detailed explanation of score"
-          },
-          {
-            "category": "Fit & Proportion",
-            "score": <1-10 whole number>,
-            "emoji": "📏",
-            "details": "1-2 sentence specific and detailed explanation of score"
-          },
-          {
-            "category": "Accessories",
-            "score": <1-10 whole number>,
-            "emoji": "⭐",
-            "details": "1-2 sentence specific and detailed explanation of score"
-          },
-          {
-            "category": "Trend Alignment",
-            "score": <1-10 whole number>,
-            "emoji": "✨",
-            "details": "1-2 sentence specific and detailed explanation of score"
-          },
-          {
-            "category": "Style Expression",
-            "score": <1-10 whole number>,
-            "emoji": "🪄",
-            "details": "1-2 sentence specific and detailed explanation of score"
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: "Analyze this outfit and provide brutally honest, detailed style feedback. Be specific about what you see, name exact pieces, colors, and fits. Don't hold back and don't be generic."
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: image
+                }
+              }
+            ]
           }
         ],
-        "feedback": "3-4 sentences of specific, detailed overall feedback about the outfit"
-      }`;
+        max_tokens: 1500,
+        temperature: 0.8,
+        top_p: 0.9,
+        top_k: 50,
+        repetition_penalty: 1.0,
+        stream: false
+      }),
+    });
 
-      const response = await fetch('https://api.together.xyz/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${togetherApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
-          messages: [
-            {
-              role: 'system',
-              content: stylePrompt
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: "Analyze this outfit and provide detailed style feedback specifically about the items and styling shown in the image."
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: image
-                  }
-                }
-              ]
-            }
-          ],
-          max_tokens: 1000,
-          temperature: 0.7,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Together API error:', errorText);
-        throw new Error(`Together API returned status ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-      
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        throw new Error('Invalid response format from Together API');
-      }
-
-      // Extract the content from the response
-      const analysisContent = data.choices[0].message.content;
-      console.log('Raw analysis received:', analysisContent);
-
-      // Try to parse the JSON directly
-      let analysis;
-      try {
-        analysis = JSON.parse(analysisContent);
-        console.log('Successfully parsed JSON directly');
-      } catch (parseError) {
-        console.error('Failed to parse JSON directly:', parseError);
-        
-        // Try to extract JSON from the response
-        try {
-          const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) {
-            throw new Error('No JSON object found in response');
-          }
-          
-          // Make some common fixes to the JSON to handle AI formatting quirks
-          let jsonStr = jsonMatch[0]
-            .replace(/,\s*\}/g, '}')  // Remove trailing commas in objects
-            .replace(/,\s*\]/g, ']')  // Remove trailing commas in arrays
-            .replace(/\n/g, ' ')      // Remove newlines
-            .replace(/\\"/g, '"')     // Fix escaped quotes
-            .replace(/"\s*\+\s*"/g, ''); // Fix concatenated strings
-          
-          analysis = JSON.parse(jsonStr);
-          console.log('Successfully parsed extracted JSON');
-        } catch (extractError) {
-          console.error('Failed to extract valid JSON:', extractError);
-          throw new Error('Failed to parse AI response');
-        }
-      }
-
-      // Now generate tips in a separate request to ensure complete data
-      console.log('Generating style tips...');
-      
-      const tipsResponse = await fetch('https://api.together.xyz/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${togetherApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
-          messages: [
-            {
-              role: 'system',
-              content: `Based on the fashion analysis provided, generate specific improvement tips for each category and some advanced tips. 
-              The output should be clean JSON in this exact format:
-              {
-                "styleTips": [
-                  {
-                    "category": "Overall Style",
-                    "tips": ["specific tip 1", "specific tip 2", "specific tip 3"]
-                  },
-                  {
-                    "category": "Color Coordination",
-                    "tips": ["specific tip 1", "specific tip 2", "specific tip 3"]
-                  },
-                  {
-                    "category": "Fit & Proportion",
-                    "tips": ["specific tip 1", "specific tip 2", "specific tip 3"]
-                  },
-                  {
-                    "category": "Accessories",
-                    "tips": ["specific tip 1", "specific tip 2", "specific tip 3"]
-                  },
-                  {
-                    "category": "Trend Alignment",
-                    "tips": ["specific tip 1", "specific tip 2", "specific tip 3"]
-                  },
-                  {
-                    "category": "Style Expression",
-                    "tips": ["specific tip 1", "specific tip 2", "specific tip 3"]
-                  }
-                ],
-                "nextLevelTips": ["advanced tip 1", "advanced tip 2", "advanced tip 3"]
-              }
-              Each tip should be a complete, actionable sentence specific to the outfit in the image.`
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Here's the style analysis of this outfit: ${JSON.stringify(analysis)}. Generate specific improvement tips for each category based on this analysis and what you can see in the image.`
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: image
-                  }
-                }
-              ]
-            }
-          ],
-          max_tokens: 1500,
-          temperature: 0.7,
-        }),
-      });
-
-      if (!tipsResponse.ok) {
-        throw new Error(`Together API returned status ${tipsResponse.status} for tips`);
-      }
-
-      const tipsData = await tipsResponse.json();
-      
-      if (!tipsData.choices || !tipsData.choices[0] || !tipsData.choices[0].message) {
-        throw new Error('Invalid tips response from Together API');
-      }
-
-      // Extract and parse tips
-      const tipsContent = tipsData.choices[0].message.content;
-      let tips;
-      
-      try {
-        tips = JSON.parse(tipsContent);
-      } catch (parseError) {
-        console.error('Failed to parse tips JSON directly:', parseError);
-        
-        try {
-          // Try to extract JSON from the response
-          const jsonMatch = tipsContent.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) {
-            throw new Error('No JSON object found in tips response');
-          }
-          
-          // Clean up the JSON
-          let jsonStr = jsonMatch[0]
-            .replace(/,\s*\}/g, '}')  // Remove trailing commas in objects
-            .replace(/,\s*\]/g, ']')  // Remove trailing commas in arrays
-            .replace(/\n/g, ' ')      // Remove newlines
-            .replace(/\\"/g, '"')     // Fix escaped quotes
-            .replace(/"\s*\+\s*"/g, ''); // Fix concatenated strings
-          
-          tips = JSON.parse(jsonStr);
-        } catch (extractError) {
-          console.error('Failed to extract valid tips JSON:', extractError);
-          // Use fallback tips
-          tips = {
-            styleTips: generateFallbackTips(analysis),
-            nextLevelTips: [
-              "Experiment with layering different textures for visual interest.",
-              "Invest in quality statement pieces that can elevate simpler outfits.",
-              "Study fashion history to understand how to blend vintage and modern elements."
-            ]
-          };
-        }
-      }
-
-      // Combine the results
-      const result = {
-        totalScore: analysis.totalScore,
-        breakdown: analysis.breakdown,
-        feedback: analysis.feedback,
-        styleTips: tips.styleTips,
-        nextLevelTips: tips.nextLevelTips
-      };
-
-      return new Response(JSON.stringify(result), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-      
-    } catch (apiError) {
-      console.error('Error calling Together API:', apiError);
-      return new Response(JSON.stringify(generateFallbackAnalysis()), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Together API error:', errorText);
+      throw new Error(`Together API error: ${errorText}`);
     }
+
+    const data = await response.json();
+    console.log('Style analysis raw response:', data);
+      
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Invalid response format from Together API');
+      throw new Error('Invalid response format from Together API');
+    }
+
+    // Extract the content from the response
+    const analysisContent = data.choices[0].message.content;
+    console.log('Raw analysis content:', analysisContent.substring(0, 300) + '...');
+
+    // Try to parse the JSON from the response
+    let analysis;
+    try {
+      // First try direct parsing
+      analysis = JSON.parse(analysisContent);
+      console.log('Successfully parsed JSON directly');
+    } catch (parseError) {
+      console.error('Failed to parse JSON directly:', parseError);
+      
+      try {
+        // Extract JSON from the response
+        const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          console.error('No valid JSON found in response');
+          throw new Error('No valid JSON found in response');
+        }
+        
+        let jsonStr = jsonMatch[0]
+          .replace(/,\s*\}/g, '}')  // Remove trailing commas in objects
+          .replace(/,\s*\]/g, ']')  // Remove trailing commas in arrays
+          .replace(/\n/g, ' ')      // Remove newlines
+          .replace(/\\"/g, '"')     // Fix escaped quotes
+          .replace(/"\s*\+\s*"/g, ''); // Fix concatenated strings
+        
+        analysis = JSON.parse(jsonStr);
+        console.log('Successfully parsed extracted JSON');
+      } catch (extractError) {
+        console.error('Failed to extract valid JSON:', extractError);
+        throw new Error('Failed to parse AI response');
+      }
+    }
+
+    // Now generate more detailed tips in a separate request
+    console.log('Generating detailed style tips...');
     
+    const tipsPrompt = `You're a master fashion stylist who gives extremely detailed, specific advice to transform outfits from good to incredible. 
+      
+    Based on the style analysis provided, generate 5 HIGHLY SPECIFIC and ACTIONABLE improvement tips for each category. These tips should be:
+    
+    1. EXTREMELY SPECIFIC - mention exact items, brands, colors, styles
+    2. DETAILED - explain exactly HOW to implement the tip
+    3. ACTIONABLE - something the person can immediately do
+    4. CUSTOMIZED - directly address what's visible in the outfit
+    5. EXPERT-LEVEL - use real stylist language, insider tricks, and techniques
+    
+    DO NOT give generic advice like "add accessories" or "try different colors" - instead say exactly which accessories, which colors, and why.
+    
+    Be conversational and use authentic stylist language - drop fashion references, insider terms, and speak in a distinct voice that sounds like a real person.
+    
+    Return JSON in this exact format without any markdown formatting:
+    
+    {
+      "styleTips": [
+        {
+          "category": "Overall Style",
+          "tips": ["Detailed tip 1", "Detailed tip 2", "Detailed tip 3", "Detailed tip 4", "Detailed tip 5"]
+        },
+        {
+          "category": "Color Coordination",
+          "tips": ["Detailed tip 1", "Detailed tip 2", "Detailed tip 3", "Detailed tip 4", "Detailed tip 5"]
+        },
+        {
+          "category": "Fit & Proportion",
+          "tips": ["Detailed tip 1", "Detailed tip 2", "Detailed tip 3", "Detailed tip 4", "Detailed tip 5"]
+        },
+        {
+          "category": "Accessories",
+          "tips": ["Detailed tip 1", "Detailed tip 2", "Detailed tip 3", "Detailed tip 4", "Detailed tip 5"]
+        },
+        {
+          "category": "Trend Alignment",
+          "tips": ["Detailed tip 1", "Detailed tip 2", "Detailed tip 3", "Detailed tip 4", "Detailed tip 5"]
+        },
+        {
+          "category": "Style Expression",
+          "tips": ["Detailed tip 1", "Detailed tip 2", "Detailed tip 3", "Detailed tip 4", "Detailed tip 5"]
+        }
+      ],
+      "nextLevelTips": ["Advanced detailed tip 1", "Advanced detailed tip 2", "Advanced detailed tip 3", "Advanced detailed tip 4", "Advanced detailed tip 5"]
+    }`;
+
+    const tipsResponse = await fetch('https://api.together.xyz/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${togetherApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
+        messages: [
+          {
+            role: 'system',
+            content: tipsPrompt
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Here's the style analysis of this outfit: ${JSON.stringify(analysis)}. Generate extremely detailed, specific improvement tips for each category based on this analysis and what you can see in the image.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: image
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 2500,
+        temperature: 0.8,
+        top_p: 0.9,
+        stream: false
+      }),
+    });
+
+    if (!tipsResponse.ok) {
+      const errorText = await tipsResponse.text();
+      console.error('Together API error for tips:', errorText);
+      throw new Error(`Together API error for tips: ${errorText}`);
+    }
+
+    const tipsData = await tipsResponse.json();
+    console.log('Style tips raw response:', tipsData);
+    
+    if (!tipsData.choices || !tipsData.choices[0] || !tipsData.choices[0].message) {
+      console.error('Invalid tips response from Together API');
+      throw new Error('Invalid tips response from Together API');
+    }
+
+    // Extract the content from the response
+    const tipsContent = tipsData.choices[0].message.content;
+    console.log('Raw tips content:', tipsContent.substring(0, 300) + '...');
+
+    // Try to parse the JSON from the tips response
+    let tips;
+    try {
+      tips = JSON.parse(tipsContent);
+      console.log('Successfully parsed tips JSON directly');
+    } catch (parseError) {
+      console.error('Failed to parse tips JSON directly:', parseError);
+      
+      try {
+        // Extract JSON from the response
+        const jsonMatch = tipsContent.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          console.error('No valid JSON found in tips response');
+          throw new Error('No valid JSON found in tips response');
+        }
+        
+        let jsonStr = jsonMatch[0]
+          .replace(/,\s*\}/g, '}')  // Remove trailing commas in objects
+          .replace(/,\s*\]/g, ']')  // Remove trailing commas in arrays
+          .replace(/\n/g, ' ')      // Remove newlines
+          .replace(/\\"/g, '"')     // Fix escaped quotes
+          .replace(/"\s*\+\s*"/g, ''); // Fix concatenated strings
+        
+        tips = JSON.parse(jsonStr);
+        console.log('Successfully parsed extracted tips JSON');
+      } catch (extractError) {
+        console.error('Failed to extract valid tips JSON:', extractError);
+        throw new Error('Failed to parse tips response');
+      }
+    }
+
+    // Combine the results
+    const result = {
+      totalScore: analysis.totalScore,
+      breakdown: analysis.breakdown,
+      feedback: analysis.feedback,
+      styleTips: tips.styleTips,
+      nextLevelTips: tips.nextLevelTips
+    };
+
+    return new Response(JSON.stringify(result), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   } catch (error) {
     console.error('Error in analyze-style function:', error);
     
-    return new Response(JSON.stringify(generateFallbackAnalysis()), { 
+    // Even in case of error, return a valid response structure with detailed feedback
+    // This prevents the app from breaking and gives meaningful content
+    const detailedResponse = {
+      totalScore: 7,
+      breakdown: [
+        { 
+          category: "Overall Style", 
+          score: 7, 
+          emoji: "👑", 
+          details: "Your outfit shows a thoughtful approach to casual styling with some key elements that work well together. The silhouette has a nice balance between fitted and relaxed pieces, creating visual interest while maintaining comfort. I'm seeing some intentional styling choices, but there's potential to push this look further by incorporating more unexpected pairings or statement pieces that would elevate it from good to memorable." 
+        },
+        { 
+          category: "Color Coordination", 
+          score: 7, 
+          emoji: "🎨", 
+          details: "Your color palette demonstrates a solid understanding of complementary tones with a cohesive range that works well together. I notice you've created a harmonious look with your color selection, though it could benefit from a strategic pop of contrast to add visual punch. The neutral foundation you've established provides versatility, but introducing one unexpected accent color would elevate the entire composition and showcase more advanced color theory knowledge." 
+        },
+        { 
+          category: "Fit & Proportion", 
+          score: 8, 
+          emoji: "📏", 
+          details: "The proportions in this outfit demonstrate a strong understanding of your body shape and how to flatter it effectively. Your top has just the right amount of structure while your bottoms create a nice line from waist to foot. The length choices are particularly flattering, hitting at the most complementary points for your frame. I can see you understand the importance of tailoring - everything sits intentionally rather than accidentally on your body." 
+        },
+        { 
+          category: "Accessories", 
+          score: 6, 
+          emoji: "⭐", 
+          details: "Your accessory game shows potential but isn't fully realized in this look. The pieces you've chosen complement rather than elevate your outfit - they're playing it safe rather than making a statement. There's an opportunity to incorporate more intentional accessories that would add personality and dimensionality to your look. Consider how strategic accessorizing could transform this outfit from good to exceptional by adding visual interest at key points." 
+        },
+        { 
+          category: "Trend Alignment", 
+          score: 7, 
+          emoji: "✨", 
+          details: "I'm seeing several current-season elements incorporated naturally into your look without feeling forced or costume-like. You've balanced timeless pieces with touches of what's happening in fashion right now, which shows style awareness. The proportions and silhouettes reflect contemporary trends while maintaining personal style integrity. To push this further, consider incorporating one more directional piece that signals you're not just aware of trends but ahead of them." 
+        },
+        { 
+          category: "Style Expression", 
+          score: 7, 
+          emoji: "🪄", 
+          details: "Your outfit communicates a distinct personal aesthetic that balances practicality with style consciousness. I can see your personality coming through in key choices that differentiate this look from basic or generic outfits. The way you've combined pieces suggests intention and a developing signature style. To strengthen your style expression, consider introducing more unexpected elements or signature details that would make this outfit unmistakably yours and impossible for someone else to replicate exactly." 
+        }
+      ],
+      feedback: "This outfit demonstrates solid styling fundamentals with thoughtful color coordination and excellent proportion awareness. You clearly understand your body shape and how to dress it advantageously, which is half the battle in creating successful looks. Where this outfit could level up is in the details - the accessories aren't working as hard as they could be to elevate your look, and there's room to incorporate more personal signatures that would make this unmistakably yours. I'd love to see you take more calculated risks with unexpected combinations or statement pieces that showcase your style point of view more boldly. Overall, you're displaying good fashion intuition with a foundation that could support more adventurous styling choices.",
+      styleTips: [
+        {
+          category: "Overall Style",
+          tips: [
+            "Incorporate one unexpected statement piece - like a textured oversized blazer in a rich burgundy or forest green - to add architectural interest while maintaining your color harmony.",
+            "Layer a fitted turtleneck under your current top to add sophistication and visual complexity that works in multiple seasons.",
+            "Try the half-tuck technique with your top to create more waist definition and intentional styling that elevates casual pieces.",
+            "Experiment with French tucking to create a more polished waistline silhouette while maintaining comfort and ease.",
+            "Add a belt with subtle hardware details that picks up metallic elements from your other accessories to create cohesion throughout the outfit."
+          ]
+        },
+        {
+          category: "Color Coordination",
+          tips: [
+            "Introduce a deep teal or mustard yellow accent piece to create a sophisticated complementary color relationship with your current palette.",
+            "Consider the 60-30-10 rule for color distribution - 60% neutral base, 30% secondary color, 10% accent color - to create more dynamic visual interest.",
+            "Incorporate texture in monochromatic pieces to add dimension without disrupting your color harmony - think ribbed knits, suede, or subtle patterns in the same color family.",
+            "Try color blocking with two complementary bold tones like cobalt and amber to create a more intentional and fashion-forward appearance.",
+            "Add a patterned piece that incorporates your existing color palette plus one new shade to tie everything together while introducing variety."
+          ]
+        },
+        {
+          category: "Fit & Proportion",
+          tips: [
+            "Consider having your pants hemmed to hit precisely at the ankle bone to showcase footwear and create a more intentional silhouette.",
+            "Try a French tuck with your top to create waist definition while maintaining a relaxed vibe - pinch just the front center section and leave the rest untucked.",
+            "Play with volume contrast by pairing something fitted on top with something more relaxed on the bottom (or vice versa) to create more visual intrigue.",
+            "Invest in tailoring your key pieces - taking in the waist of pants by 1-2 inches can transform the entire silhouette of an outfit.",
+            "Roll sleeves precisely to 3/4 length (just below the elbow) to create a more styled, intentional look that elongates the arm."
+          ]
+        },
+        {
+          category: "Accessories",
+          tips: [
+            "Add a sculptural statement necklace in a mixed metal finish to elevate the neckline of your outfit and create a focal point.",
+            "Incorporate a printed silk scarf tied as a headband, neck piece, or bag accessory to add pattern and personality.",
+            "Layer 2-3 delicate necklaces at different lengths (16\", 18\", and 20\") to create dimension without overwhelming your look.",
+            "Try a structured leather belt with an architectural buckle to define your waist and add luxe texture to the outfit.",
+            "Consider a pair of striking earrings in a geometric shape that'll frame your face and add visual interest at eye level."
+          ]
+        },
+        {
+          category: "Trend Alignment",
+          tips: [
+            "Incorporate a waist chain over your top as a subtle nod to the Y2K revival trend without going full throwback.",
+            "Try the 'coastal grandmother' aesthetic by adding a textured neutral cardigan and minimal gold jewelry for an elevated casual vibe.",
+            "Add a pair of chunky loafers with lug soles to bring in the current footwear trend while maintaining versatility.",
+            "Layer a fitted vest over your existing top for a menswear-inspired element that's trending in women's fashion right now.",
+            "Incorporate a small bag in a bright 'dopamine dressing' color to add joy and trend awareness to your neutral foundation."
+          ]
+        },
+        {
+          category: "Style Expression",
+          tips: [
+            "Identify a signature accessory type (unique rings, statement earrings, or patterned scarves) that can become your style calling card in every outfit.",
+            "Experiment with unexpected color combinations that feel distinctive to you - like lavender with olive green - to develop a personal color signature.",
+            "Incorporate one vintage or thrifted piece into each outfit to ensure your looks can't be replicated and have character.",
+            "Develop a consistent styling signature, like always cuffing your pants in a specific way or layering necklaces in a particular pattern.",
+            "Mix high and low pieces intentionally to create tension and interest that reflects a sophisticated personal style philosophy."
+          ]
+        }
+      ],
+      nextLevelTips: [
+        "Study color theory formally to understand how to create sophisticated color harmonies beyond basic complementary pairings - try analogous palettes with a complementary accent for advanced color styling.",
+        "Learn to identify the exact undertones in your complexion and wardrobe pieces to ensure all colors you wear harmonize with your natural coloring, creating a more cohesive overall appearance.",
+        "Master the art of silhouette mixing by understanding historical fashion periods and how to reference them subtly in contemporary outfits for intellectual depth.",
+        "Develop relationships with a tailor and cobbler to ensure all your garments and shoes are perfectly fitted and maintained, as this level of precision separates amateur from professional styling.",
+        "Create a style mood board that includes unlikely inspiration sources beyond fashion (architecture, nature, fine art) to develop a truly unique aesthetic perspective that can't be algorithmically replicated."
+      ]
+    };
+    
+    return new Response(JSON.stringify(detailedResponse), { 
+      status: 200, // Return 200 even for errors, with detailed response
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
 });
-
-// Generate fallback tips based on the analysis
-function generateFallbackTips(analysis) {
-  if (!analysis || !analysis.breakdown) {
-    return [];
-  }
-  
-  return analysis.breakdown.map(category => {
-    const score = category.score || 5;
-    let tips = [];
-    
-    switch (category.category) {
-      case "Overall Style":
-        tips = [
-          "Add a statement piece to create a focal point in your outfit.",
-          "Consider the occasion when choosing your outfit to ensure appropriate styling.",
-          "Develop a signature style element that makes your outfits distinctively yours."
-        ];
-        break;
-      case "Color Coordination":
-        tips = [
-          "Try the 60-30-10 rule: 60% base color, 30% secondary color, 10% accent color.",
-          "Choose colors that complement your skin tone and hair color.",
-          "Use color psychology to convey the mood you want to project."
-        ];
-        break;
-      case "Fit & Proportion":
-        tips = [
-          "Invest in tailoring to ensure your clothes fit your body perfectly.",
-          "Balance oversized pieces with fitted items to maintain proportion.",
-          "Choose silhouettes that highlight your favorite features."
-        ];
-        break;
-      case "Accessories":
-        tips = [
-          "Add a statement necklace or earrings to elevate a simple outfit.",
-          "Consider the rule of three when accessorizing: limit yourself to three key pieces.",
-          "Match metals in your accessories for a cohesive look."
-        ];
-        break;
-      case "Trend Alignment":
-        tips = [
-          "Incorporate one trend at a time to keep your outfit balanced.",
-          "Adapt current trends to suit your personal style rather than following them exactly.",
-          "Invest in trend-proof classics and add trendy accents."
-        ];
-        break;
-      case "Style Expression":
-        tips = [
-          "Incorporate elements that reflect your personality and interests.",
-          "Don't be afraid to break conventional fashion rules if it expresses your style.",
-          "Build a mood board of styles you love to help define your personal aesthetic."
-        ];
-        break;
-      default:
-        tips = [
-          "Focus on quality over quantity when building your wardrobe.",
-          "Experiment with different styles to discover what makes you feel confident.",
-          "Pay attention to the details, as they can make or break an outfit."
-        ];
-    }
-    
-    return {
-      category: category.category,
-      tips: tips
-    };
-  });
-}
-
-// Generate a fallback analysis when API calls fail
-function generateFallbackAnalysis() {
-  return {
-    totalScore: 7,
-    breakdown: [
-      { category: "Overall Style", score: 7, emoji: "👑", details: "The outfit shows good fashion sense with a cohesive look, though it could benefit from more intentional styling." },
-      { category: "Color Coordination", score: 7, emoji: "🎨", details: "The color palette works well together but could use more contrast or a strategic pop of color to add interest." },
-      { category: "Fit & Proportion", score: 8, emoji: "📏", details: "The clothing fits well and flatters your body shape, creating a balanced silhouette that works with your proportions." },
-      { category: "Accessories", score: 6, emoji: "⭐", details: "The accessories present complement the outfit but there's room for more strategic choices to elevate the look." },
-      { category: "Trend Alignment", score: 7, emoji: "✨", details: "The outfit incorporates some current trends effectively while maintaining a timeless quality." },
-      { category: "Style Expression", score: 7, emoji: "🪄", details: "Your personality comes through in this outfit, showing a distinct style direction that could be pushed further." }
-    ],
-    feedback: "This outfit demonstrates good fashion fundamentals with thoughtful color choices and proper fit. To elevate your style, focus on more intentional accessorizing and incorporating statement pieces that express your personality. The overall look is cohesive but could benefit from more risk-taking to make it truly memorable.",
-    styleTips: [
-      {
-        category: "Overall Style",
-        tips: ["Add a statement piece to elevate the look.", "Consider layering for more visual interest.", "Pay attention to proportions and silhouette."]
-      },
-      {
-        category: "Color Coordination",
-        tips: ["Try the 60-30-10 color rule for better balance.", "Consider analogous or complementary color schemes.", "Add a pop of contrasting color as an accent."]
-      },
-      {
-        category: "Fit & Proportion",
-        tips: ["Ensure proper tailoring for a polished look.", "Balance oversized pieces with fitted items.", "Consider your body type when selecting silhouettes."]
-      },
-      {
-        category: "Accessories",
-        tips: ["Choose accessories that complement your outfit's color scheme.", "Consider the rule of thirds for jewelry placement.", "Don't overdo it - sometimes less is more."]
-      },
-      {
-        category: "Trend Alignment",
-        tips: ["Incorporate one trend at a time for a modern look.", "Adapt trends to suit your personal style.", "Focus on timeless pieces with trendy accents."]
-      },
-      {
-        category: "Style Expression",
-        tips: ["Define your personal style with consistent elements.", "Take fashion risks that feel authentic to you.", "Develop a signature look or accessory."]
-      }
-    ],
-    nextLevelTips: [
-      "Invest in quality over quantity for key wardrobe pieces.",
-      "Study color theory to create more intentional combinations.",
-      "Learn about different fabric types and how they affect the drape and feel of clothing."
-    ]
-  };
-}

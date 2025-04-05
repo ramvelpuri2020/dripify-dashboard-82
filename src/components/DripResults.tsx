@@ -1,10 +1,11 @@
 
-import { Share2, Save, ChevronRight } from "lucide-react";
+import { Share2, Save, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { motion } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { ScrollArea } from "./ui/scroll-area";
+import { useState } from "react";
 
 interface ScoreBreakdown {
   category: string;
@@ -39,6 +40,8 @@ export const DripResults = ({
   styleTips = [],
   nextLevelTips = []
 }: DripResultsProps) => {
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  
   // Ensure totalScore is a number and round it
   const displayScore = typeof totalScore === 'number' ? Math.round(totalScore) : 7;
 
@@ -49,6 +52,14 @@ export const DripResults = ({
     emoji: item.emoji || "⭐",
     details: item.details || `Score: ${item.score}/10`
   }));
+  
+  const toggleCategory = (category: string) => {
+    if (expandedCategory === category) {
+      setExpandedCategory(null);
+    } else {
+      setExpandedCategory(category);
+    }
+  };
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
@@ -57,15 +68,32 @@ export const DripResults = ({
         animate={{ opacity: 1, y: 0 }}
         className="text-center space-y-4"
       >
-        <Avatar className="w-20 h-20 mx-auto border-2 border-white/20">
-          <AvatarImage src={profileImage} alt="Profile" />
-          <AvatarFallback>👤</AvatarFallback>
+        <Avatar className="w-24 h-24 mx-auto border-2 border-purple-500/30">
+          <AvatarImage src={profileImage} alt="Profile" className="object-cover" />
+          <AvatarFallback className="bg-gradient-to-br from-purple-700 to-pink-500 text-white text-2xl">👕</AvatarFallback>
         </Avatar>
         <div className="space-y-2">
-          <h2 className="text-4xl font-bold text-white">{displayScore}/10</h2>
-          <p className="text-xl text-green-400">Style Score</p>
-          <p className="text-sm text-white/60">Based on fit, color coordination, and style elements</p>
+          <h2 className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">{displayScore}/10</h2>
+          <p className="text-xl text-green-400 font-semibold">Style Score</p>
+          <div className="h-1.5 w-32 mx-auto bg-gray-800 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${(displayScore / 10) * 100}%` }}
+              transition={{ delay: 0.5, duration: 1.2 }}
+              className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+            />
+          </div>
         </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg p-6"
+      >
+        <h3 className="text-lg font-semibold text-white mb-3">Overall Feedback</h3>
+        <p className="text-white/80 text-sm leading-relaxed">{feedback}</p>
       </motion.div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -76,23 +104,55 @@ export const DripResults = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="bg-black/30 backdrop-blur-lg border-white/10 p-4">
+            <Card className="bg-black/30 backdrop-blur-lg border-white/10 p-4 h-full">
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">{item.emoji}</span>
-                  <span className="text-sm text-white/80">{item.category}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{item.emoji}</span>
+                    <span className="text-sm text-white/80 font-medium">{item.category}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 rounded-full bg-white/5 text-white/60 hover:text-white hover:bg-white/10"
+                    onClick={() => toggleCategory(item.category)}
+                  >
+                    {expandedCategory === item.category ? (
+                      <ChevronUp className="h-3 w-3" />
+                    ) : (
+                      <ChevronDown className="h-3 w-3" />
+                    )}
+                  </Button>
                 </div>
                 <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${(item.score / 10) * 100}%` }}
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                    className={`absolute top-0 left-0 h-full rounded-full ${
+                      item.score >= 8 ? 'bg-gradient-to-r from-green-500 to-green-400' : 
+                      item.score >= 6 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' : 
+                      'bg-gradient-to-r from-red-500 to-red-400'
+                    }`}
                     transition={{ duration: 1 }}
                   />
                 </div>
-                <span className="text-lg font-bold text-white">{item.score}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-white">{item.score}</span>
+                  <span className="text-xs text-white/60">out of 10</span>
+                </div>
                 {item.details && (
-                  <p className="text-xs text-white/70 mt-1 line-clamp-2">{item.details}</p>
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ 
+                      height: expandedCategory === item.category ? 'auto' : '0px',
+                      opacity: expandedCategory === item.category ? 1 : 0
+                    }}
+                    className="overflow-hidden"
+                  >
+                    <p className="text-xs text-white/70 mt-2 leading-relaxed">
+                      {item.details}
+                    </p>
+                  </motion.div>
                 )}
               </div>
             </Card>
@@ -107,12 +167,19 @@ export const DripResults = ({
         className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg p-6"
       >
         <h3 className="text-lg font-semibold text-white mb-4">Style Tips</h3>
-        <ScrollArea className="h-[200px] pr-4">
+        <ScrollArea className="h-[300px] pr-4">
           <div className="space-y-4">
             {styleTips && styleTips.length > 0 ? (
               styleTips.map((categoryTips, categoryIndex) => (
                 <div key={`category-${categoryIndex}`} className="space-y-2">
-                  <h4 className="text-md font-medium text-white/90">{categoryTips.category}</h4>
+                  <h4 className="text-md font-medium text-white/90 flex items-center gap-2">
+                    {categoryTips.category}
+                    <div className={`h-1.5 w-1.5 rounded-full ${
+                      validBreakdown.find(b => b.category === categoryTips.category)?.score >= 8 ? 'bg-green-400' : 
+                      validBreakdown.find(b => b.category === categoryTips.category)?.score >= 6 ? 'bg-yellow-400' : 
+                      'bg-red-400'
+                    }`} />
+                  </h4>
                   {Array.isArray(categoryTips.tips) && categoryTips.tips.length > 0 ? (
                     categoryTips.tips.map((tip, tipIndex) => {
                       if (!tip) return null;
@@ -129,7 +196,7 @@ export const DripResults = ({
                               <div className="p-2 rounded-full bg-purple-500/20 flex-shrink-0">
                                 <ChevronRight className="w-3 h-3 text-purple-500" />
                               </div>
-                              <p className="text-sm text-white/80">{tip}</p>
+                              <p className="text-sm text-white/80 leading-relaxed">{tip}</p>
                             </div>
                           </Card>
                         </motion.div>
@@ -156,8 +223,11 @@ export const DripResults = ({
             )}
             
             {nextLevelTips && nextLevelTips.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-white/10">
-                <h4 className="text-md font-medium text-white/90 mb-2">Next Level Tips</h4>
+              <div className="mt-6 pt-4 border-t border-white/10">
+                <h4 className="text-md font-medium text-white/90 mb-3 flex items-center gap-2">
+                  Next Level Tips
+                  <div className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">Advanced</div>
+                </h4>
                 {nextLevelTips.map((tip, index) => (
                   <motion.div
                     key={`next-level-tip-${index}`}
@@ -165,12 +235,12 @@ export const DripResults = ({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <Card className="bg-black/20 border-white/5 p-3 mb-2">
+                    <Card className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 border-purple-500/10 p-3 mb-2">
                       <div className="flex items-start gap-3">
                         <div className="p-2 rounded-full bg-pink-500/20 flex-shrink-0">
                           <ChevronRight className="w-3 h-3 text-pink-500" />
                         </div>
-                        <p className="text-sm text-white/80">{tip}</p>
+                        <p className="text-sm text-white/80 leading-relaxed">{tip}</p>
                       </div>
                     </Card>
                   </motion.div>
