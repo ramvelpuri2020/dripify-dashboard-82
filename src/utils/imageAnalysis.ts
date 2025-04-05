@@ -52,15 +52,25 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     const imageUrl = await uploadImageToSupabase(imageFile);
     console.log('Image uploaded to Supabase:', imageUrl);
     
+    // Create a thumbnail from the image
+    const thumbnailUrl = imageUrl; // For now, using the same URL for both
+    
     // Save the analysis to the database
-    const { user } = await supabase.auth.getUser();
-    if (user) {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      console.error('Error getting user:', userError);
+      throw new Error('User authentication error');
+    }
+    
+    if (userData && userData.user) {
       const analysisData = {
-        user_id: user.id,
+        user_id: userData.user.id,
         total_score: validatedResult.totalScore,
         breakdown: validatedResult.breakdown,
         feedback: validatedResult.feedback,
+        tips: validatedResult.styleTips || [],
         image_url: imageUrl,
+        thumbnail_url: thumbnailUrl,
         scan_date: new Date().toISOString(),
       };
       
