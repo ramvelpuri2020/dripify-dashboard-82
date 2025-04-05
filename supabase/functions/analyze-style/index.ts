@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -20,25 +21,25 @@ serve(async (req) => {
       throw new Error('Nebius API key not configured');
     }
 
-    // Create a prompt for fashion analysis in conversational style
-    const prompt = `As a professional fashion stylist, analyze this outfit focusing on these aspects:
+    // Create a simpler prompt for fashion analysis to get more structured results
+    const prompt = `Analyze this outfit and provide a style assessment with these categories:
 
-    - Overall Style Impression (score 1-10)
+    - Overall Style (score 1-10)
     - Color Coordination (score 1-10)
     - Fit and Proportion (score 1-10)
     - Accessorizing (score 1-10)
     - Trend Awareness (score 1-10)
     - Personal Style (score 1-10)
     
-    For each category, provide a score and brief feedback in 1-2 sentences maximum.
+    For each category, provide a score and 1-2 sentences of feedback.
     
-    Also give 3-4 clear, actionable improvement tips for the outfit overall.
+    Also give 4 clear, actionable improvement tips for the outfit.
     
-    Finally, provide 2-3 next-level style tips for taking their fashion game to the next level.
+    Provide 2 next-level style tips for elevating their fashion game.
     
-    End with a brief summary (2-3 sentences) of the overall impression and main recommendations.
+    End with a brief summary (2-3 sentences) of the overall impression and recommendations.
     
-    Keep your language natural, direct, and conversational.`;
+    Format your response in clear sections with headings.`;
 
     // Prepare the messages for the API request
     const messages = [
@@ -51,7 +52,7 @@ serve(async (req) => {
         content: [
           {
             type: 'text',
-            text: "What do you think of this outfit? Please analyze it thoroughly."
+            text: "Please analyze this outfit and provide style feedback."
           },
           {
             type: 'image_url',
@@ -138,7 +139,7 @@ function processStyleAnalysis(content) {
   
   try {
     // Extract categories and scores using regex
-    const categoryPattern = /(Overall Style Impression|Overall Style|Color Coordination|Fit and Proportion|Accessorizing|Trend Awareness|Personal Style)[^:]*:\s*(\d+)\/10/gi;
+    const categoryPattern = /(Overall Style|Color Coordination|Fit and Proportion|Accessorizing|Trend Awareness|Personal Style)[^:]*:\s*(\d+)\/10/gi;
     let match;
     let scoreCount = 0;
     let totalScoreSum = 0;
@@ -160,7 +161,6 @@ function processStyleAnalysis(content) {
       
       // Extract and clean details
       let details = content.substring(startPos, endPos).trim();
-      details = details.replace(/\*\*Improvement Tips:\*\*/gi, '').trim();
       
       // Add to categories
       result.categories.push({
@@ -178,55 +178,77 @@ function processStyleAnalysis(content) {
       result.totalScore = Math.round(totalScoreSum / scoreCount);
     }
     
-    // Extract tips
-    // First look for labeled improvement tips sections
-    const tipsMatch = /(?:\*\*Improvement Tips[^:]*:|Improvement Tips[^:]*:|\n\s*Tips[^:]*:)([^]*?)(?=\n\s*(?:Next|Summary|\*\*Next|\*\*Summary|$))/i.exec(content);
+    // Extract improvement tips
+    const tipsSection = /(?:improvement tips|tips|suggested improvements)[^:]*:([^]*?)(?=\n\s*(?:next|summary|\*\*next|\*\*summary|$))/i.exec(content);
     
-    if (tipsMatch) {
-      const tipsText = tipsMatch[1].trim();
-      const tipsLines = tipsText.split(/\d+\./).filter(Boolean);
+    if (tipsSection) {
+      // Extract numbered tips
+      const tipsText = tipsSection[1].trim();
+      const tipMatches = tipsText.match(/\d+\.\s+[^]*?(?=\d+\.|$)/g) || [];
       
-      result.tips = tipsLines.map(tip => 
-        tip.replace(/^\s*\*+\s*|\s*\*+\s*$|\n+/g, '').trim()
+      result.tips = tipMatches.map(tip => 
+        tip.replace(/^\d+\.\s+/, '').trim()
       ).filter(tip => tip.length > 5);
+      
+      // If no numbered tips found, try extracting bullet points
+      if (result.tips.length === 0) {
+        const bulletMatches = tipsText.match(/(?:\*|\-|\•)\s+[^]*?(?=(?:\*|\-|\•)|$)/g) || [];
+        result.tips = bulletMatches.map(tip => 
+          tip.replace(/^(?:\*|\-|\•)\s+/, '').trim()
+        ).filter(tip => tip.length > 5);
+      }
+      
+      // If still no tips, try just using the whole section
+      if (result.tips.length === 0 && tipsText.length > 10) {
+        result.tips = [tipsText];
+      }
     }
     
-    // If no specific tips section, look for individual advice lines
+    // If still no tips, look for sentences that sound like tips
     if (result.tips.length === 0) {
-      const adviceLines = content.match(/(?:Consider|Try|Add|Use|Opt for|Swap|Include)[^\.!?]+[\.!?]/gi);
-      if (adviceLines) {
-        result.tips = adviceLines.slice(0, 4).map(tip => tip.trim());
-      }
+      const tipSentences = content.match(/(?:Consider|Try|Add|Use|Opt for|Swap|Include|Choose)[^\.!?]+[\.!?]/gi) || [];
+      result.tips = tipSentences.slice(0, 4).map(tip => tip.trim());
+    }
+    
+    // Ensure we have at least some default tips
+    if (result.tips.length === 0) {
+      result.tips = [
+        "Add accessories to complete your look.",
+        "Consider exploring different color combinations.",
+        "Pay attention to fit and proportion for a more polished look.",
+        "Experiment with different textures to add visual interest."
+      ];
     }
     
     // Extract next-level tips
-    const nextLevelMatch = /(?:Next-Level[^:]*:|Next Level[^:]*:)([^]*?)(?=\n\s*(?:Summary|\*\*Summary|$))/i.exec(content);
+    const nextLevelSection = /(?:next-level tips|next level|taking it further)[^:]*:([^]*?)(?=\n\s*(?:summary|\*\*summary|$))/i.exec(content);
     
-    if (nextLevelMatch) {
-      const nextLevelText = nextLevelMatch[1].trim();
+    if (nextLevelSection) {
+      const nextLevelText = nextLevelSection[1].trim();
       
-      // Check if numbered list
-      if (nextLevelText.match(/\d+\./)) {
-        const nextLevelLines = nextLevelText.split(/\d+\./).filter(Boolean);
-        result.nextLevelTips = nextLevelLines.map(tip => 
-          tip.replace(/^\s*\*+\s*|\s*\*+\s*$|\n+/g, '').trim()
+      // Try to extract numbered or bulleted tips
+      const nextLevelMatches = nextLevelText.match(/(?:\d+\.|(?:\*|\-|\•))\s+[^]*?(?=(?:\d+\.|(?:\*|\-|\•))|$)/g) || [];
+      
+      if (nextLevelMatches.length > 0) {
+        result.nextLevelTips = nextLevelMatches.map(tip => 
+          tip.replace(/^(?:\d+\.|\*|\-|\•)\s+/, '').trim()
         ).filter(tip => tip.length > 5);
-      } 
-      // If points use ** or bullet points
-      else if (nextLevelText.includes('**') || nextLevelText.includes('•')) {
-        const nextLevelLines = nextLevelText.split(/\*\*|\n\s*•/).filter(Boolean);
-        result.nextLevelTips = nextLevelLines.map(tip => 
-          tip.replace(/^\s*\*+\s*|\s*\*+\s*$|\n+/g, '').trim()
-        ).filter(tip => tip.length > 5);
-      }
-      // If simple paragraph, keep as is
-      else {
-        result.nextLevelTips = [nextLevelText.trim()];
+      } else if (nextLevelText.length > 10) {
+        // If no structured list found, use the whole text
+        result.nextLevelTips = [nextLevelText];
       }
     }
     
+    // Ensure we have default next-level tips
+    if (result.nextLevelTips.length === 0) {
+      result.nextLevelTips = [
+        "Experiment with layering different textures and patterns for a more sophisticated look.",
+        "Invest in statement accessories that can elevate even the simplest outfits."
+      ];
+    }
+    
     // Extract summary
-    const summaryMatch = /(?:Summary[^:]*:|In summary)([^]*?)$/i.exec(content);
+    const summaryMatch = /(?:summary|overall impression|in summary)[^:]*:([^]*?)$/i.exec(content);
     
     if (summaryMatch) {
       result.summary = summaryMatch[1].trim();
@@ -238,14 +260,9 @@ function processStyleAnalysis(content) {
       }
     }
     
-    // Ensure we have at least one tip
-    if (result.tips.length === 0) {
-      result.tips = ["Consider adding accessories to elevate your look."];
-    }
-    
-    // Ensure we have at least one next-level tip
-    if (result.nextLevelTips.length === 0) {
-      result.nextLevelTips = ["Experiment with different textures to create more visual interest."];
+    // If no summary found, create one from the scores
+    if (!result.summary || result.summary.length < 10) {
+      result.summary = `This outfit scores ${result.totalScore}/10 overall. The strongest areas are ${getTopCategories(result.categories)} while ${getWeakestCategories(result.categories)} could use improvement. Focus on the improvement tips for a more polished look.`;
     }
 
     // Map categories to breakdown format for compatibility
@@ -263,8 +280,12 @@ function processStyleAnalysis(content) {
       fullAnalysis: content,
       totalScore: 7,
       categories: defaultCategories(),
-      tips: ["Try adding accessories to elevate your outfit."],
-      nextLevelTips: ["Experiment with different textures to create more visual interest."],
+      tips: ["Try adding accessories to elevate your outfit.", 
+             "Experiment with different color combinations.", 
+             "Pay attention to fit and proportion.", 
+             "Consider adding layers for visual interest."],
+      nextLevelTips: ["Experiment with different textures to create more visual interest.", 
+                     "Invest in statement pieces that reflect your personal style."],
       summary: "This outfit shows potential and could be enhanced with a few styling adjustments.",
       breakdown: defaultCategories().map(cat => ({
         category: cat.name,
@@ -276,6 +297,30 @@ function processStyleAnalysis(content) {
   }
   
   return result;
+}
+
+// Helper function to get top categories
+function getTopCategories(categories) {
+  if (!categories || categories.length === 0) return "style elements";
+  
+  const sortedCats = [...categories].sort((a, b) => b.score - a.score);
+  const topCats = sortedCats.slice(0, 2).filter(cat => cat.score >= 7);
+  
+  if (topCats.length === 0) return "style elements";
+  
+  return topCats.map(cat => cat.name.toLowerCase()).join(" and ");
+}
+
+// Helper function to get weakest categories
+function getWeakestCategories(categories) {
+  if (!categories || categories.length === 0) return "some areas";
+  
+  const sortedCats = [...categories].sort((a, b) => a.score - b.score);
+  const weakCats = sortedCats.slice(0, 2).filter(cat => cat.score <= 6);
+  
+  if (weakCats.length === 0) return "some areas";
+  
+  return weakCats.map(cat => cat.name.toLowerCase()).join(" and ");
 }
 
 // Helper function to get standard category name

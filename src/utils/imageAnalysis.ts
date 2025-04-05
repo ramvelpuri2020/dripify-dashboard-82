@@ -69,37 +69,41 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
 // Helper function to validate and clean up the AI response
 const validateAndCleanResult = (data: any): StyleAnalysisResult => {
-  // Ensure all expected properties exist
-  const result: StyleAnalysisResult = {
+  // Clean up tips if they're present
+  const cleanedTips = Array.isArray(data.tips) 
+    ? cleanTextArray(data.tips.filter(tip => typeof tip === 'string'))
+    : [];
+
+  // Clean up nextLevelTips if they're present  
+  const cleanedNextLevelTips = Array.isArray(data.nextLevelTips)
+    ? cleanTextArray(data.nextLevelTips.filter(tip => typeof tip === 'string'))
+    : [];
+  
+  // Ensure categories are valid
+  const categories = Array.isArray(data.categories) 
+    ? data.categories 
+    : defaultCategories();
+  
+  // Ensure breakdown is valid
+  const breakdown = Array.isArray(data.breakdown) 
+    ? data.breakdown 
+    : mapCategoriesToBreakdown(categories);
+  
+  // Create a clean summary
+  const summary = data.summary 
+    ? cleanText(data.summary) 
+    : "Your outfit shows potential. Focus on accessorizing and color coordination to take it to the next level.";
+  
+  return {
     fullAnalysis: data.fullAnalysis || '',
     totalScore: typeof data.totalScore === 'number' ? data.totalScore : 7,
-    categories: Array.isArray(data.categories) ? data.categories : [],
-    tips: Array.isArray(data.tips) ? cleanTextArray(data.tips) : [],
-    nextLevelTips: Array.isArray(data.nextLevelTips) ? cleanTextArray(data.nextLevelTips) : [],
-    summary: data.summary || '',
-    breakdown: Array.isArray(data.breakdown) ? data.breakdown : 
-              (Array.isArray(data.categories) ? mapCategoriesToBreakdown(data.categories) : []),
-    feedback: data.summary || ''
+    categories: categories,
+    tips: cleanedTips.length > 0 ? cleanedTips : generateDefaultTips(),
+    nextLevelTips: cleanedNextLevelTips.length > 0 ? cleanedNextLevelTips : generateDefaultNextLevelTips(),
+    summary: summary,
+    breakdown: breakdown,
+    feedback: summary
   };
-  
-  // Ensure we have at least some categories if missing
-  if (result.categories.length === 0) {
-    result.categories = defaultCategories();
-    result.breakdown = mapCategoriesToBreakdown(result.categories);
-  }
-  
-  // If tips are missing or malformed, create defaults based on categories
-  if (result.tips.length === 0) {
-    result.tips = ["Consider adding accessories to complete your look.",
-                  "Try experimenting with colors that complement your skin tone."];
-  }
-  
-  // Ensure feedback exists
-  if (!result.feedback) {
-    result.feedback = result.summary || "Your outfit shows potential. Focus on accessorizing and color coordination to take it to the next level.";
-  }
-  
-  return result;
 };
 
 // Default categories if missing from response
@@ -112,16 +116,38 @@ const defaultCategories = (): StyleAnalysisCategory[] => [
   { name: "Personal Style", score: 7, details: "Your personality shows through in this outfit." }
 ];
 
+// Generate default tips
+const generateDefaultTips = (): string[] => [
+  "Consider adding accessories to complete your look.",
+  "Try experimenting with colors that complement your skin tone.",
+  "Consider a statement piece to elevate your outfit.",
+  "Ensure your clothing fits well to create a more polished look."
+];
+
+// Generate default next level tips
+const generateDefaultNextLevelTips = (): string[] => [
+  "Experiment with layering different textures for added visual interest.",
+  "Invest in high-quality basics that can be mixed and matched."
+];
+
+// Helper function to clean up text
+const cleanText = (text: string): string => {
+  if (!text || typeof text !== 'string') return '';
+  
+  // Remove any leading/trailing asterisks and excessive whitespace
+  return text
+    .replace(/^\*+\s*|\s*\*+$/g, '')
+    .replace(/\n\n+/g, '\n')
+    .trim();
+};
+
 // Helper function to clean up text arrays
 const cleanTextArray = (textArray: string[]): string[] => {
   if (!Array.isArray(textArray) || textArray.length === 0) return [];
   
   return textArray
     .filter(tip => tip && typeof tip === 'string' && tip.trim().length > 0)
-    .map(tip => {
-      // Remove any markdown formatting and excessive whitespace
-      return tip.replace(/\*\*/g, '').replace(/\n\n+/g, '\n').trim();
-    })
+    .map(tip => cleanText(tip))
     .filter(tip => tip.length > 5); // Filter out very short tips
 };
 
@@ -173,8 +199,14 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
       return;
     }
 
-    // Check if buckets exist first
-    const { data: buckets } = await supabase.storage.listBuckets();
+    // Check if outfit_images bucket exists
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    
+    if (bucketsError) {
+      console.error('Error checking buckets:', bucketsError);
+      throw bucketsError;
+    }
+    
     const outfitBucketExists = buckets?.some(bucket => bucket.name === 'outfit_images');
     
     let imageUrl = 'placeholder.svg';
@@ -182,100 +214,152 @@ const saveAnalysisToSupabase = async (result: StyleAnalysisResult, imageFile: Fi
     
     if (!outfitBucketExists) {
       console.log('Outfit images bucket not found, skipping image upload');
-    } else {
+      
+      // Try to create the bucket
       try {
-        // Upload image to Supabase Storage
-        const fileName = `outfit_${Date.now()}_${imageFile.name.replace(/\s+/g, '_')}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('outfit_images')
-          .upload(`public/${fileName}`, imageFile);
-
-        if (uploadError) {
-          console.error('Error uploading image:', uploadError);
-        } else if (uploadData) {
-          imageUrl = `outfit_images/public/${fileName}`;
-          
-          // Generate and upload thumbnail
-          try {
-            const thumbnail = await generateThumbnail(imageFile);
-            const thumbnailPath = `thumb_${fileName}`;
-            
-            const { data: thumbData } = await supabase.storage
-              .from('outfit_images')
-              .upload(`public/${thumbnailPath}`, thumbnail);
-              
-            if (thumbData) {
-              thumbnailUrl = `outfit_images/public/${thumbnailPath}`;
-            }
-          } catch (thumbErr) {
-            console.error('Error creating thumbnail:', thumbErr);
-          }
-        }
-      } catch (uploadErr) {
-        console.error('Error in image upload process:', uploadErr);
-      }
-    }
-
-    // Get the current date
-    const currentDate = new Date().toISOString();
-    const currentDateString = currentDate.split('T')[0]; // YYYY-MM-DD format
-
-    // Prepare streak calculation data
-    const { data: previousScan } = await supabase
-      .from('style_analyses')
-      .select('scan_date, last_scan_date, streak_count')
-      .eq('user_id', user.id)
-      .order('scan_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-      
-    let streakCount = 1; // Default for first scan
-    
-    if (previousScan) {
-      const prevDate = previousScan.last_scan_date;
-      
-      if (prevDate) {
-        const prevDateObj = new Date(prevDate);
-        const todayObj = new Date(currentDateString);
+        const { error: createError } = await supabase.storage.createBucket(
+          'outfit_images', 
+          { public: true }
+        );
         
-        // Calculate days difference
-        const diffTime = todayObj.getTime() - prevDateObj.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 1) {
-          // Consecutive day, increment streak
-          streakCount = (previousScan.streak_count || 0) + 1;
-        } else if (diffDays === 0) {
-          // Same day, maintain streak
-          streakCount = previousScan.streak_count || 1;
+        if (createError) {
+          console.error('Error creating bucket:', createError);
+        } else {
+          console.log('Successfully created outfit_images bucket');
+          // Now upload the image to the newly created bucket
+          await uploadImageToBucket(imageFile, user.id, result);
+          return; // Exit after successful bucket creation and upload
         }
+      } catch (createBucketError) {
+        console.error('Error creating bucket:', createBucketError);
       }
+    } else {
+      // Bucket exists, upload the image
+      await uploadImageToBucket(imageFile, user.id, result);
     }
-
-    // Format tips for storage
-    const formattedTips = result.tips.map(tip => ({ 
-      category: "General", 
-      tips: [tip] 
-    }));
-
-    // Store analysis in database
-    await supabase
-      .from('style_analyses')
-      .insert({
-        user_id: user.id,
-        total_score: result.totalScore,
-        breakdown: result.breakdown,
-        feedback: result.summary,
-        tips: formattedTips,
-        scan_date: currentDate,
-        last_scan_date: currentDateString,
-        streak_count: streakCount,
-        image_url: imageUrl,
-        thumbnail_url: thumbnailUrl
-      });
-
   } catch (error) {
     console.error('Error in saveAnalysisToSupabase:', error);
+    throw error;
+  }
+};
+
+// Helper function to upload image to bucket and save analysis data
+const uploadImageToBucket = async (imageFile: File, userId: string, result: StyleAnalysisResult) => {
+  try {
+    // Upload image to Supabase Storage
+    const fileName = `outfit_${Date.now()}_${imageFile.name.replace(/\s+/g, '_')}`;
+    const filePath = `public/${fileName}`;
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('outfit_images')
+      .upload(filePath, imageFile, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Error uploading image:', uploadError);
+      throw uploadError;
+    }
+    
+    // Get the public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('outfit_images')
+      .getPublicUrl(filePath);
+      
+    const imageUrl = publicUrlData?.publicUrl || `outfit_images/${filePath}`;
+    
+    // Generate and upload thumbnail
+    try {
+      const thumbnail = await generateThumbnail(imageFile);
+      const thumbnailPath = `public/thumb_${fileName}`;
+      
+      const { data: thumbData, error: thumbError } = await supabase.storage
+        .from('outfit_images')
+        .upload(thumbnailPath, thumbnail, {
+          cacheControl: '3600',
+          upsert: true
+        });
+        
+      if (thumbError) {
+        console.error('Error uploading thumbnail:', thumbError);
+      }
+      
+      const { data: thumbUrlData } = supabase.storage
+        .from('outfit_images')
+        .getPublicUrl(thumbnailPath);
+        
+      const thumbnailUrl = thumbUrlData?.publicUrl || `outfit_images/${thumbnailPath}`;
+      
+      // Get the current date
+      const currentDate = new Date().toISOString();
+      const currentDateString = currentDate.split('T')[0]; // YYYY-MM-DD format
+
+      // Prepare streak calculation data
+      const { data: previousScan } = await supabase
+        .from('style_analyses')
+        .select('scan_date, last_scan_date, streak_count')
+        .eq('user_id', userId)
+        .order('scan_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+        
+      let streakCount = 1; // Default for first scan
+      
+      if (previousScan) {
+        const prevDate = previousScan.last_scan_date;
+        
+        if (prevDate) {
+          const prevDateObj = new Date(prevDate);
+          const todayObj = new Date(currentDateString);
+          
+          // Calculate days difference
+          const diffTime = todayObj.getTime() - prevDateObj.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays === 1) {
+            // Consecutive day, increment streak
+            streakCount = (previousScan.streak_count || 0) + 1;
+          } else if (diffDays === 0) {
+            // Same day, maintain streak
+            streakCount = previousScan.streak_count || 1;
+          }
+        }
+      }
+
+      // Format tips for storage
+      const formattedTips = result.tips.map(tip => ({ 
+        category: "General", 
+        tips: [tip] 
+      }));
+
+      // Store analysis in database
+      const { error: insertError } = await supabase
+        .from('style_analyses')
+        .insert({
+          user_id: userId,
+          total_score: result.totalScore,
+          breakdown: result.breakdown,
+          feedback: result.summary,
+          tips: formattedTips,
+          scan_date: currentDate,
+          last_scan_date: currentDateString,
+          streak_count: streakCount,
+          image_url: imageUrl,
+          thumbnail_url: thumbnailUrl
+        });
+        
+      if (insertError) {
+        console.error('Error inserting analysis data:', insertError);
+      } else {
+        console.log('Successfully saved analysis with image:', imageUrl);
+      }
+      
+    } catch (thumbErr) {
+      console.error('Error in thumbnail process:', thumbErr);
+    }
+  } catch (error) {
+    console.error('Error in uploadImageToBucket:', error);
     throw error;
   }
 };

@@ -47,8 +47,16 @@ export const DripResults = ({
     ...item,
     score: typeof item.score === 'number' ? Math.round(item.score) : 7,
     emoji: item.emoji || "⭐",
-    details: item.details || `Score: ${item.score}/10`
+    details: item.details ? cleanFeedbackText(item.details) : `Score: ${item.score}/10`
   }));
+
+  // Clean up the feedback text
+  const cleanedFeedback = cleanFeedbackText(feedback);
+
+  // Clean up the next level tips
+  const cleanedNextLevelTips = nextLevelTips
+    ? nextLevelTips.map(cleanFeedbackText).filter(tip => tip.length > 0)
+    : [];
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
@@ -92,7 +100,7 @@ export const DripResults = ({
                 </div>
                 <span className="text-lg font-bold text-white">{item.score}</span>
                 {item.details && (
-                  <p className="text-xs text-white/70 mt-1">{item.details}</p>
+                  <p className="text-xs text-white/70 mt-1 line-clamp-2">{item.details}</p>
                 )}
               </div>
             </Card>
@@ -113,24 +121,29 @@ export const DripResults = ({
               styleTips.map((categoryTips, categoryIndex) => (
                 <div key={`category-${categoryIndex}`} className="space-y-2">
                   <h4 className="text-md font-medium text-white/90">{categoryTips.category}</h4>
-                  {Array.isArray(categoryTips.tips) ? (
-                    categoryTips.tips.map((tip, tipIndex) => (
-                      <motion.div
-                        key={`tip-${categoryIndex}-${tipIndex}`}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: tipIndex * 0.1 }}
-                      >
-                        <Card className="bg-black/20 border-white/5 p-3">
-                          <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-full bg-purple-500/20">
-                              <ChevronRight className="w-3 h-3 text-purple-500" />
+                  {Array.isArray(categoryTips.tips) && categoryTips.tips.length > 0 ? (
+                    categoryTips.tips.map((tip, tipIndex) => {
+                      const cleanedTip = cleanFeedbackText(tip);
+                      if (!cleanedTip) return null;
+                      
+                      return (
+                        <motion.div
+                          key={`tip-${categoryIndex}-${tipIndex}`}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: tipIndex * 0.1 }}
+                        >
+                          <Card className="bg-black/20 border-white/5 p-3">
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 rounded-full bg-purple-500/20 flex-shrink-0">
+                                <ChevronRight className="w-3 h-3 text-purple-500" />
+                              </div>
+                              <p className="text-sm text-white/80">{cleanedTip}</p>
                             </div>
-                            <p className="text-sm text-white/80">{tip}</p>
-                          </div>
-                        </Card>
-                      </motion.div>
-                    ))
+                          </Card>
+                        </motion.div>
+                      );
+                    })
                   ) : (
                     <Card className="bg-black/20 border-white/5 p-3">
                       <div className="flex items-start gap-3">
@@ -151,10 +164,10 @@ export const DripResults = ({
               </Card>
             )}
             
-            {Array.isArray(nextLevelTips) && nextLevelTips.length > 0 && (
+            {cleanedNextLevelTips.length > 0 && (
               <div className="mt-4 pt-4 border-t border-white/10">
                 <h4 className="text-md font-medium text-white/90 mb-2">Next Level Tips</h4>
-                {nextLevelTips.map((tip, index) => (
+                {cleanedNextLevelTips.map((tip, index) => (
                   <motion.div
                     key={`next-level-tip-${index}`}
                     initial={{ opacity: 0, x: -20 }}
@@ -163,7 +176,7 @@ export const DripResults = ({
                   >
                     <Card className="bg-black/20 border-white/5 p-3 mb-2">
                       <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-full bg-pink-500/20">
+                        <div className="p-2 rounded-full bg-pink-500/20 flex-shrink-0">
                           <ChevronRight className="w-3 h-3 text-pink-500" />
                         </div>
                         <p className="text-sm text-white/80">{tip}</p>
@@ -204,4 +217,16 @@ export const DripResults = ({
       </motion.div>
     </div>
   );
+};
+
+// Helper function to clean up feedback text
+const cleanFeedbackText = (text: string): string => {
+  if (!text || typeof text !== 'string') return '';
+  
+  // Remove leading/trailing asterisks, extra newlines, and trim the text
+  return text
+    .replace(/^\*+\s*|\s*\*+$/g, '')
+    .replace(/\n+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 };
