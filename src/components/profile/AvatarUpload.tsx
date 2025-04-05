@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Camera, X } from "lucide-react";
+import { User, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -185,43 +185,38 @@ export const AvatarUpload = ({ avatarUrl, userId, username, onAvatarUpdate }: Av
   return (
     <div className="flex flex-col items-center space-y-4">
       <div className="relative">
-        <Avatar className="h-28 w-28 border-2 border-white/20">
-          <AvatarImage src={preview || ""} />
-          <AvatarFallback className="bg-black/40">
-            <User className="h-14 w-14 text-white/60" />
-          </AvatarFallback>
-        </Avatar>
-        
-        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2">
-          <div className="relative">
-            <input 
-              type="file"
-              id="avatar-upload"
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              onChange={handleFileChange}
-              accept="image/*"
-              disabled={uploading}
-            />
-            <label 
-              htmlFor="avatar-upload" 
-              className={`inline-flex items-center justify-center rounded-full w-8 h-8 ${preview ? 'bg-[#9b87f5] hover:bg-[#8671e0]' : 'bg-purple-500 hover:bg-purple-600'} cursor-pointer transition-colors`}
-            >
-              <Camera className="h-4 w-4 text-white" />
-            </label>
-            
-            {preview && (
-              <Button
-                type="button"
-                size="icon"
-                variant="destructive"
-                className="rounded-full h-8 w-8 ml-2"
-                onClick={removeAvatar}
-                disabled={uploading}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+        <div className="group relative cursor-pointer" onClick={() => preview ? removeAvatar() : document.getElementById('avatar-upload')?.click()}>
+          <Avatar className="h-28 w-28 border-2 border-white/20">
+            <AvatarImage src={preview || ""} />
+            <AvatarFallback className="bg-black/40">
+              <User className="h-14 w-14 text-white/60" />
+            </AvatarFallback>
+          </Avatar>
+          
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+            {preview ? (
+              <span className="text-white text-xs">Click to remove</span>
+            ) : (
+              <Camera className="h-8 w-8 text-white" />
             )}
           </div>
+        </div>
+        
+        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2">
+          <input 
+            type="file"
+            id="avatar-upload"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            onChange={handleFileChange}
+            accept="image/*"
+            disabled={uploading}
+          />
+          <label 
+            htmlFor="avatar-upload" 
+            className="inline-flex items-center justify-center rounded-full w-8 h-8 bg-purple-500 hover:bg-purple-600 cursor-pointer transition-colors"
+          >
+            <Camera className="h-4 w-4 text-white" />
+          </label>
         </div>
       </div>
       

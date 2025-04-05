@@ -18,13 +18,19 @@ const getImageUrl = (path: string) => {
 };
 
 // Helper function to safely handle array operations on breakdown
-const safeArrayOperation = (breakdown: ScoreBreakdown[] | Json | undefined, operation: 'slice' | 'map' | 'length', ...args: any[]) => {
+const safeArrayOperation = <T extends unknown>(breakdown: ScoreBreakdown[] | Json | undefined, operation: 'slice' | 'map' | 'length', callback?: (item: any, index: number) => T): T[] | number => {
   if (!breakdown) return operation === 'length' ? 0 : [];
   
   if (Array.isArray(breakdown)) {
-    if (operation === 'slice') return breakdown.slice(...args);
-    if (operation === 'map') return breakdown.map(...args);
-    if (operation === 'length') return breakdown.length;
+    if (operation === 'slice' && Array.isArray(callback)) {
+      return breakdown.slice(callback[0], callback[1]) as unknown as T[];
+    }
+    if (operation === 'map' && callback) {
+      return breakdown.map(callback);
+    }
+    if (operation === 'length') {
+      return breakdown.length;
+    }
   }
   
   return operation === 'length' ? 0 : [];
@@ -134,11 +140,11 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                             Style Score: {analysis.total_score}/10
                           </p>
                           <span className="text-xs text-[#C8C8C9]">
-                            {format(new Date(analysis.created_at || analysis.scan_date), 'MMM d, yyyy')}
+                            {format(new Date(analysis.created_at || analysis.scan_date || ''), 'MMM d, yyyy')}
                           </span>
                         </div>
                         <div className="mt-1 flex gap-2 flex-wrap">
-                          {analysis.breakdown && safeArrayOperation(analysis.breakdown as (ScoreBreakdown[] | Json), 'slice', 0, 3).map((item: any, i: number) => (
+                          {analysis.breakdown && Array.isArray(analysis.breakdown) && analysis.breakdown.slice(0, 3).map((item: any, i: number) => (
                             <div key={i} className="flex items-center gap-1">
                               <span className="text-sm">{item.emoji}</span>
                               <span className="text-xs text-[#C8C8C9]">{item.score}</span>
@@ -204,7 +210,7 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                     </div>
                     <h3 className="text-xl font-bold text-purple-400 mt-2">Score: {selectedAnalysis.total_score}/10</h3>
                     <p className="text-sm text-[#C8C8C9] mt-1">
-                      {format(new Date(selectedAnalysis.created_at || selectedAnalysis.scan_date), 'MMMM d, yyyy')}
+                      {format(new Date(selectedAnalysis.created_at || selectedAnalysis.scan_date || ''), 'MMMM d, yyyy')}
                     </p>
                   </div>
                   
@@ -213,11 +219,11 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                     <p className="text-sm text-[#C8C8C9] leading-relaxed">{selectedAnalysis.feedback}</p>
                   </div>
                   
-                  {selectedAnalysis.breakdown && safeArrayOperation(selectedAnalysis.breakdown as (ScoreBreakdown[] | Json), 'length') > 0 && (
+                  {selectedAnalysis.breakdown && Array.isArray(selectedAnalysis.breakdown) && selectedAnalysis.breakdown.length > 0 && (
                     <div className="space-y-2">
                       <h4 className="font-medium text-white/90 mb-2">Breakdown</h4>
                       <div className="grid grid-cols-1 gap-3">
-                        {safeArrayOperation(selectedAnalysis.breakdown as (ScoreBreakdown[] | Json), 'map', (item: any, i: number) => (
+                        {selectedAnalysis.breakdown.map((item: any, i: number) => (
                           <Card 
                             key={i} 
                             className={`bg-black/20 border-white/5 p-4 cursor-pointer hover:bg-black/30 transition-colors ${
