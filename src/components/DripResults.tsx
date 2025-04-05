@@ -47,16 +47,8 @@ export const DripResults = ({
     ...item,
     score: typeof item.score === 'number' ? Math.round(item.score) : 7,
     emoji: item.emoji || "⭐",
-    details: item.details ? cleanFeedbackText(item.details) : `Score: ${item.score}/10`
+    details: item.details || `Score: ${item.score}/10`
   }));
-
-  // Clean up the feedback text
-  const cleanedFeedback = cleanFeedbackText(feedback);
-
-  // Clean up the next level tips
-  const cleanedNextLevelTips = nextLevelTips
-    ? nextLevelTips.map(cleanFeedbackText).filter(tip => tip.length > 0)
-    : [];
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
@@ -123,8 +115,7 @@ export const DripResults = ({
                   <h4 className="text-md font-medium text-white/90">{categoryTips.category}</h4>
                   {Array.isArray(categoryTips.tips) && categoryTips.tips.length > 0 ? (
                     categoryTips.tips.map((tip, tipIndex) => {
-                      const cleanedTip = cleanFeedbackText(tip);
-                      if (!cleanedTip) return null;
+                      if (!tip) return null;
                       
                       return (
                         <motion.div
@@ -138,7 +129,7 @@ export const DripResults = ({
                               <div className="p-2 rounded-full bg-purple-500/20 flex-shrink-0">
                                 <ChevronRight className="w-3 h-3 text-purple-500" />
                               </div>
-                              <p className="text-sm text-white/80">{cleanedTip}</p>
+                              <p className="text-sm text-white/80">{tip}</p>
                             </div>
                           </Card>
                         </motion.div>
@@ -147,7 +138,7 @@ export const DripResults = ({
                   ) : (
                     <Card className="bg-black/20 border-white/5 p-3">
                       <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-full bg-purple-500/20">
+                        <div className="p-2 rounded-full bg-purple-500/20 flex-shrink-0">
                           <ChevronRight className="w-3 h-3 text-purple-500" />
                         </div>
                         <p className="text-sm text-white/80">Consider exploring different styles and combinations to enhance your look.</p>
@@ -164,10 +155,10 @@ export const DripResults = ({
               </Card>
             )}
             
-            {cleanedNextLevelTips.length > 0 && (
+            {nextLevelTips && nextLevelTips.length > 0 && (
               <div className="mt-4 pt-4 border-t border-white/10">
                 <h4 className="text-md font-medium text-white/90 mb-2">Next Level Tips</h4>
-                {cleanedNextLevelTips.map((tip, index) => (
+                {nextLevelTips.map((tip, index) => (
                   <motion.div
                     key={`next-level-tip-${index}`}
                     initial={{ opacity: 0, x: -20 }}
@@ -217,16 +208,4 @@ export const DripResults = ({
       </motion.div>
     </div>
   );
-};
-
-// Helper function to clean up feedback text
-const cleanFeedbackText = (text: string): string => {
-  if (!text || typeof text !== 'string') return '';
-  
-  // Remove leading/trailing asterisks, extra newlines, and trim the text
-  return text
-    .replace(/^\*+\s*|\s*\*+$/g, '')
-    .replace(/\n+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
 };

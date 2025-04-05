@@ -7,10 +7,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { analyzeStyle, StyleAnalysisResult } from "@/utils/imageAnalysis";
+import { analyzeStyle } from "@/utils/imageAnalysis";
 import { useScanStore } from "@/store/scanStore";
 import { Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -20,7 +19,7 @@ export const ScanView = () => {
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
   const setLatestScan = useScanStore((state) => state.setLatestScan);
-  const [result, setResult] = useState<StyleAnalysisResult | null>(null);
+  const [result, setResult] = useState(null);
 
   const analysisPhrases = [
     "Scanning outfit details...",
@@ -43,49 +42,6 @@ export const ScanView = () => {
     return interval;
   };
 
-  // Check if outfit_images bucket exists and create it if it doesn't
-  const ensureOutfitBucketExists = async () => {
-    try {
-      // Check if user has admin rights
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return false;
-
-      // List buckets to see if outfit_images exists
-      const { data: buckets, error } = await supabase.storage.listBuckets();
-      
-      if (error) {
-        console.error("Error checking buckets:", error.message);
-        return false;
-      }
-      
-      const outfitBucketExists = buckets?.some(
-        (bucket) => bucket.name === "outfit_images"
-      );
-      
-      if (!outfitBucketExists) {
-        console.log("Creating outfit_images bucket...");
-        // Try to create the bucket
-        const { error: createError } = await supabase.storage.createBucket(
-          "outfit_images",
-          { public: true }
-        );
-        
-        if (createError) {
-          console.error("Error creating bucket:", createError.message);
-          return false;
-        }
-        
-        console.log("Bucket created successfully");
-        return true;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("Error in ensureOutfitBucketExists:", error);
-      return false;
-    }
-  };
-
   const handleAnalyze = async () => {
     if (!selectedImage) {
       toast({
@@ -102,9 +58,6 @@ export const ScanView = () => {
     
     try {
       console.log('Starting analysis...');
-      
-      // Try to ensure the bucket exists
-      await ensureOutfitBucketExists();
       
       // Call the analyzeStyle function with the selected image
       const analysisResult = await analyzeStyle(selectedImage);
@@ -231,15 +184,9 @@ export const ScanView = () => {
             <DripResults
               totalScore={result.totalScore}
               breakdown={result.breakdown}
-              feedback={result.summary}
-              styleTips={result.categories.map(cat => ({
-                category: cat.name,
-                tips: result.tips.filter(tip => 
-                  tip.toLowerCase().includes(cat.name.toLowerCase()) || 
-                  Math.random() > 0.7 // Randomly assign some tips to categories
-                )
-              }))}
-              nextLevelTips={result.nextLevelTips}
+              feedback={result.feedback}
+              styleTips={result.styleTips || []}
+              nextLevelTips={result.nextLevelTips || []}
               onShare={handleShare}
               onSave={handleSave}
               profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
