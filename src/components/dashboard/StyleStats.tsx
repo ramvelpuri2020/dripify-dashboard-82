@@ -18,7 +18,7 @@ interface StyleStatsProps {
 }
 
 export const StyleStats = ({ hasScans, stats }: StyleStatsProps) => {
-  const { styleStats, fetchUserStats } = useScanStore();
+  const { stats: storeStats, fetchUserStats } = useScanStore();
   
   useEffect(() => {
     const fetchStats = async () => {
@@ -57,7 +57,7 @@ export const StyleStats = ({ hasScans, stats }: StyleStatsProps) => {
   }, [fetchUserStats, stats]);
 
   // Use provided stats or fall back to store stats
-  const displayStats = stats || styleStats;
+  const displayStats = stats || storeStats;
 
   const styleStatsData = [{
     title: "Style Score",

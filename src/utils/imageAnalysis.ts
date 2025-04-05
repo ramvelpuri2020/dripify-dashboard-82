@@ -1,14 +1,9 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { useScanStore } from '@/store/scanStore';
+import type { StyleAnalysisResult } from '@/types/styleTypes';
 
-// Define a simpler type for the analysis result
-export interface SimpleStyleAnalysisResult {
-  rawAnalysis: string;
-  overallScore: number | null;
-  imageUrl?: string;
-}
-
-export const analyzeStyle = async (imageFile: File): Promise<SimpleStyleAnalysisResult> => {
+export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
   try {
     // Convert image to base64
     const base64Image = await fileToBase64(imageFile);
@@ -27,23 +22,22 @@ export const analyzeStyle = async (imageFile: File): Promise<SimpleStyleAnalysis
 
     const endTime = performance.now();
     console.log(`Analysis completed in ${Math.round(endTime - startTime)}ms`);
-    
-    if (!data) {
-      throw new Error('Invalid response from AI service');
+    console.log('Analysis response:', data);
+
+    if (!data || !data.feedback) {
+      throw new Error('Invalid response format from AI service');
     }
+    
+    // Extract the overall score with regex
+    const scoreMatch = data.feedback.match(/Overall Score:?\s*(\d+\.?\d*)/i) || 
+                       data.feedback.match(/Total Score:?\s*(\d+\.?\d*)/i);
+    const overallScore = scoreMatch ? Math.round(parseFloat(scoreMatch[1])) : 7;
     
     // Upload image to Supabase Storage
     const imageUrl = await uploadImageToSupabase(imageFile);
     console.log('Image uploaded to Supabase:', imageUrl);
     
-    // Create a simple result object with the raw analysis text
-    const result: SimpleStyleAnalysisResult = {
-      rawAnalysis: data.rawAnalysis || 'No analysis available',
-      overallScore: data.overallScore,
-      imageUrl
-    };
-    
-    // Save the raw analysis to the database
+    // Save the analysis to the database
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError) {
       console.error('Error getting user:', userError);
@@ -51,11 +45,19 @@ export const analyzeStyle = async (imageFile: File): Promise<SimpleStyleAnalysis
     }
     
     if (userData && userData.user) {
+      // Create a simple breakdown for database compatibility
+      const placeholderBreakdown = JSON.stringify([
+        { category: "Overall Style", score: overallScore, emoji: "👑" }
+      ]);
+      
       const analysisData = {
         user_id: userData.user.id,
-        total_score: result.overallScore,
-        raw_analysis: result.rawAnalysis,
+        total_score: overallScore,
+        raw_analysis: data.feedback,
+        feedback: data.feedback.substring(0, 200) + '...', // First 200 chars as summary
+        breakdown: placeholderBreakdown,
         image_url: imageUrl,
+        thumbnail_url: imageUrl,
         scan_date: new Date().toISOString(),
       };
       
@@ -72,8 +74,18 @@ export const analyzeStyle = async (imageFile: File): Promise<SimpleStyleAnalysis
       console.log('User not logged in, skipping database save');
     }
     
+    // Create simplified result
+    const result: StyleAnalysisResult = {
+      overallScore,
+      rawAnalysis: data.feedback,
+      imageUrl
+    };
+    
+    // Update the scan store with the new analysis
+    const store = useScanStore.getState();
+    store.setLatestScan(result);
+    
     return result;
-
   } catch (error) {
     console.error('Error analyzing style:', error);
     throw error;

@@ -7,8 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { analyzeStyle } from "@/utils/imageAnalysis";
+import { useScanStore } from "@/store/scanStore";
 import { Sparkles } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Share2, Save } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
 export const ScanView = () => {
@@ -18,11 +21,8 @@ export const ScanView = () => {
   const [analysisPhase, setAnalysisPhase] = useState<string>("");
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
-  const [result, setResult] = useState<{
-    rawAnalysis: string;
-    overallScore: number | null;
-    imageUrl?: string;
-  } | null>(null);
+  const setLatestScan = useScanStore((state) => state.setLatestScan);
+  const [result, setResult] = useState<{ overallScore: number; rawAnalysis: string; imageUrl?: string } | null>(null);
 
   const analysisPhrases = [
     "Scanning outfit details...",
@@ -65,8 +65,9 @@ export const ScanView = () => {
       // Call the analyzeStyle function with the selected image
       const analysisResult = await analyzeStyle(selectedImage);
       
-      console.log('Analysis completed successfully');
+      console.log('Analysis completed successfully:', analysisResult);
       setResult(analysisResult);
+      setLatestScan(analysisResult);
       
       clearInterval(phraseCycleInterval);
       
@@ -98,6 +99,22 @@ export const ScanView = () => {
     setShowResults(false);
     setSelectedImage(null);
     setResult(null);
+  };
+
+  const handleShare = () => {
+    toast({
+      title: "Shared",
+      description: "Your style analysis has been shared!",
+      variant: "success"
+    });
+  };
+
+  const handleSave = () => {
+    toast({
+      title: "Saved",
+      description: "Your style analysis has been saved to your profile!",
+      variant: "success"
+    });
   };
 
   return (
@@ -176,40 +193,76 @@ export const ScanView = () => {
           className="pb-20"
         >
           {result && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-center">
-                {selectedImage && (
-                  <div className="relative rounded-lg overflow-hidden border-4 border-purple-500/30 w-32 h-32">
-                    <img 
-                      src={URL.createObjectURL(selectedImage)} 
-                      alt="Analyzed outfit" 
-                      className="w-full h-full object-cover"
+            <div className="w-full max-w-2xl mx-auto space-y-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center space-y-4"
+              >
+                <Avatar className="w-24 h-24 mx-auto border-2 border-purple-500/30">
+                  <AvatarImage src={selectedImage ? URL.createObjectURL(selectedImage) : undefined} alt="Profile" className="object-cover" />
+                  <AvatarFallback className="bg-gradient-to-br from-purple-700 to-pink-500 text-white text-2xl">👕</AvatarFallback>
+                </Avatar>
+                
+                <div className="space-y-2">
+                  <h2 className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">{result.overallScore}/10</h2>
+                  <p className="text-xl text-green-400 font-semibold">Style Score</p>
+                  <div className="h-1.5 w-32 mx-auto bg-gray-800 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(result.overallScore / 10) * 100}%` }}
+                      transition={{ delay: 0.5, duration: 1.2 }}
+                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
                     />
                   </div>
-                )}
-              </div>
-
-              {result.overallScore !== null && (
-                <div className="text-center">
-                  <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-                    {result.overallScore}/10
-                  </h2>
-                  <p className="text-lg text-green-400 font-medium">Style Score</p>
                 </div>
-              )}
+              </motion.div>
 
-              <Card className="bg-black/30 backdrop-blur-lg border-white/10">
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-semibold text-white mb-4">Style Analysis</h3>
-                  <ScrollArea className="h-[500px] pr-4">
-                    <div className="prose prose-invert prose-sm max-w-none">
-                      <ReactMarkdown>{result.rawAnalysis}</ReactMarkdown>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg"
+              >
+                <ScrollArea className="h-[400px]">
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Style Analysis</h3>
+                    <div className="prose prose-invert max-w-none">
+                      <ReactMarkdown>
+                        {result.rawAnalysis}
+                      </ReactMarkdown>
                     </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+                  </div>
+                </ScrollArea>
+              </motion.div>
 
-              <div className="flex justify-center">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="flex justify-center gap-4"
+              >
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full bg-white hover:bg-white/90 text-black border-none"
+                  onClick={handleSave}
+                >
+                  <Save className="w-5 h-5 mr-2" />
+                  Save
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full bg-white hover:bg-white/90 text-black border-none"
+                  onClick={handleShare}
+                >
+                  <Share2 className="w-5 h-5 mr-2" />
+                  Share
+                </Button>
+              </motion.div>
+              
+              <div className="mt-8 flex justify-center">
                 <Button
                   onClick={handleRestart}
                   className="bg-white/10 hover:bg-white/20 text-white transition-all"

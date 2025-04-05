@@ -137,34 +137,29 @@ DO NOT explain the scoring system. DO NOT begin with "As a fashion stylist" or a
     }
 
     const data = await response.json();
-    console.log('Style analysis raw response received');
+    console.log('Style analysis raw response:', data);
       
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
       console.error('Invalid response format from Nebius API');
       throw new Error('Invalid response format from Nebius API');
     }
 
-    // Extract the raw content from the response
-    const rawContent = data.choices[0].message.content;
+    // Extract the markdown content - no longer trying to parse as JSON
+    const markdownContent = data.choices[0].message.content;
+    console.log('Analysis content (first 300 chars):', markdownContent.substring(0, 300) + '...');
     
-    // Extract overall score with a simple regex if needed
-    const overallScoreMatch = rawContent.match(/Overall Score:?\s*(\d+)/i);
-    const overallScore = overallScoreMatch ? parseInt(overallScoreMatch[1]) : null;
-    
-    return new Response(JSON.stringify({ 
-      rawAnalysis: rawContent,
-      overallScore
-    }), { 
+    // Simply return the raw markdown feedback
+    return new Response(JSON.stringify({ feedback: markdownContent }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   } catch (error) {
     console.error('Error in analyze-style function:', error);
     
+    // Return a fallback response with error details
     return new Response(JSON.stringify({ 
       error: error.message,
-      rawAnalysis: null,
-      overallScore: null
+      feedback: `# Style Analysis\n\nWe couldn't analyze your outfit at this time due to a technical issue. Please try again later.\n\n**Error:** ${error.message}`
     }), { 
       status: 200, // Return 200 even for errors to make client handling easier
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
