@@ -1,6 +1,8 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 import type { StyleAnalysisResult, StyleAnalysisCategory } from '@/types/styleTypes';
+import { parseMarkdownToJSON } from './analysisParser';
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
   try {
@@ -110,6 +112,13 @@ const uploadImageToSupabase = async (imageFile: File): Promise<string> => {
 
 // Helper function to validate and clean up the AI response
 const validateAndCleanResult = (data: any): StyleAnalysisResult => {
+  // If data looks like a markdown response rather than structured JSON,
+  // use our markdown parser to convert it
+  if (typeof data === 'string' || (data.feedback && !data.breakdown)) {
+    console.log('Response appears to be markdown, parsing...');
+    return parseMarkdownToJSON(typeof data === 'string' ? data : data.feedback);
+  }
+  
   // Ensure breakdown is valid
   const breakdown = Array.isArray(data.breakdown) 
     ? data.breakdown.map(item => ({
