@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 import type { ScoreBreakdown, StyleAnalysisResult } from '@/types/styleTypes';
@@ -50,8 +49,9 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       const analysisData = {
         user_id: userData.user.id,
         total_score: parsedAnalysis.totalScore,
+        raw_analysis: data.feedback,
         feedback: parsedAnalysis.feedback || data.feedback.substring(0, 200) + '...', 
-        breakdown: breakdownJson, // This needs to be a JSON string for the database
+        breakdown: breakdownJson,
         image_url: imageUrl,
         thumbnail_url: imageUrl,
         scan_date: new Date().toISOString(),
