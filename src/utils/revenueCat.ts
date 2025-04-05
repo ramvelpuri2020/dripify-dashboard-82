@@ -1,20 +1,29 @@
 
 import Purchases, { 
   CustomerInfo, 
-  PurchasesConfiguration,
-  LOG_LEVEL 
+  PurchasesConfiguration
 } from '@revenuecat/purchases-capacitor';
-import { isPlatform } from '@capacitor/core';
+
+// Simple platform detection for web vs mobile
+const isMobilePlatform = (): boolean => {
+  return typeof window !== 'undefined' && 
+    (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+};
+
+const isIOS = (): boolean => {
+  return typeof window !== 'undefined' && 
+    (/iPhone|iPad|iPod/i.test(navigator.userAgent));
+};
 
 export const initializePurchases = async () => {
   try {
     // Only initialize on mobile platforms
-    if (!isPlatform('ios') && !isPlatform('android')) {
+    if (!isMobilePlatform()) {
       console.log('RevenueCat: Not initializing on web platform');
       return;
     }
 
-    const apiKey = isPlatform('ios') 
+    const apiKey = isIOS() 
       ? import.meta.env.VITE_REVENUECAT_IOS_KEY
       : import.meta.env.VITE_REVENUECAT_ANDROID_KEY;
 
@@ -23,14 +32,13 @@ export const initializePurchases = async () => {
       return;
     }
 
-    console.log(`RevenueCat: Initializing for ${isPlatform('ios') ? 'iOS' : 'Android'}`);
+    console.log(`RevenueCat: Initializing for ${isIOS() ? 'iOS' : 'Android'}`);
 
     const configuration: PurchasesConfiguration = {
-      apiKey,
-      logLevel: LOG_LEVEL.DEBUG
+      apiKey
     };
 
-    await Purchases.configure(configuration);
+    await Purchases.setup(configuration);
     console.log('RevenueCat: Successfully initialized');
   } catch (error) {
     console.error('RevenueCat: Failed to initialize:', error);
@@ -39,11 +47,11 @@ export const initializePurchases = async () => {
 
 export const getCustomerInfo = async (): Promise<CustomerInfo | null> => {
   try {
-    if (!isPlatform('ios') && !isPlatform('android')) {
+    if (!isMobilePlatform()) {
       return null;
     }
 
-    const { customerInfo } = await Purchases.getCustomerInfo();
+    const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo;
   } catch (error) {
     console.error('RevenueCat: Failed to get customer info:', error);

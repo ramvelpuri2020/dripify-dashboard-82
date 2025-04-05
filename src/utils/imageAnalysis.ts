@@ -46,12 +46,12 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     }
     
     if (userData && userData.user) {
-      // Prepare breakdown for database
+      // Important: Convert breakdown to JSON for database storage
       const analysisData = {
         user_id: userData.user.id,
         total_score: parsedAnalysis.totalScore,
         feedback: parsedAnalysis.feedback.substring(0, 200) + '...', // First 200 chars as summary
-        breakdown: parsedAnalysis.breakdown,
+        breakdown: JSON.stringify(parsedAnalysis.breakdown), // Convert to JSON string to satisfy type
         image_url: imageUrl,
         thumbnail_url: imageUrl,
         scan_date: new Date().toISOString(),
