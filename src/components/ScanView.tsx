@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StyleSelector } from "@/components/StyleSelector";
-import { DripResults } from "@/components/DripResults";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +9,9 @@ import { motion } from "framer-motion";
 import { analyzeStyle } from "@/utils/imageAnalysis";
 import { useScanStore } from "@/store/scanStore";
 import { Sparkles } from "lucide-react";
+import { DripResults } from "@/components/DripResults";
+import { parseMarkdownToJSON } from "@/utils/analysisParser";
+import { ScoreBreakdown } from "@/types/styleTypes";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -19,7 +21,12 @@ export const ScanView = () => {
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
   const setLatestScan = useScanStore((state) => state.setLatestScan);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<{
+    overallScore: number;
+    rawAnalysis: string;
+    imageUrl?: string;
+    breakdown?: ScoreBreakdown[];
+  } | null>(null);
 
   const analysisPhrases = [
     "Scanning outfit details...",
@@ -98,6 +105,22 @@ export const ScanView = () => {
     setResult(null);
   };
 
+  const handleShare = () => {
+    toast({
+      title: "Shared",
+      description: "Your style analysis has been shared!",
+      variant: "success"
+    });
+  };
+
+  const handleSave = () => {
+    toast({
+      title: "Saved",
+      description: "Your style analysis has been saved to your profile!",
+      variant: "success"
+    });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -171,42 +194,31 @@ export const ScanView = () => {
           initial={{ opacity: 0, x: 100 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
-          className="pb-20" // Added padding to ensure content doesn't get cut off
+          className="pb-20"
         >
           {result && (
-            <>
-              <DripResults
-                totalScore={result.totalScore}
-                breakdown={result.breakdown}
-                feedback={result.feedback}
-                styleTips={result.styleTips || []}
-                nextLevelTips={result.nextLevelTips || []}
-                onShare={() => {
-                  toast({
-                    title: "Shared",
-                    description: "Your style analysis has been shared!",
-                    variant: "success"
-                  });
-                }}
-                onSave={() => {
-                  toast({
-                    title: "Saved",
-                    description: "Your style analysis has been saved to your profile!",
-                    variant: "success"
-                  });
-                }}
-                profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
-              />
-              <div className="mt-8 flex justify-center">
-                <Button
-                  onClick={handleRestart}
-                  className="bg-white/10 hover:bg-white/20 text-white transition-all"
-                >
-                  Analyze Another Outfit
-                </Button>
-              </div>
-            </>
+            <DripResults
+              totalScore={result.overallScore}
+              breakdown={result.breakdown || []}
+              feedback={
+                parseMarkdownToJSON(result.rawAnalysis).feedback ||
+                "Your outfit shows potential. Focus on accessorizing and color coordination to take it to the next level."
+              }
+              profileImage={selectedImage ? URL.createObjectURL(selectedImage) : undefined}
+              onShare={handleShare}
+              onSave={handleSave}
+              styleTips={parseMarkdownToJSON(result.rawAnalysis).styleTips}
+              nextLevelTips={parseMarkdownToJSON(result.rawAnalysis).nextLevelTips}
+            />
           )}
+          <div className="mt-8 flex justify-center">
+            <Button
+              onClick={handleRestart}
+              className="bg-white/10 hover:bg-white/20 text-white transition-all"
+            >
+              Analyze Another Outfit
+            </Button>
+          </div>
         </motion.div>
       )}
     </motion.div>

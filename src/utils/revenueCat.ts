@@ -1,91 +1,66 @@
 
-// Import the proper types and packages
-import { Capacitor } from '@capacitor/core';
-import Purchases from "@revenuecat/purchases-capacitor";
+import Purchases, { 
+  CustomerInfo, 
+  PurchasesConfiguration,
+  LOG_LEVEL 
+} from '@revenuecat/purchases-capacitor';
+import { isPlatform } from '@capacitor/core';
 
-/**
- * Initialize the RevenueCat SDK.
- * This function will be called when the app starts.
- */
-export async function initializeRevenueCat() {
+export const initializePurchases = async () => {
   try {
-    // Check if we're on a native platform (iOS or Android)
-    const isNative = Capacitor.isNativePlatform();
-    
-    if (!isNative) {
-      console.info('RevenueCat is not supported on web. Using simulation mode.');
-      return false;
+    // Only initialize on mobile platforms
+    if (!isPlatform('ios') && !isPlatform('android')) {
+      console.log('RevenueCat: Not initializing on web platform');
+      return;
     }
-    
-    // Configure RevenueCat with the API key
-    // We dynamically set the API key based on the platform
-    const apiKey = Capacitor.getPlatform() === 'ios' 
-      ? 'appl_yourAppleAPIKey' 
-      : 'goog_yourGoogleAPIKey';
 
-    // Configure RevenueCat SDK
-    await Purchases.setLogLevel({ level: 'debug' });
-    
-    // Setup the SDK with the API key
-    await Purchases.configure({
+    const apiKey = isPlatform('ios') 
+      ? import.meta.env.VITE_REVENUECAT_IOS_KEY
+      : import.meta.env.VITE_REVENUECAT_ANDROID_KEY;
+
+    if (!apiKey) {
+      console.error('RevenueCat: API key not found for platform');
+      return;
+    }
+
+    console.log(`RevenueCat: Initializing for ${isPlatform('ios') ? 'iOS' : 'Android'}`);
+
+    const configuration: PurchasesConfiguration = {
       apiKey,
-      appUserID: null, // Let RC handle user IDs for now
-    });
-    
-    console.log('RevenueCat initialized successfully');
-    return true;
+      logLevel: LOG_LEVEL.DEBUG
+    };
+
+    await Purchases.configure(configuration);
+    console.log('RevenueCat: Successfully initialized');
   } catch (error) {
-    console.error('Error initializing RevenueCat:', error);
+    console.error('RevenueCat: Failed to initialize:', error);
+  }
+};
+
+export const getCustomerInfo = async (): Promise<CustomerInfo | null> => {
+  try {
+    if (!isPlatform('ios') && !isPlatform('android')) {
+      return null;
+    }
+
+    const { customerInfo } = await Purchases.getCustomerInfo();
+    return customerInfo;
+  } catch (error) {
+    console.error('RevenueCat: Failed to get customer info:', error);
+    return null;
+  }
+};
+
+export const checkSubscriptionStatus = async (): Promise<boolean> => {
+  try {
+    const customerInfo = await getCustomerInfo();
+    if (!customerInfo) return false;
+    
+    // Check if user has active entitlement
+    return customerInfo.entitlements.active && 
+           Object.keys(customerInfo.entitlements.active).length > 0;
+  } catch (error) {
+    console.error('RevenueCat: Failed to check subscription status:', error);
     return false;
   }
-}
-
-/**
- * Get the current user's subscription info
- */
-export async function getSubscriptionStatus() {
-  try {
-    // Check if we're on a native platform (iOS or Android)
-    const isNative = Capacitor.isNativePlatform();
-    
-    if (!isNative) {
-      // Simulate a subscription for web development
-      return {
-        isPro: false,
-        expirationDate: null,
-        isLifetime: false
-      };
-    }
-    
-    // Get the user's current subscription info
-    const { customerInfo } = await Purchases.getCustomerInfo();
-    
-    // Check if user has an active subscription
-    const isPro = customerInfo?.entitlements?.active?.['pro'] !== undefined;
-    
-    // Get expiration date
-    const expirationMs = customerInfo?.entitlements?.active?.['pro']?.expiresDate 
-      ? parseInt(customerInfo.entitlements.active['pro'].expiresDate) 
-      : null;
-    
-    const expirationDate = expirationMs ? new Date(expirationMs) : null;
-    
-    // Check if this is a lifetime purchase
-    const isLifetime = customerInfo?.nonSubscriptionTransactions?.some(
-      transaction => transaction.productIdentifier === 'lifetime_pro'
-    ) || false;
-    
-    return {
-      isPro,
-      expirationDate,
-      isLifetime
-    };
-  } catch (error) {
-    console.error('Error getting subscription status:', error);
-    return {
-      isPro: false,
-      expirationDate: null,
-      isLifetime: false
-    };
-  }
-}
+};
