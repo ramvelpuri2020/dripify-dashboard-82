@@ -1,3 +1,4 @@
+
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,10 +10,24 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StyleAnalysis, ScoreBreakdown } from "@/types/styleTypes";
+import type { Json } from "@/integrations/supabase/types";
 
 const getImageUrl = (path: string) => {
   if (!path) return '/placeholder.svg';
   return path; // URLs from storage are already public
+};
+
+// Helper function to safely handle array operations on breakdown
+const safeArrayOperation = (breakdown: ScoreBreakdown[] | Json | undefined, operation: 'slice' | 'map' | 'length', ...args: any[]) => {
+  if (!breakdown) return operation === 'length' ? 0 : [];
+  
+  if (Array.isArray(breakdown)) {
+    if (operation === 'slice') return breakdown.slice(...args);
+    if (operation === 'map') return breakdown.map(...args);
+    if (operation === 'length') return breakdown.length;
+  }
+  
+  return operation === 'length' ? 0 : [];
 };
 
 export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) => {
@@ -123,7 +138,7 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                           </span>
                         </div>
                         <div className="mt-1 flex gap-2 flex-wrap">
-                          {analysis.breakdown && analysis.breakdown.slice(0, 3).map((item, i) => (
+                          {analysis.breakdown && safeArrayOperation(analysis.breakdown as (ScoreBreakdown[] | Json), 'slice', 0, 3).map((item: any, i: number) => (
                             <div key={i} className="flex items-center gap-1">
                               <span className="text-sm">{item.emoji}</span>
                               <span className="text-xs text-[#C8C8C9]">{item.score}</span>
@@ -198,11 +213,11 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                     <p className="text-sm text-[#C8C8C9] leading-relaxed">{selectedAnalysis.feedback}</p>
                   </div>
                   
-                  {selectedAnalysis.breakdown && selectedAnalysis.breakdown.length > 0 && (
+                  {selectedAnalysis.breakdown && safeArrayOperation(selectedAnalysis.breakdown as (ScoreBreakdown[] | Json), 'length') > 0 && (
                     <div className="space-y-2">
                       <h4 className="font-medium text-white/90 mb-2">Breakdown</h4>
                       <div className="grid grid-cols-1 gap-3">
-                        {selectedAnalysis.breakdown.map((item: any, i: number) => (
+                        {safeArrayOperation(selectedAnalysis.breakdown as (ScoreBreakdown[] | Json), 'map', (item: any, i: number) => (
                           <Card 
                             key={i} 
                             className={`bg-black/20 border-white/5 p-4 cursor-pointer hover:bg-black/30 transition-colors ${

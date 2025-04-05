@@ -51,7 +51,7 @@ export const DashboardView = () => {
           if (analysis.breakdown && typeof analysis.breakdown === 'object') {
             // If it's already an array, cast it
             if (Array.isArray(analysis.breakdown)) {
-              typedBreakdown = analysis.breakdown as ScoreBreakdown[];
+              typedBreakdown = analysis.breakdown as unknown as ScoreBreakdown[];
             } 
             // If it's a JSON string that needs parsing
             else if (typeof analysis.breakdown === 'string') {

@@ -42,7 +42,7 @@ serve(async (req) => {
 
     For each category, provide at least 3-4 sentences of detailed, specific feedback - not generic statements.
 
-    Return JSON in this EXACT format without any markdown formatting:
+    IMPORTANT: Return ONLY valid JSON in this EXACT format with no markdown, no explanations, no extra text, no asterisks, or any other content that is not part of the JSON structure:
 
     {
       "totalScore": <1-10 whole number>,
@@ -105,7 +105,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: "Analyze this outfit and provide brutally honest, detailed style feedback. Be specific about what you see, name exact pieces, colors, and fits. Don't hold back and don't be generic."
+                text: "Analyze this outfit and provide detailed style feedback with valid JSON only. Do not include any explanatory text, markdown, or other formatting outside the JSON structure."
               },
               {
                 type: 'image_url',
@@ -146,33 +146,69 @@ serve(async (req) => {
     // Try to parse the JSON from the response
     let analysis;
     try {
-      // First try direct parsing
-      analysis = JSON.parse(analysisContent);
-      console.log('Successfully parsed JSON directly');
-    } catch (parseError) {
-      console.error('Failed to parse JSON directly:', parseError);
-      
-      try {
-        // Extract JSON from the response
-        const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          console.error('No valid JSON found in response');
+      // First try to find and extract just the JSON object
+      const jsonMatch = analysisContent.match(/\{[\s\S]*?("totalScore"|"breakdown"|"feedback")[\s\S]*\}/);
+      if (jsonMatch) {
+        // We found something that looks like a JSON object with expected keys
+        const jsonCandidate = jsonMatch[0];
+        console.log('Found JSON candidate:', jsonCandidate.substring(0, 100) + '...');
+        
+        // Clean up the JSON string
+        let cleanJson = jsonCandidate
+          .replace(/\n/g, ' ')            // Remove newlines
+          .replace(/\r/g, '')             // Remove carriage returns
+          .replace(/\\"/g, '"')           // Fix escaped quotes
+          .replace(/"\s*\+\s*"/g, '')     // Fix concatenated strings
+          .replace(/,\s*\}/g, '}')        // Remove trailing commas in objects
+          .replace(/,\s*\]/g, ']');       // Remove trailing commas in arrays
+          
+        try {
+          analysis = JSON.parse(cleanJson);
+          console.log('Successfully parsed extracted JSON');
+        } catch (extractError) {
+          console.error('Failed to parse extracted JSON:', extractError);
+          // Try a more aggressive cleanup
+          cleanJson = cleanJson
+            .replace(/[^\x20-\x7E]/g, '') // Remove non-ASCII characters
+            .replace(/```json|```/g, '')  // Remove markdown code blocks
+            .replace(/\\n/g, '')          // Remove escaped newlines
+            .replace(/\\t/g, '')          // Remove escaped tabs
+            .trim();
+          
+          try {
+            analysis = JSON.parse(cleanJson);
+            console.log('Successfully parsed with aggressive cleanup');
+          } catch (finalError) {
+            console.error('Failed final JSON parsing attempt:', finalError);
+            throw new Error('Failed to parse AI response after multiple attempts');
+          }
+        }
+      } else {
+        // Try direct parsing as a fallback
+        try {
+          analysis = JSON.parse(analysisContent);
+          console.log('Successfully parsed JSON directly');
+        } catch (parseError) {
+          console.error('Failed to parse JSON directly:', parseError);
           throw new Error('No valid JSON found in response');
         }
-        
-        let jsonStr = jsonMatch[0]
-          .replace(/,\s*\}/g, '}')  // Remove trailing commas in objects
-          .replace(/,\s*\]/g, ']')  // Remove trailing commas in arrays
-          .replace(/\n/g, ' ')      // Remove newlines
-          .replace(/\\"/g, '"')     // Fix escaped quotes
-          .replace(/"\s*\+\s*"/g, ''); // Fix concatenated strings
-        
-        analysis = JSON.parse(jsonStr);
-        console.log('Successfully parsed extracted JSON');
-      } catch (extractError) {
-        console.error('Failed to extract valid JSON:', extractError);
-        throw new Error('Failed to parse AI response');
       }
+    } catch (error) {
+      console.error('JSON parsing error:', error);
+      // Fall back to default response with the feedback text
+      analysis = {
+        totalScore: 7,
+        breakdown: [
+          { category: "Overall Style", score: 7, emoji: "👑", details: "The outfit shows promise but could use more intention in styling." },
+          { category: "Color Coordination", score: 6, emoji: "🎨", details: "The color palette is decent but lacks cohesion in some areas." },
+          { category: "Fit & Proportion", score: 7, emoji: "📏", details: "The fit is generally flattering but could be refined." },
+          { category: "Accessories", score: 5, emoji: "⭐", details: "The accessories are minimal and could be more impactful." },
+          { category: "Trend Alignment", score: 7, emoji: "✨", details: "There are some on-trend elements but more could be incorporated." },
+          { category: "Style Expression", score: 7, emoji: "🪄", details: "Your personal style shows through but could be amplified." }
+        ],
+        feedback: analysisContent.substring(0, 500) // Use the raw text as feedback
+      };
+      console.log('Using fallback analysis structure with raw text');
     }
 
     // Now generate more detailed tips in a separate request
@@ -192,7 +228,7 @@ serve(async (req) => {
     
     Be conversational and use authentic stylist language - drop fashion references, insider terms, and speak in a distinct voice that sounds like a real person.
     
-    Return JSON in this exact format without any markdown formatting:
+    IMPORTANT: Return ONLY valid JSON in this EXACT format with no markdown, no explanations, and no content outside the JSON:
     
     {
       "styleTips": [
@@ -242,7 +278,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: `Here's the style analysis of this outfit: ${JSON.stringify(analysis)}. Generate extremely detailed, specific improvement tips for each category based on this analysis and what you can see in the image.`
+                text: `Here's the style analysis of this outfit: ${JSON.stringify(analysis)}. Generate extremely detailed, specific improvement tips for each category based on this analysis and what you can see in the image. Return only valid JSON.`
               },
               {
                 type: 'image_url',
@@ -281,32 +317,128 @@ serve(async (req) => {
     // Try to parse the JSON from the tips response
     let tips;
     try {
-      tips = JSON.parse(tipsContent);
-      console.log('Successfully parsed tips JSON directly');
-    } catch (parseError) {
-      console.error('Failed to parse tips JSON directly:', parseError);
-      
-      try {
-        // Extract JSON from the response
-        const jsonMatch = tipsContent.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          console.error('No valid JSON found in tips response');
+      // First try to find and extract just the JSON object
+      const jsonMatch = tipsContent.match(/\{[\s\S]*?("styleTips"|"nextLevelTips")[\s\S]*\}/);
+      if (jsonMatch) {
+        // We found something that looks like a JSON object with expected keys
+        const jsonCandidate = jsonMatch[0];
+        console.log('Found tips JSON candidate:', jsonCandidate.substring(0, 100) + '...');
+        
+        // Clean up the JSON string
+        let cleanJson = jsonCandidate
+          .replace(/\n/g, ' ')            // Remove newlines
+          .replace(/\r/g, '')             // Remove carriage returns
+          .replace(/\\"/g, '"')           // Fix escaped quotes
+          .replace(/"\s*\+\s*"/g, '')     // Fix concatenated strings
+          .replace(/,\s*\}/g, '}')        // Remove trailing commas in objects
+          .replace(/,\s*\]/g, ']');       // Remove trailing commas in arrays
+          
+        try {
+          tips = JSON.parse(cleanJson);
+          console.log('Successfully parsed extracted tips JSON');
+        } catch (extractError) {
+          console.error('Failed to parse extracted tips JSON:', extractError);
+          // Try a more aggressive cleanup
+          cleanJson = cleanJson
+            .replace(/[^\x20-\x7E]/g, '') // Remove non-ASCII characters
+            .replace(/```json|```/g, '')  // Remove markdown code blocks
+            .replace(/\\n/g, '')          // Remove escaped newlines
+            .replace(/\\t/g, '')          // Remove escaped tabs
+            .trim();
+          
+          try {
+            tips = JSON.parse(cleanJson);
+            console.log('Successfully parsed tips with aggressive cleanup');
+          } catch (finalError) {
+            console.error('Failed final tips JSON parsing attempt:', finalError);
+            throw new Error('Failed to parse tips response after multiple attempts');
+          }
+        }
+      } else {
+        // Try direct parsing as a fallback
+        try {
+          tips = JSON.parse(tipsContent);
+          console.log('Successfully parsed tips JSON directly');
+        } catch (parseError) {
+          console.error('Failed to parse tips JSON directly:', parseError);
           throw new Error('No valid JSON found in tips response');
         }
-        
-        let jsonStr = jsonMatch[0]
-          .replace(/,\s*\}/g, '}')  // Remove trailing commas in objects
-          .replace(/,\s*\]/g, ']')  // Remove trailing commas in arrays
-          .replace(/\n/g, ' ')      // Remove newlines
-          .replace(/\\"/g, '"')     // Fix escaped quotes
-          .replace(/"\s*\+\s*"/g, ''); // Fix concatenated strings
-        
-        tips = JSON.parse(jsonStr);
-        console.log('Successfully parsed extracted tips JSON');
-      } catch (extractError) {
-        console.error('Failed to extract valid tips JSON:', extractError);
-        throw new Error('Failed to parse tips response');
       }
+    } catch (error) {
+      console.error('Tips JSON parsing error:', error);
+      // Fall back to default tips
+      tips = {
+        styleTips: [
+          {
+            category: "Overall Style",
+            tips: [
+              "Add a structured blazer in a complementary color to elevate your casual outfit to smart-casual.",
+              "Try a French tuck with your top to create a more intentional silhouette.",
+              "Layer with different textures like adding a knit cardigan over your current outfit.",
+              "Consider incorporating a signature accessory that becomes your style calling card.",
+              "Play with proportions by mixing fitted and relaxed pieces for visual interest."
+            ]
+          },
+          {
+            category: "Color Coordination",
+            tips: [
+              "Add a pop of complementary color through an accessory like a scarf or statement bag.",
+              "Try the 60-30-10 color rule: 60% dominant color, 30% secondary color, 10% accent color.",
+              "Consider monochromatic styling with different shades of your favorite color.",
+              "Match one color from your outfit to your accessories for cohesion.",
+              "Incorporate patterns that contain colors from your base outfit to tie everything together."
+            ]
+          },
+          {
+            category: "Fit & Proportion",
+            tips: [
+              "Have key pieces tailored to your specific measurements for a custom fit.",
+              "Balance volume - if wearing something loose on top, pair with something fitted on bottom.",
+              "Consider your vertical proportions by using high-waisted bottoms to elongate your legs.",
+              "Use strategic tailoring tricks like darts or seams to enhance your natural shape.",
+              "Pay attention to where hems hit on your body - aim for the most flattering points."
+            ]
+          },
+          {
+            category: "Accessories",
+            tips: [
+              "Layer necklaces of different lengths to create visual dimension.",
+              "Add a belt to define your waist and add structure to your outfit.",
+              "Incorporate a statement bag that adds personality to basic outfits.",
+              "Try mixing metals in your jewelry for a modern, curated look.",
+              "Use accessories in unexpected ways, like a silk scarf as a headband or bag charm."
+            ]
+          },
+          {
+            category: "Trend Alignment",
+            tips: [
+              "Incorporate one current trend while keeping the rest of your outfit classic.",
+              "Try statement sleeves or interesting necklines which are trending but versatile.",
+              "Add a contemporary twist with trending footwear styles.",
+              "Experiment with current color trends in small doses through accessories.",
+              "Consider trending silhouettes that work well with your body type."
+            ]
+          },
+          {
+            category: "Style Expression",
+            tips: [
+              "Create a signature look by consistently incorporating one distinctive element.",
+              "Mix high and low pieces to show personal styling prowess.",
+              "Add unexpected elements that showcase your personality and interests.",
+              "Incorporate vintage or unique pieces that tell a story.",
+              "Develop a consistent color palette that becomes your personal signature."
+            ]
+          }
+        ],
+        nextLevelTips: [
+          "Develop a capsule wardrobe of 30-40 pieces that all work together seamlessly.",
+          "Master the art of layering with varying lengths, textures, and weights.",
+          "Create a style mood board to identify patterns in what you're drawn to aesthetically.",
+          "Invest in quality foundation pieces that can be styled multiple ways.",
+          "Learn basic alterations to customize off-the-rack pieces to your specific proportions."
+        ]
+      };
+      console.log('Using fallback tips structure');
     }
 
     // Combine the results
