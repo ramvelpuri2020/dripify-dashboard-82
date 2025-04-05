@@ -1,3 +1,4 @@
+
 interface Scores {
   colorCoordination: number;
   fitProportion: number;
@@ -192,12 +193,12 @@ export const parseAnalysis = (analysis: string) => {
   return {
     totalScore,
     breakdown: [
-      { category: "Color Coordination", score: scores.colorCoordination, emoji: "🎨" },
-      { category: "Fit & Proportion", score: scores.fitProportion, emoji: "📏" },
-      { category: "Style Coherence", score: scores.styleCoherence, emoji: "✨" },
-      { category: "Accessories", score: scores.accessories, emoji: "💍" },
-      { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🎯" },
-      { category: "Trend Awareness", score: scores.trendAwareness, emoji: "🌟" },
+      { category: "Color Coordination", score: scores.colorCoordination, emoji: "🎨", details: "Your color choices show good coordination." },
+      { category: "Fit & Proportion", score: scores.fitProportion, emoji: "📏", details: "The fit and proportions of your outfit work well." },
+      { category: "Style Coherence", score: scores.styleCoherence, emoji: "✨", details: "Your outfit has a cohesive style." },
+      { category: "Accessories", score: scores.accessories, emoji: "💍", details: "Your accessory choices complement your outfit." },
+      { category: "Outfit Creativity", score: scores.outfitCreativity, emoji: "🎯", details: "Your outfit shows creative elements." },
+      { category: "Trend Awareness", score: scores.trendAwareness, emoji: "🌟", details: "Your outfit incorporates current fashion trends." },
     ],
     feedback: analysis
   };

@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 import type { StyleAnalysisResult } from '@/types/styleTypes';
+import { parseAnalysis } from '@/utils/analysisParser';
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
   try {
@@ -33,6 +34,9 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
                        data.feedback.match(/Total Score:?\s*(\d+\.?\d*)/i);
     const overallScore = scoreMatch ? Math.round(parseFloat(scoreMatch[1])) : 7;
     
+    // Parse the detailed analysis
+    const analysisData = parseAnalysis(data.feedback);
+    
     // Upload image to Supabase Storage
     const imageUrl = await uploadImageToSupabase(imageFile);
     console.log('Image uploaded to Supabase:', imageUrl);
@@ -45,17 +49,15 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     }
     
     if (userData && userData.user) {
-      // Create a simple breakdown for database compatibility
-      const placeholderBreakdown = JSON.stringify([
-        { category: "Overall Style", score: overallScore, emoji: "👑" }
-      ]);
+      // Create a breakdown for database compatibility
+      const breakdownJson = JSON.stringify(analysisData.breakdown);
       
-      const analysisData = {
+      const dbAnalysisData = {
         user_id: userData.user.id,
         total_score: overallScore,
         raw_analysis: data.feedback,
         feedback: data.feedback.substring(0, 200) + '...', // First 200 chars as summary
-        breakdown: placeholderBreakdown,
+        breakdown: breakdownJson,
         image_url: imageUrl,
         thumbnail_url: imageUrl,
         scan_date: new Date().toISOString(),
@@ -63,7 +65,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       
       const { error: insertError } = await supabase
         .from('style_analyses')
-        .insert(analysisData);
+        .insert(dbAnalysisData);
         
       if (insertError) {
         console.error('Error saving analysis to database:', insertError);

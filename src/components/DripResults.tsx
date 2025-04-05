@@ -1,4 +1,3 @@
-
 import { Share2, Save, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -6,13 +5,7 @@ import { motion } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-
-interface ScoreBreakdown {
-  category: string;
-  score: number;
-  emoji: string;
-  details?: string;
-}
+import { ScoreBreakdown } from "@/types/styleTypes";
 
 interface StyleTip {
   category: string;
