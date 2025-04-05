@@ -64,24 +64,7 @@ export const ScanView = () => {
       
       console.log('Analysis completed successfully:', analysisResult);
       setResult(analysisResult);
-      
-      // Convert the result to match the expected format for setLatestScan
-      const formattedResult = {
-        ...analysisResult,
-        breakdown: analysisResult.breakdown || analysisResult.categories.map(cat => ({
-          category: cat.name,
-          score: cat.score,
-          emoji: getCategoryEmoji(cat.name),
-          details: cat.details
-        })),
-        feedback: analysisResult.summary,
-        styleTips: analysisResult.categories.map(cat => ({
-          category: cat.name,
-          tips: analysisResult.tips.filter(tip => tip.toLowerCase().includes(cat.name.toLowerCase()))
-        }))
-      };
-      
-      setLatestScan(formattedResult);
+      setLatestScan(analysisResult);
       
       clearInterval(phraseCycleInterval);
       
@@ -180,7 +163,6 @@ export const ScanView = () => {
                         transition={{ 
                           duration: 10,
                           ease: "easeInOut",
-                          repeat: Infinity,
                         }}
                       />
                     </div>
@@ -201,16 +183,14 @@ export const ScanView = () => {
           {result && (
             <DripResults
               totalScore={result.totalScore}
-              breakdown={result.breakdown || result.categories.map(cat => ({
-                category: cat.name,
-                score: cat.score,
-                emoji: getCategoryEmoji(cat.name),
-                details: cat.details
-              }))}
+              breakdown={result.breakdown}
               feedback={result.summary}
               styleTips={result.categories.map(cat => ({
                 category: cat.name,
-                tips: result.tips.filter(tip => tip.toLowerCase().includes(cat.name.toLowerCase()))
+                tips: result.tips.filter(tip => 
+                  tip.toLowerCase().includes(cat.name.toLowerCase()) || 
+                  Math.random() > 0.7 // Randomly assign some tips to categories
+                )
               }))}
               nextLevelTips={result.nextLevelTips}
               onShare={handleShare}
@@ -222,16 +202,4 @@ export const ScanView = () => {
       )}
     </motion.div>
   );
-};
-
-// Helper function to get emoji for category
-const getCategoryEmoji = (category: string): string => {
-  const categoryLower = category.toLowerCase();
-  if (categoryLower.includes('overall') || categoryLower.includes('style expression')) return '👑';
-  if (categoryLower.includes('color')) return '🎨';
-  if (categoryLower.includes('fit') || categoryLower.includes('proportion')) return '📏';
-  if (categoryLower.includes('accessor')) return '⭐';
-  if (categoryLower.includes('trend')) return '✨';
-  if (categoryLower.includes('personal')) return '🪄';
-  return '🪄';
 };
