@@ -33,6 +33,7 @@ export interface StyleAnalysis {
 export interface StyleAnalysisResult {
   overallScore: number;
   rawAnalysis: string;
+  breakdown?: ScoreBreakdown[];
   imageUrl?: string;
   timestamp?: Date;
 }

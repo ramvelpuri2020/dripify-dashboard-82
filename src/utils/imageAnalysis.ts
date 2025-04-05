@@ -1,7 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
-import type { StyleAnalysisResult } from '@/types/styleTypes';
+import type { ScoreBreakdown, StyleAnalysisResult } from '@/types/styleTypes';
+import { parseMarkdownToJSON } from '@/utils/analysisParser';
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
   try {
@@ -28,10 +28,8 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       throw new Error('Invalid response format from AI service');
     }
     
-    // Extract the overall score with regex
-    const scoreMatch = data.feedback.match(/Overall Score:?\s*(\d+\.?\d*)/i) || 
-                       data.feedback.match(/Total Score:?\s*(\d+\.?\d*)/i);
-    const overallScore = scoreMatch ? Math.round(parseFloat(scoreMatch[1])) : 7;
+    // Parse the raw analysis to extract structured data
+    const parsedAnalysis = parseMarkdownToJSON(data.feedback);
     
     // Upload image to Supabase Storage
     const imageUrl = await uploadImageToSupabase(imageFile);
@@ -45,17 +43,15 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     }
     
     if (userData && userData.user) {
-      // Create a simple breakdown for database compatibility
-      const placeholderBreakdown = JSON.stringify([
-        { category: "Overall Style", score: overallScore, emoji: "👑" }
-      ]);
+      // Stringify the breakdown for database compatibility
+      const breakdownJson = JSON.stringify(parsedAnalysis.breakdown || []);
       
       const analysisData = {
         user_id: userData.user.id,
-        total_score: overallScore,
+        total_score: parsedAnalysis.totalScore,
         raw_analysis: data.feedback,
-        feedback: data.feedback.substring(0, 200) + '...', // First 200 chars as summary
-        breakdown: placeholderBreakdown,
+        feedback: parsedAnalysis.feedback || data.feedback.substring(0, 200) + '...', 
+        breakdown: breakdownJson,
         image_url: imageUrl,
         thumbnail_url: imageUrl,
         scan_date: new Date().toISOString(),
@@ -74,10 +70,11 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       console.log('User not logged in, skipping database save');
     }
     
-    // Create simplified result
+    // Create result in the format expected by the UI
     const result: StyleAnalysisResult = {
-      overallScore,
+      overallScore: parsedAnalysis.totalScore,
       rawAnalysis: data.feedback,
+      breakdown: parsedAnalysis.breakdown,
       imageUrl
     };
     
