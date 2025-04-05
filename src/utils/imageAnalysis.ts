@@ -80,7 +80,8 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     const result: StyleAnalysisResult = {
       overallScore,
       rawAnalysis: data.feedback,
-      imageUrl
+      imageUrl,
+      breakdown: analysisData.breakdown
     };
     
     // Update the scan store with the new analysis

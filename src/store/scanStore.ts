@@ -32,7 +32,7 @@ export const useScanStore = create<ScanStore>((set, get) => ({
   },
   
   setLatestScan: (scan) => set({ 
-    latestScan: { ...scan, timestamp: new Date() }
+    latestScan: scan
   }),
   
   fetchUserStats: async (userId) => {
