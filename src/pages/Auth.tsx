@@ -9,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronRight, Check, Star, Shirt } from "lucide-react";
-import { initializePurchases } from "@/utils/revenueCat";
 
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth" | "paywall";
 
@@ -23,7 +22,6 @@ export const Auth = () => {
   const [gender, setGender] = useState<string>("");
   const [referralSource, setReferralSource] = useState<string>("");
   const [selectedPlan, setSelectedPlan] = useState<string>("free");
-  const [purchasesInitialized, setPurchasesInitialized] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -34,16 +32,7 @@ export const Auth = () => {
         navigate("/");
       }
     });
-
-    // Initialize RevenueCat
-    if (!purchasesInitialized) {
-      initializePurchases()
-        .then(() => setPurchasesInitialized(true))
-        .catch((error) => {
-          console.error("Error initializing RevenueCat:", error);
-        });
-    }
-  }, [navigate, purchasesInitialized]);
+  }, [navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -364,7 +353,7 @@ export const Auth = () => {
           Back
         </Button>
         <Button 
-          onClick={nextStep}
+          onClick={nextStep} 
           className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
         >
           {selectedPlan === 'free' ? 'Continue with Free' : 'Continue with Premium'}
@@ -479,20 +468,9 @@ export const Auth = () => {
   );
 
   const handleSelectSubscription = async (planType: 'free_trial' | 'monthly') => {
-    if (!purchasesInitialized) {
-      toast({
-        title: "Error",
-        description: "Payment system is still initializing. Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSubscribing(true);
     
     try {
-      // This would typically use RevenueCat's purchase API
-      // For now, we'll simulate the subscription process
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       setSelectedPlan(planType === 'free_trial' ? 'premium_trial' : 'premium');
@@ -505,7 +483,6 @@ export const Auth = () => {
         variant: "success",
       });
       
-      // Move to the next step
       setCurrentStep("auth");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred";
