@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
-import type { StyleAnalysisResult, StyleAnalysisCategory } from '@/types/styleTypes';
+import type { StyleAnalysisResult, ScoreBreakdown } from '@/types/styleTypes';
 import { parseMarkdownToJSON } from './analysisParser';
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
@@ -47,10 +47,11 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     }
     
     if (userData && userData.user) {
+      // Important: Convert the breakdown to Json type for database compatibility
       const analysisData = {
         user_id: userData.user.id,
         total_score: validatedResult.totalScore,
-        breakdown: validatedResult.breakdown,
+        breakdown: validatedResult.breakdown as any, // Cast to any for database compatibility
         feedback: validatedResult.feedback,
         tips: validatedResult.styleTips || [],
         image_url: imageUrl,
