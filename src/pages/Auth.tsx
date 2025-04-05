@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronRight, Check, Star, Shirt } from "lucide-react";
-import { initializePurchases } from "@/utils/revenueCat";
+import { initializeRevenueCat } from "@/utils/revenueCat";
 
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth" | "paywall";
 
@@ -37,7 +37,7 @@ export const Auth = () => {
 
     // Initialize RevenueCat
     if (!purchasesInitialized) {
-      initializePurchases()
+      initializeRevenueCat()
         .then(() => setPurchasesInitialized(true))
         .catch((error) => {
           console.error("Error initializing RevenueCat:", error);

@@ -1,6 +1,6 @@
 
 import { Capacitor } from '@capacitor/core';
-import Purchases from '@revenuecat/purchases-capacitor';
+import * as Purchases from '@revenuecat/purchases-capacitor';
 
 const isNativePlatform = () => {
   return Capacitor.isNativePlatform() && (Capacitor.getPlatform() === 'ios' || Capacitor.getPlatform() === 'android');
@@ -20,7 +20,7 @@ export const initializeRevenueCat = async () => {
       observerMode: false
     };
 
-    await Purchases.configure(purchasesConfiguration);
+    await Purchases.PurchasesPlugin.configure(purchasesConfiguration);
     console.log('RevenueCat initialized successfully');
   } catch (error) {
     console.error('Error initializing RevenueCat:', error);
@@ -41,7 +41,7 @@ export const getCustomerInfo = async () => {
       };
     }
 
-    const customerInfo = await Purchases.getCustomerInfo();
+    const customerInfo = await Purchases.PurchasesPlugin.getCustomerInfo();
     return customerInfo;
   } catch (error) {
     console.error('Error getting customer info:', error);
@@ -81,10 +81,10 @@ export const purchasePackage = async (packageIdentifier: string) => {
     }
 
     const options = {
-      aPackage: packageIdentifier,
+      packageIdentifier: packageIdentifier,
     };
     
-    const purchaseResult = await Purchases.purchasePackage({ packageIdentifier });
+    const purchaseResult = await Purchases.PurchasesPlugin.purchasePackage(options);
     return purchaseResult;
   } catch (error) {
     console.error('Error making purchase:', error);
@@ -122,7 +122,7 @@ export const getOfferings = async () => {
       };
     }
     
-    const offerings = await Purchases.getOfferings();
+    const offerings = await Purchases.PurchasesPlugin.getOfferings();
     return offerings.current;
   } catch (error) {
     console.error('Error getting offerings:', error);
@@ -145,7 +145,7 @@ export const restorePurchases = async () => {
       };
     }
     
-    const restoreResult = await Purchases.restorePurchases();
+    const restoreResult = await Purchases.PurchasesPlugin.restorePurchases();
     return restoreResult;
   } catch (error) {
     console.error('Error restoring purchases:', error);
