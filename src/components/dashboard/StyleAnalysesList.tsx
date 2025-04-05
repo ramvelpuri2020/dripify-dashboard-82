@@ -1,4 +1,3 @@
-
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,24 +8,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
-interface ScoreBreakdown {
-  category: string;
-  score: number;
-  emoji: string;
-  details?: string;
-}
-
-interface StyleAnalysis {
-  id: string;
-  total_score: number;
-  feedback: string;
-  image_url: string;
-  thumbnail_url?: string;
-  created_at: string;
-  scan_date: string;
-  breakdown?: ScoreBreakdown[];
-}
+import { StyleAnalysis, ScoreBreakdown } from "@/types/styleTypes";
 
 const getImageUrl = (path: string) => {
   if (!path) return '/placeholder.svg';

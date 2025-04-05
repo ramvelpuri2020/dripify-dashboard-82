@@ -1,24 +1,8 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
+import { StyleAnalysisResult, StyleAnalysisCategory } from '@/types/styleTypes';
 
-export interface StyleAnalysisCategory {
-  name: string;
-  score: number;
-  details: string;
-}
-
-export interface StyleAnalysisResult {
-  fullAnalysis?: string;
-  totalScore: number;
-  categories?: StyleAnalysisCategory[];
-  tips?: string[];
-  nextLevelTips?: string[];
-  summary?: string;
-  breakdown: { category: string; score: number; emoji: string; details?: string }[];
-  feedback: string;
-  styleTips?: { category: string; tips: string[] }[];
-}
+export { StyleAnalysisResult, StyleAnalysisCategory };
 
 export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult> => {
   try {

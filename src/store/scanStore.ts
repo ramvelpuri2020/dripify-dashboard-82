@@ -1,23 +1,6 @@
-
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
-
-export interface StyleAnalysisResult {
-  totalScore: number;
-  breakdown: {
-    category: string;
-    score: number;
-    emoji: string;
-    details?: string;
-  }[];
-  feedback: string;
-  styleTips?: {
-    category: string;
-    tips: string[];
-  }[];
-  nextLevelTips?: string[];
-  timestamp?: Date;
-}
+import { StyleAnalysisResult } from '@/types/styleTypes';
 
 interface ScanStoreState {
   latestScan: StyleAnalysisResult | null;

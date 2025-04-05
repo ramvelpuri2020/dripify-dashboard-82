@@ -1,4 +1,3 @@
-
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,17 +10,7 @@ import { DashboardHeader } from "./dashboard/DashboardHeader";
 import { StyleStats } from "./dashboard/StyleStats";
 import { StyleAnalysesList } from "./dashboard/StyleAnalysesList";
 import { QuickStartSection } from "./dashboard/QuickStartSection";
-
-interface StyleAnalysis {
-  id: string;
-  total_score: number;
-  feedback: string;
-  image_url: string;
-  thumbnail_url: string;
-  created_at: string;
-  streak_count: number;
-  last_scan_date: string;
-}
+import { StyleAnalysis } from "@/types/styleTypes";
 
 export const DashboardView = () => {
   const navigate = useNavigate();
@@ -87,7 +76,6 @@ export const DashboardView = () => {
   useEffect(() => {
     fetchAnalyses();
 
-    // Set up real-time subscription for changes
     const subscription = supabase
       .channel('style_analyses_changes')
       .on('postgres_changes', 
