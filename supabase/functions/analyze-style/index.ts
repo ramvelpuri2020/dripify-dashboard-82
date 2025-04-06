@@ -94,11 +94,7 @@ YOU MUST PROVIDE YOUR ANALYSIS IN THIS MARKDOWN FORMAT (do not deviate from this
 
 DO NOT explain the scoring system. DO NOT begin with "As a fashion stylist" or any other introduction. Start directly with the analysis.
 
-IMPORTANT: 
-- Be varied in your scoring - don't just give everything a 7/10. Use the full range from 1-10 based on the actual outfit quality. 
-- Be REALISTIC in your scoring (don't be afraid to give higher scores like 8, 9, or even 10 if deserved) 
-- Be friendly and casual in your tone, like you're talking to a friend, not writing a formal report.
-- Be encouraging and focus on the positive aspects of the outfit while still giving honest feedback.`;
+IMPORTANT: Be varied in your scoring - don't just give everything a 7/10. Use the full range from 1-10 based on the actual outfit quality. Be realistic but encouraging!`;
 
     // Make request to Nebius API
     const response = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
@@ -121,7 +117,7 @@ IMPORTANT:
             content: [
               {
                 type: 'text',
-                text: "Analyze this outfit and provide detailed style feedback following the exact format specified. Remember to be encouraging and honest, use a range of scores - not just 7s. Be relaxed and friendly, like you're giving advice to a friend. Don't be afraid to give high scores for genuinely good outfits. The person is looking for authentic but supportive feedback."
+                text: "Analyze this outfit and provide detailed style feedback following the exact format specified. Remember to be encouraging and honest, use a range of scores - not just 7s. The person is looking for genuine but constructive feedback."
               },
               {
                 type: 'image_url',

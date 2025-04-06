@@ -31,23 +31,9 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     
     // Parse the analysis with our improved parser
     const analysisData = parseAnalysis(data.feedback);
-    console.log('Parsed analysis data:', analysisData);
     
-    // Extract the overall score from the parsed data, falling back to a calculated average if not found
-    let overallScore = analysisData.overallScore;
-    
-    // If there's no explicit overall score, calculate it as the average of category scores
-    if (!overallScore && analysisData.breakdown.length > 0) {
-      const sum = analysisData.breakdown.reduce((acc, item) => acc + item.score, 0);
-      overallScore = Math.round(sum / analysisData.breakdown.length);
-      console.log('Calculated overall score as average:', overallScore);
-    }
-    
-    // If still no score available, default to 7 (but this should never happen with improved parsing)
-    if (!overallScore) {
-      console.warn('No overall score could be determined, using fallback value');
-      overallScore = 7;
-    }
+    // Extract the overall score
+    const overallScore = analysisData.overallScore || 7;
     
     // Upload image to Supabase Storage
     const imageUrl = await uploadImageToSupabase(imageFile);
@@ -69,7 +55,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
         user_id: userData.user.id,
         total_score: overallScore,
         raw_analysis: data.feedback,
-        feedback: analysisData.breakdown.length > 0 ? analysisData.breakdown[0].details : 'Analysis completed successfully.',
+        feedback: data.feedback.substring(0, 200) + '...', // First 200 chars as summary
         breakdown: breakdownJson,
         tips: tipsJson,
         image_url: imageUrl,
