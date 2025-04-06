@@ -32,20 +32,28 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     const breakdown: ScoreBreakdown[] = [];
     const tips: StyleTip[] = [];
     
-    // Get the overall score
-    const overallScoreMatch = rawAnalysis.match(/(?:Overall|Total) Score:?\s*(\d+(?:\.\d+)?)/i);
-    const overallScore = overallScoreMatch ? Math.round(parseFloat(overallScoreMatch[1])) : 0;
+    // Get the overall score - look for both formats (Overall Score: X or Total Score: X)
+    const overallScoreMatch = rawAnalysis.match(/(?:Overall|Total)\s+Score:?\s*(\d+(?:\.\d+)?)/i);
+    const overallScore = overallScoreMatch ? Math.round(parseFloat(overallScoreMatch[1])) : undefined;
     
-    // Extract categories, their scores, and detailed descriptions
+    console.log('Extracted overall score:', overallScore);
+    
+    // Extract categories with their scores and detailed descriptions
     const categoryScores = extractCategoryScores(rawAnalysis);
     const categoryBlocks = extractCategoryBlocks(rawAnalysis);
+    
+    console.log('Extracted category scores:', categoryScores);
     
     // Combine the extracted information into breakdown items
     for (const [category, details] of Object.entries(categoryBlocks)) {
       // Find the score for this category
-      const score = categoryScores[category] !== undefined ? 
-        categoryScores[category] : calculateRandomRealisticScore();
-        
+      const score = categoryScores[category];
+      
+      // Skip if we couldn't extract a score for this category
+      if (score === undefined) {
+        continue;
+      }
+      
       // Get emoji for the category
       const emoji = categoryEmojis[category] || "✅";
       
@@ -61,12 +69,6 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     // Extract tips from the analysis - both category-specific and advanced
     extractAllTips(rawAnalysis, tips);
     
-    // If we couldn't extract any categories, generate some based on the raw text
-    if (breakdown.length === 0) {
-      const generatedBreakdown = generateBreakdownFromRawAnalysis(rawAnalysis);
-      breakdown.push(...generatedBreakdown);
-    }
-    
     // Sort categories by score (highest first)
     breakdown.sort((a, b) => b.score - a.score);
     
@@ -74,19 +76,42 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     
   } catch (error) {
     console.error('Error parsing analysis:', error);
-    // Generate fallback data with realistic scores
-    return generateFallbackAnalysis();
+    throw error;
   }
 };
 
-// Generate a realistic score that isn't just 7
-function calculateRandomRealisticScore(): number {
-  // Weighted random score generator - more likely to be 6-8, less likely to be 1-3 or 9-10
-  const random = Math.random();
-  if (random < 0.05) return Math.floor(Math.random() * 3) + 1; // 1-3 (rare)
-  if (random < 0.3) return Math.floor(Math.random() * 2) + 4; // 4-5 (uncommon)
-  if (random < 0.8) return Math.floor(Math.random() * 3) + 6; // 6-8 (common)
-  return Math.floor(Math.random() * 2) + 9; // 9-10 (less common)
+// Helper function to extract category scores from the analysis
+function extractCategoryScores(text: string): Record<string, number> {
+  const scores: Record<string, number> = {};
+  const categories = [
+    "Color Coordination",
+    "Fit & Proportion",
+    "Style Coherence",
+    "Accessories",
+    "Outfit Creativity",
+    "Trend Awareness"
+  ];
+  
+  // Try different score formats in the text
+  for (const category of categories) {
+    // Look for patterns like "Color Coordination: 8/10" or "Color Coordination - 8/10"
+    const patterns = [
+      new RegExp(`\\*\\*${category}:\\*\\*\\s*(\\d+(?:\\.\\d+)?)\\s*\\/\\s*10`, 'i'),
+      new RegExp(`\\*\\*${category}\\*\\*:\\s*(\\d+(?:\\.\\d+)?)\\s*\\/\\s*10`, 'i'),
+      new RegExp(`${category}:\\s*(\\d+(?:\\.\\d+)?)\\s*\\/\\s*10`, 'i'),
+      new RegExp(`${category}\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*\\/\\s*10`, 'i')
+    ];
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        scores[category] = Math.round(parseFloat(match[1]));
+        break;
+      }
+    }
+  }
+  
+  return scores;
 }
 
 // Helper function to extract category blocks from the analysis
@@ -119,28 +144,40 @@ function extractCategoryBlocks(text: string): Record<string, string> {
     // Skip processing if we're in the tips section
     if (inTipsSection) continue;
     
-    // Look for category headers (bold text, numbered items, etc.)
-    const categoryMatch = line.match(/(?:\*\*|\d+\.\s*)([A-Za-z\s&]+)(?:\*\*)?(?:\s*:\s*|(?:\s*-\s*))(?:(\d+(?:\.\d+)?)\s*\/\s*10)?/);
+    // Look for category headers - try different patterns
+    const categoryPatterns = [
+      /\*\*([A-Za-z\s&]+)\*\*:\s*(\d+(?:\.\d+)?)\s*\/\s*10/,
+      /\*\*([A-Za-z\s&]+):\*\*\s*(\d+(?:\.\d+)?)\s*\/\s*10/,
+      /\*\*([A-Za-z\s&]+)\*\*/,
+      /^([A-Za-z\s&]+):\s*(\d+(?:\.\d+)?)\s*\/\s*10/
+    ];
     
-    if (categoryMatch) {
-      // If we were processing a previous category, save its block
-      if (currentCategory && currentBlock) {
-        blocks[currentCategory] = currentBlock.trim();
+    let matchFound = false;
+    for (const pattern of categoryPatterns) {
+      const match = line.match(pattern);
+      if (match) {
+        // If we were processing a previous category, save its block
+        if (currentCategory && currentBlock) {
+          blocks[currentCategory] = currentBlock.trim();
+        }
+        
+        // Start a new category
+        currentCategory = match[1].trim();
+        currentBlock = '';
+        
+        // Skip if this appears to be the overall score or summary
+        if (currentCategory.toLowerCase().includes('overall') || 
+            currentCategory.toLowerCase().includes('total score') || 
+            currentCategory.toLowerCase() === 'summary') {
+          currentCategory = '';
+        }
+        
+        matchFound = true;
+        break;
       }
-      
-      // Start a new category
-      currentCategory = categoryMatch[1].trim();
-      currentBlock = '';
-      
-      // Skip if this appears to be the overall score or summary
-      if (currentCategory.toLowerCase().includes('overall') || 
-          currentCategory.toLowerCase().includes('total score') || 
-          currentCategory.toLowerCase() === 'summary') {
-        currentCategory = '';
-      }
-      
-      continue;
     }
+    
+    if (matchFound) continue;
     
     // If we have a current category, add this line to its block
     if (currentCategory) {
@@ -154,32 +191,6 @@ function extractCategoryBlocks(text: string): Record<string, string> {
   }
   
   return blocks;
-}
-
-// Helper function to extract category scores from the analysis
-function extractCategoryScores(text: string): Record<string, number> {
-  const scores: Record<string, number> = {};
-  const scorePattern = /(?:\*\*|\d+\.\s*)([A-Za-z\s&]+)(?:\*\*)?(?:\s*:\s*|(?:\s*-\s*))(?:(\d+(?:\.\d+)?)\s*\/\s*10)/g;
-  
-  let match;
-  while ((match = scorePattern.exec(text)) !== null) {
-    const category = match[1].trim();
-    const score = parseFloat(match[2]);
-    
-    // Skip if this appears to be the overall score or summary
-    if (category.toLowerCase().includes('overall') || 
-        category.toLowerCase().includes('total score') || 
-        category.toLowerCase() === 'summary') {
-      continue;
-    }
-    
-    // Add the score if it's valid
-    if (!isNaN(score) && score >= 0 && score <= 10) {
-      scores[category] = Math.round(score);
-    }
-  }
-  
-  return scores;
 }
 
 // Extract all tips from analysis - both category-specific and "Next Level" tips
@@ -257,97 +268,4 @@ function determineLevel(tip: string): "beginner" | "intermediate" | "advanced" {
   
   // Default to intermediate
   return "intermediate";
-}
-
-// Generate breakdown items from raw analysis text when structured data not found
-function generateBreakdownFromRawAnalysis(rawAnalysis: string): ScoreBreakdown[] {
-  const breakdown: ScoreBreakdown[] = [];
-  const commonCategories = [
-    { category: "Color Coordination", emoji: "🎨" },
-    { category: "Fit & Proportion", emoji: "📏" },
-    { category: "Style Coherence", emoji: "✨" },
-    { category: "Outfit Creativity", emoji: "🌟" },
-    { category: "Accessories", emoji: "💍" },
-    { category: "Trend Awareness", emoji: "📱" }
-  ];
-  
-  // Generate at least 4 categories with realistic feedback
-  for (let i = 0; i < 4; i++) {
-    const categoryData = commonCategories[i];
-    if (categoryData) {
-      breakdown.push({
-        category: categoryData.category,
-        score: calculateRandomRealisticScore(),
-        emoji: categoryData.emoji,
-        details: generateDetailsForCategory(categoryData.category, rawAnalysis)
-      });
-    }
-  }
-  
-  return breakdown;
-}
-
-// Generate realistic details for a category from raw analysis
-function generateDetailsForCategory(category: string, rawAnalysis: string): string {
-  // Search for sentences containing keywords related to the category
-  const keywords: Record<string, string[]> = {
-    "Color Coordination": ["color", "palette", "tone", "hue", "shade", "combination"],
-    "Fit & Proportion": ["fit", "proportion", "silhouette", "shape", "size", "drape"],
-    "Style Coherence": ["coherence", "consistency", "theme", "coordination", "harmony"],
-    "Outfit Creativity": ["creativity", "unique", "original", "innovative", "interesting"],
-    "Accessories": ["accessory", "accessories", "jewelry", "watch", "bag", "hat"],
-    "Trend Awareness": ["trend", "contemporary", "current", "modern", "fashion"]
-  };
-  
-  const relevantKeywords = keywords[category] || [];
-  const sentences = rawAnalysis.split(/\.\s+/);
-  const relevantSentences = sentences.filter(sentence => 
-    relevantKeywords.some(keyword => sentence.toLowerCase().includes(keyword))
-  );
-  
-  if (relevantSentences.length > 0) {
-    return relevantSentences.slice(0, 2).join(". ") + ".";
-  }
-  
-  // Fallback generic feedback for each category
-  const fallbackFeedback: Record<string, string> = {
-    "Color Coordination": "The color choices work together, though there's room for more interesting combinations.",
-    "Fit & Proportion": "The fit is generally appropriate but could be more tailored to enhance the silhouette.",
-    "Style Coherence": "The outfit elements show a consistent vision, though stronger theme development would enhance the look.",
-    "Outfit Creativity": "Shows some creative elements but could push boundaries further for a more distinctive look.",
-    "Accessories": "The accessory choices complement the outfit but could be more deliberate to elevate the look.",
-    "Trend Awareness": "Incorporates some current trends while maintaining a personal style approach."
-  };
-  
-  return fallbackFeedback[category] || "This aspect of the outfit shows potential for improvement.";
-}
-
-// Generate complete fallback analysis in case parsing fails
-function generateFallbackAnalysis(): AnalysisResult {
-  const overallScore = Math.floor(Math.random() * 3) + 6; // 6-8 range
-  
-  const categories = [
-    { category: "Color Coordination", emoji: "🎨" },
-    { category: "Fit & Proportion", emoji: "📏" },
-    { category: "Style Coherence", emoji: "✨" },
-    { category: "Outfit Creativity", emoji: "🌟" },
-    { category: "Accessories", emoji: "💍" },
-    { category: "Trend Awareness", emoji: "📱" }
-  ];
-  
-  const breakdown = categories.map(cat => ({
-    category: cat.category,
-    score: calculateRandomRealisticScore(),
-    emoji: cat.emoji,
-    details: generateDetailsForCategory(cat.category, "")
-  }));
-  
-  const tips = [
-    { category: "Color Coordination", tip: "Try complementary colors to create more visual interest.", level: "intermediate" as const },
-    { category: "Fit & Proportion", tip: "Consider tailoring pieces for a more precise fit.", level: "intermediate" as const },
-    { category: "Style Coherence", tip: "Build outfits around a central theme or statement piece.", level: "beginner" as const },
-    { category: "Advanced", tip: "Experiment with unexpected texture combinations to add depth to your look.", level: "advanced" as const }
-  ];
-  
-  return { breakdown, tips, overallScore };
 }
