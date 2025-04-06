@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StyleSelector } from "@/components/StyleSelector";
@@ -11,9 +10,9 @@ import { useScanStore } from "@/store/scanStore";
 import { Sparkles, Camera, Share2, Save } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import ReactMarkdown from 'react-markdown';
 import { CategoryBreakdown } from "./analysis/CategoryBreakdown";
-import type { ScoreBreakdown } from "@/types/styleTypes";
+import { StyleTips } from "./analysis/StyleTips";
+import type { ScoreBreakdown, StyleTip } from "@/types/styleTypes";
 
 export const ScanView = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -23,7 +22,13 @@ export const ScanView = () => {
   const [showResults, setShowResults] = useState(false);
   const { toast } = useToast();
   const setLatestScan = useScanStore((state) => state.setLatestScan);
-  const [result, setResult] = useState<{ overallScore: number; rawAnalysis: string; imageUrl: string; breakdown?: ScoreBreakdown[] } | null>(null);
+  const [result, setResult] = useState<{ 
+    overallScore: number; 
+    rawAnalysis: string; 
+    imageUrl: string; 
+    breakdown?: ScoreBreakdown[];
+    tips?: StyleTip[];
+  } | null>(null);
 
   const analysisPhrases = [
     "Scanning outfit details...",
@@ -69,7 +74,6 @@ export const ScanView = () => {
     try {
       console.log('Starting analysis...');
       
-      // Call the analyzeStyle function with the selected image
       const analysisResult = await analyzeStyle(selectedImage);
       
       console.log('Analysis completed successfully:', analysisResult);
@@ -244,6 +248,10 @@ export const ScanView = () => {
 
               {result.breakdown && result.breakdown.length > 0 && (
                 <CategoryBreakdown categories={result.breakdown} />
+              )}
+
+              {result.tips && result.tips.length > 0 && (
+                <StyleTips tips={result.tips} />
               )}
 
               <motion.div

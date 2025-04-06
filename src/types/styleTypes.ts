@@ -4,6 +4,7 @@ export interface StyleAnalysisResult {
   rawAnalysis: string;
   imageUrl: string;
   breakdown?: ScoreBreakdown[];
+  tips?: StyleTip[];
 }
 
 export interface ScoreBreakdown {
@@ -31,6 +32,6 @@ export interface StyleAnalysis {
   last_scan_date?: string | null;
   breakdown?: ScoreBreakdown[] | any;
   raw_analysis?: string;
-  tips?: any;
+  tips?: StyleTip[] | any;
   user_id?: string | null;
 }

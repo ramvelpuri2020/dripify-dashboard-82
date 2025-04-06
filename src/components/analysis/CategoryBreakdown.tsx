@@ -19,10 +19,6 @@ export const CategoryBreakdown = ({ categories }: CategoryBreakdownProps) => {
     }
   };
 
-  const getCategoryIcon = (category: string) => {
-    return <span className="text-xl">{category.emoji}</span>;
-  };
-
   const getScoreColor = (score: number) => {
     if (score >= 8) return "from-green-400 to-emerald-500";
     if (score >= 6) return "from-yellow-400 to-amber-500";

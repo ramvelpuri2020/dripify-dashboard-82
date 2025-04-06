@@ -1,4 +1,3 @@
-
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StyleAnalysis, ScoreBreakdown } from "@/types/styleTypes";
 import { CategoryBreakdown } from "../analysis/CategoryBreakdown";
+import ReactMarkdown from "react-markdown";
 
 const getImageUrl = (path: string) => {
   if (!path) return '/placeholder.svg';

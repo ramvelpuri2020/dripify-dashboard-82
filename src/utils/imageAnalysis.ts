@@ -29,13 +29,11 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       throw new Error('Invalid response format from AI service');
     }
     
-    // Extract the overall score with regex
-    const scoreMatch = data.feedback.match(/Overall Score:?\s*(\d+\.?\d*)/i) || 
-                       data.feedback.match(/Total Score:?\s*(\d+\.?\d*)/i);
-    const overallScore = scoreMatch ? Math.round(parseFloat(scoreMatch[1])) : 7;
-    
-    // Parse the detailed analysis
+    // Parse the analysis with our improved parser
     const analysisData = parseAnalysis(data.feedback);
+    
+    // Extract the overall score
+    const overallScore = analysisData.overallScore || 7;
     
     // Upload image to Supabase Storage
     const imageUrl = await uploadImageToSupabase(imageFile);
@@ -51,6 +49,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     if (userData && userData.user) {
       // Create a breakdown for database compatibility
       const breakdownJson = JSON.stringify(analysisData.breakdown);
+      const tipsJson = JSON.stringify(analysisData.tips);
       
       const dbAnalysisData = {
         user_id: userData.user.id,
@@ -58,6 +57,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
         raw_analysis: data.feedback,
         feedback: data.feedback.substring(0, 200) + '...', // First 200 chars as summary
         breakdown: breakdownJson,
+        tips: tipsJson,
         image_url: imageUrl,
         thumbnail_url: imageUrl,
         scan_date: new Date().toISOString(),
@@ -81,7 +81,8 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       overallScore,
       rawAnalysis: data.feedback,
       imageUrl,
-      breakdown: analysisData.breakdown
+      breakdown: analysisData.breakdown,
+      tips: analysisData.tips
     };
     
     // Update the scan store with the new analysis
