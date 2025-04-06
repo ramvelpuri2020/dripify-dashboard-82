@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CategoryBreakdown } from "./analysis/CategoryBreakdown";
 import { StyleTips } from "./analysis/StyleTips";
+import ReactMarkdown from "react-markdown";
 import type { ScoreBreakdown, StyleTip } from "@/types/styleTypes";
 
 export const ScanView = () => {

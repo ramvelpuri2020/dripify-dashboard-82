@@ -116,7 +116,6 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                         </div>
                         <div className="mt-1 flex gap-2 flex-wrap">
                           {analysis.breakdown && typeof analysis.breakdown === 'string' ? (
-                            // Handle string JSON
                             (() => {
                               try {
                                 const parsed = JSON.parse(analysis.breakdown as string);
@@ -131,7 +130,6 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                               }
                             })()
                           ) : Array.isArray(analysis.breakdown) ? (
-                            // Handle array
                             analysis.breakdown.slice(0, 3).map((item, i) => (
                               <div key={i} className="flex items-center gap-1">
                                 <span className="text-sm">{item.emoji}</span>
@@ -166,7 +164,6 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
           </div>
         </ScrollArea>
 
-        {/* Details Dialog */}
         <Dialog open={!!selectedAnalysis} onOpenChange={(open) => !open && handleCloseDialog()}>
           <DialogContent className="bg-[#1A1F2C] border-[#403E43] text-white sm:max-w-lg max-h-[90vh] overflow-hidden">
             <DialogHeader>
@@ -212,7 +209,6 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                     <div className="space-y-4">
                       <h4 className="font-medium text-white/90 mb-2">Breakdown</h4>
                       {typeof selectedAnalysis.breakdown === 'string' ? (
-                        // Parse if it's a string
                         (() => {
                           try {
                             const parsedBreakdown = JSON.parse(selectedAnalysis.breakdown as string);
@@ -224,7 +220,6 @@ export const StyleAnalysesList = ({ analyses }: { analyses: StyleAnalysis[] }) =
                           }
                         })()
                       ) : Array.isArray(selectedAnalysis.breakdown) ? (
-                        // Use if it's already an array
                         <CategoryBreakdown categories={selectedAnalysis.breakdown as ScoreBreakdown[]} />
                       ) : null}
                     </div>
