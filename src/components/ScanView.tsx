@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StyleSelector } from "@/components/StyleSelector";
@@ -8,11 +9,9 @@ import { motion } from "framer-motion";
 import { analyzeStyle } from "@/utils/imageAnalysis";
 import { useScanStore } from "@/store/scanStore";
 import { Sparkles, Camera, Share2, Save } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CategoryBreakdown } from "./analysis/CategoryBreakdown";
 import { StyleTips } from "./analysis/StyleTips";
-import ReactMarkdown from "react-markdown";
 import type { ScoreBreakdown, StyleTip } from "@/types/styleTypes";
 
 export const ScanView = () => {
@@ -242,7 +241,8 @@ export const ScanView = () => {
                 <div className="p-6">
                   <h3 className="text-xl font-semibold text-white mb-4">Overall Feedback</h3>
                   <p className="text-white/80 leading-relaxed">
-                    {result.rawAnalysis.split('\n')[0]}
+                    {/* Extract a short summary from the first part of the analysis */}
+                    {result.rawAnalysis.split('\n').slice(0, 2).join(' ').replace(/\*\*/g, '')}
                   </p>
                 </div>
               </motion.div>
@@ -289,24 +289,6 @@ export const ScanView = () => {
                   Analyze Another Outfit
                 </Button>
               </div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg overflow-hidden mt-8"
-              >
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-white mb-4">Full Analysis</h3>
-                  <ScrollArea className="h-[300px] pr-4">
-                    <div className="prose prose-invert max-w-none">
-                      <ReactMarkdown>
-                        {result.rawAnalysis}
-                      </ReactMarkdown>
-                    </div>
-                  </ScrollArea>
-                </div>
-              </motion.div>
             </div>
           )}
         </motion.div>

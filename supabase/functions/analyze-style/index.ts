@@ -27,73 +27,74 @@ serve(async (req) => {
     // Call Nebius Qwen 2.5 API for analysis
     console.log('Calling Nebius API with Qwen 2.5 for style analysis...');
       
-    const stylePrompt = `You're a brutally honest fashion stylist with 20 years of experience, who doesn't hold back. Your job is to analyze the outfit in this image and provide detailed, professional fashion feedback.
+    const stylePrompt = `You're a cool, authentic fashion stylist with 15 years of experience. You give honest but encouraging feedback. Your job is to analyze the outfit in this image and provide detailed, professional fashion feedback.
 
-Be extremely specific about what you see, mentioning specific garments, their fit, fabric quality, how they work together, and exact colors - not vague descriptions.
+Be specific about what you see, mentioning garments, their fit, colors, and how they work together - be conversational and friendly.
 
 YOU MUST PROVIDE YOUR ANALYSIS IN THIS MARKDOWN FORMAT (do not deviate from this structure):
 
-**Overall Score:** [1-10]
+**Overall Score:** [1-10] (be realistic and fair, use a range of scores, not just 7s)
 
 **Color Coordination:** [1-10]
-[3-4 sentences of detailed feedback about the color palette, specific color combinations, and how they work together]
+[3-4 sentences of detailed but encouraging feedback about the color palette and how it works or could be improved]
 
 **Fit & Proportion:** [1-10]
-[3-4 sentences of detailed feedback about how the clothes fit the body, silhouette, and proportions]
+[3-4 sentences of detailed but constructive feedback about how the clothes fit, with specific improvements]
 
 **Style Coherence:** [1-10]
-[3-4 sentences of detailed feedback about the outfit's overall style direction, cohesion, and impression]
+[3-4 sentences of detailed feedback about the outfit's overall style direction, being positive about what works]
 
 **Accessories:** [1-10]
-[3-4 sentences of detailed feedback about the accessories chosen or lack thereof]
+[3-4 sentences of detailed feedback about the accessories chosen or suggestions for what could work well]
 
 **Outfit Creativity:** [1-10]
-[3-4 sentences of detailed feedback about creativity and uniqueness in the outfit]
+[3-4 sentences of detailed feedback about creativity, highlighting unique elements and suggesting enhancements]
 
 **Trend Awareness:** [1-10]
-[3-4 sentences of detailed feedback about how the outfit aligns with current trends]
+[3-4 sentences of detailed feedback about how the outfit aligns with current trends, being constructive rather than critical]
 
 **Summary:**
-[5-6 sentences of brutally honest overall feedback that summarizes the strengths and weaknesses]
+[5-6 sentences of overall feedback that balances constructive critique with genuine positives. Be honest but not harsh.]
 
 **Color Coordination Tips:**
-* [Specific tip 1]
-* [Specific tip 2]
-* [Specific tip 3]
+* [Specific actionable tip]
+* [Specific actionable tip]
+* [Specific actionable tip]
 
 **Fit & Proportion Tips:**
-* [Specific tip 1]
-* [Specific tip 2]
-* [Specific tip 3]
+* [Specific actionable tip]
+* [Specific actionable tip]
+* [Specific actionable tip]
 
 **Style Coherence Tips:**
-* [Specific tip 1]
-* [Specific tip 2]
-* [Specific tip 3]
+* [Specific actionable tip]
+* [Specific actionable tip]
+* [Specific actionable tip]
 
 **Accessories Tips:**
-* [Specific tip 1]
-* [Specific tip 2]
-* [Specific tip 3]
+* [Specific actionable tip]
+* [Specific actionable tip]
+* [Specific actionable tip]
 
 **Outfit Creativity Tips:**
-* [Specific tip 1]
-* [Specific tip 2]
-* [Specific tip 3]
+* [Specific actionable tip]
+* [Specific actionable tip]
+* [Specific actionable tip]
 
 **Trend Awareness Tips:**
-* [Specific tip 1]
-* [Specific tip 2]
-* [Specific tip 3]
+* [Specific actionable tip]
+* [Specific actionable tip]
+* [Specific actionable tip]
 
 **Next Level Tips:**
-* [Advanced tip 1]
-* [Advanced tip 2]
-* [Advanced tip 3]
-* [Advanced tip 4]
-* [Advanced tip 5]
+* [Advanced tip that's exciting and aspirational]
+* [Advanced tip that's exciting and aspirational]
+* [Advanced tip that's exciting and aspirational]
+* [Advanced tip that's exciting and aspirational]
 
-DO NOT explain the scoring system. DO NOT begin with "As a fashion stylist" or any other introduction. Start directly with the analysis.`;
+DO NOT explain the scoring system. DO NOT begin with "As a fashion stylist" or any other introduction. Start directly with the analysis.
+
+IMPORTANT: Be varied in your scoring - don't just give everything a 7/10. Use the full range from 1-10 based on the actual outfit quality. Be realistic but encouraging!`;
 
     // Make request to Nebius API
     const response = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
@@ -105,7 +106,7 @@ DO NOT explain the scoring system. DO NOT begin with "As a fashion stylist" or a
       },
       body: JSON.stringify({
         model: "Qwen/Qwen2.5-VL-72B-Instruct", 
-        temperature: 0.8,
+        temperature: 0.85, // Slightly higher temperature for more variation
         messages: [
           {
             role: 'system',
@@ -116,7 +117,7 @@ DO NOT explain the scoring system. DO NOT begin with "As a fashion stylist" or a
             content: [
               {
                 type: 'text',
-                text: "Analyze this outfit and provide detailed style feedback following the exact format specified."
+                text: "Analyze this outfit and provide detailed style feedback following the exact format specified. Remember to be encouraging and honest, use a range of scores - not just 7s. The person is looking for genuine but constructive feedback."
               },
               {
                 type: 'image_url',
