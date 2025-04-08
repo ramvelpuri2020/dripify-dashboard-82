@@ -23,7 +23,7 @@ const defaultStats: UserStats = {
   improvedCategories: [],
   streak: 0,
   lastScan: null,
-  bestScore: 0
+  bestScore: 0 // Add bestScore with default 0
 };
 
 export const useScanStore = create<ScanState>((set, get) => ({
@@ -65,27 +65,9 @@ export const useScanStore = create<ScanState>((set, get) => ({
         
         try {
           if (scan.breakdown) {
-            if (typeof scan.breakdown === 'string') {
-              breakdown = JSON.parse(scan.breakdown);
-            } else if (Array.isArray(scan.breakdown)) {
-              // For array type breakdown, ensure each item conforms to ScoreBreakdown
-              breakdown = scan.breakdown.map(item => {
-                if (typeof item === 'object' && item !== null) {
-                  return {
-                    category: String(item.category || ''),
-                    score: Number(item.score || 0),
-                    emoji: String(item.emoji || '✅'),
-                    details: item.details ? String(item.details) : undefined
-                  };
-                }
-                // Default fallback item if conversion fails
-                return {
-                  category: 'Unknown',
-                  score: 7,
-                  emoji: '✅'
-                };
-              });
-            }
+            breakdown = typeof scan.breakdown === 'string' 
+              ? JSON.parse(scan.breakdown) 
+              : scan.breakdown;
           }
         } catch (e) {
           console.error('Error parsing breakdown:', e);
@@ -93,28 +75,9 @@ export const useScanStore = create<ScanState>((set, get) => ({
         
         try {
           if (scan.tips) {
-            if (typeof scan.tips === 'string') {
-              tips = JSON.parse(scan.tips);
-            } else if (Array.isArray(scan.tips)) {
-              // For array type tips, ensure each item conforms to StyleTip
-              tips = scan.tips.map(item => {
-                if (typeof item === 'object' && item !== null) {
-                  return {
-                    category: String(item.category || ''),
-                    tip: String(item.tip || ''),
-                    level: (item.level === 'beginner' || item.level === 'intermediate' || item.level === 'advanced') 
-                      ? item.level 
-                      : 'intermediate'
-                  };
-                }
-                // Default fallback item if conversion fails
-                return {
-                  category: 'General',
-                  tip: 'Try experimenting with different styles',
-                  level: 'intermediate'
-                };
-              });
-            }
+            tips = typeof scan.tips === 'string'
+              ? JSON.parse(scan.tips)
+              : scan.tips;
           }
         } catch (e) {
           console.error('Error parsing tips:', e);
@@ -207,10 +170,8 @@ export const useScanStore = create<ScanState>((set, get) => ({
             
             if (typeof scan.breakdown === 'string') {
               breakdown = JSON.parse(scan.breakdown);
-            } else if (Array.isArray(scan.breakdown)) {
-              breakdown = scan.breakdown;
             } else {
-              breakdown = [];
+              breakdown = scan.breakdown;
             }
             
             breakdown.forEach(item => {
@@ -242,7 +203,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
         }
       }
       
-      // Find improved categories
+      // Find improved categories (categories where the most recent score is higher than the average)
       const improvedCategories: string[] = [];
       
       for (const [category, scores] of Object.entries(categoryScores)) {

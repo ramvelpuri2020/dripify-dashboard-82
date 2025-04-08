@@ -33,9 +33,9 @@ export interface StyleAnalysis {
   scan_date?: string | null;
   streak_count?: number | null;
   last_scan_date?: string | null;
-  breakdown?: ScoreBreakdown[] | any;
-  raw_analysis?: string | null;
-  tips?: StyleTip[] | any;
+  breakdown?: ScoreBreakdown[] | string;  // Can be string when stored in DB
+  raw_analysis?: string;
+  tips?: StyleTip[] | string;  // Can be string when stored in DB
   user_id?: string | null;
 }
 

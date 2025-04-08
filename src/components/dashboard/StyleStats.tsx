@@ -63,13 +63,13 @@ export const StyleStats = ({ hasScans, stats }: StyleStatsProps) => {
 
   const styleStatsData = [{
     title: "Style Score",
-    value: hasScans && displayStats.averageScore ? `${displayStats.averageScore}` : "--",
+    value: hasScans && displayStats.averageScore ? `${Math.round(displayStats.averageScore)}` : "--",
     icon: Trophy,
     color: "text-[#9b87f5]",
     emptyState: "Take your first style scan!"
   }, {
     title: "Best Score",
-    value: hasScans && displayStats.bestScore ? `${displayStats.bestScore}` : "--",
+    value: hasScans && displayStats.bestScore ? `${Math.round(displayStats.bestScore)}` : "--", 
     icon: TrendingUp,
     color: "text-[#7E69AB]",
     emptyState: "Start scanning outfits"
