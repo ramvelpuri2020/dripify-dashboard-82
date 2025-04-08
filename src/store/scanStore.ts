@@ -65,9 +65,27 @@ export const useScanStore = create<ScanState>((set, get) => ({
         
         try {
           if (scan.breakdown) {
-            breakdown = typeof scan.breakdown === 'string' 
-              ? JSON.parse(scan.breakdown) 
-              : (Array.isArray(scan.breakdown) ? scan.breakdown : []);
+            if (typeof scan.breakdown === 'string') {
+              breakdown = JSON.parse(scan.breakdown);
+            } else if (Array.isArray(scan.breakdown)) {
+              // For array type breakdown, ensure each item conforms to ScoreBreakdown
+              breakdown = scan.breakdown.map(item => {
+                if (typeof item === 'object' && item !== null) {
+                  return {
+                    category: String(item.category || ''),
+                    score: Number(item.score || 0),
+                    emoji: String(item.emoji || '✅'),
+                    details: item.details ? String(item.details) : undefined
+                  };
+                }
+                // Default fallback item if conversion fails
+                return {
+                  category: 'Unknown',
+                  score: 7,
+                  emoji: '✅'
+                };
+              });
+            }
           }
         } catch (e) {
           console.error('Error parsing breakdown:', e);
@@ -75,9 +93,28 @@ export const useScanStore = create<ScanState>((set, get) => ({
         
         try {
           if (scan.tips) {
-            tips = typeof scan.tips === 'string'
-              ? JSON.parse(scan.tips)
-              : (Array.isArray(scan.tips) ? scan.tips : []);
+            if (typeof scan.tips === 'string') {
+              tips = JSON.parse(scan.tips);
+            } else if (Array.isArray(scan.tips)) {
+              // For array type tips, ensure each item conforms to StyleTip
+              tips = scan.tips.map(item => {
+                if (typeof item === 'object' && item !== null) {
+                  return {
+                    category: String(item.category || ''),
+                    tip: String(item.tip || ''),
+                    level: (item.level === 'beginner' || item.level === 'intermediate' || item.level === 'advanced') 
+                      ? item.level 
+                      : 'intermediate'
+                  };
+                }
+                // Default fallback item if conversion fails
+                return {
+                  category: 'General',
+                  tip: 'Try experimenting with different styles',
+                  level: 'intermediate'
+                };
+              });
+            }
           }
         } catch (e) {
           console.error('Error parsing tips:', e);

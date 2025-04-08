@@ -23,15 +23,13 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
   const breakdown: ScoreBreakdown[] = [];
   const tips: StyleTip[] = [];
   
-  // Fast overall score extraction
-  const overallScoreMatch = rawAnalysis.match(/\*\*Overall Score:\*\*\s*(\d+)/i);
-  const overallScore = overallScoreMatch ? parseInt(overallScoreMatch[1], 10) : undefined;
+  // Ultra-optimized overall score extraction - one liner with fallback
+  const overallScore = parseInt((rawAnalysis.match(/\*\*Overall Score:\*\*\s*(\d+)/i) || [])[1] || '8', 10);
   
-  // Fast summary extraction
-  const summaryMatch = rawAnalysis.match(/\*\*Summary:\*\*([\s\S]*?)(?:\*\*|$)/i);
-  const summary = summaryMatch ? summaryMatch[1].trim() : undefined;
+  // Ultra-optimized summary extraction - one liner
+  const summary = ((rawAnalysis.match(/\*\*Summary:\*\*([\s\S]*?)(?=\*\*|$)/i) || [])[1] || '').trim();
   
-  // Fast category extraction - optimized for speed
+  // Categories to extract - defined once for performance
   const categories = [
     "Color Coordination", 
     "Fit & Proportion", 
@@ -41,10 +39,17 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     "Trend Awareness"
   ];
   
-  // One-pass extraction of all categories
-  for (const category of categories) {
-    const pattern = new RegExp(`\\*\\*${category}:\\*\\*\\s*(\\d+)([\\s\\S]*?)(?=\\*\\*[^*]+:\\*\\*|$)`, 'i');
-    const match = rawAnalysis.match(pattern);
+  // One-time regex compilation for each category for maximum speed
+  const categoryRegexes = categories.map(category => {
+    return {
+      category,
+      regex: new RegExp(`\\*\\*${category}:\\*\\*\\s*(\\d+)([\\s\\S]*?)(?=\\*\\*[^*]+:\\*\\*|$)`, 'i')
+    };
+  });
+  
+  // Ultra-optimized extraction - single pass per category
+  for (const {category, regex} of categoryRegexes) {
+    const match = rawAnalysis.match(regex);
     
     if (match) {
       const score = parseInt(match[1], 10);
@@ -61,19 +66,19 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     }
   }
   
-  // One-pass extraction of all tips
-  const tipSections = rawAnalysis.match(/\*\*([^*]+) Tips:\*\*([\s\S]*?)(?=\*\*[^*]+(?:Tips|\*\*)|\*\*Next Level|\s*$)/gi) || [];
+  // Optimize tips parsing - precompiled regexes
+  const tipSectionRegex = /\*\*([^*]+) Tips:\*\*([\s\S]*?)(?=\*\*[^*]+(?:Tips|\*\*)|\*\*Next Level|\s*$)/gi;
+  const tipItemRegex = /\*\s*([^\n]+)/g;
   
-  for (const section of tipSections) {
-    const categoryMatch = section.match(/\*\*([^*]+) Tips:\*\*/i);
-    if (!categoryMatch) continue;
+  // Extract tips in a single pass
+  let tipMatch;
+  while ((tipMatch = tipSectionRegex.exec(rawAnalysis)) !== null) {
+    const category = tipMatch[1].trim();
+    const tipContent = tipMatch[2].trim();
     
-    const category = categoryMatch[1].trim();
-    const tipContent = section.replace(categoryMatch[0], '').trim();
-    const tipItems = tipContent.match(/\*\s*([^\n]+)/g) || [];
-    
-    for (const item of tipItems) {
-      const tip = item.replace(/\*\s*/, '').trim();
+    let tipItemMatch;
+    while ((tipItemMatch = tipItemRegex.exec(tipContent)) !== null) {
+      const tip = tipItemMatch[1].trim();
       if (tip) {
         tips.push({
           category,
@@ -84,14 +89,16 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     }
   }
   
-  // Extract Next Level Tips (advanced)
+  // Next Level Tips - dedicated extraction for speed
   const nextLevelMatch = rawAnalysis.match(/\*\*Next Level Tips:\*\*([\s\S]*?)(?=\*\*|$)/i);
   if (nextLevelMatch) {
     const tipContent = nextLevelMatch[1].trim();
-    const tipItems = tipContent.match(/\*\s*([^\n]+)/g) || [];
+    let tipItemMatch;
     
-    for (const item of tipItems) {
-      const tip = item.replace(/\*\s*/, '').trim();
+    // Reuse the tipItemRegex
+    tipItemRegex.lastIndex = 0; // Reset the regex state
+    while ((tipItemMatch = tipItemRegex.exec(tipContent)) !== null) {
+      const tip = tipItemMatch[1].trim();
       if (tip) {
         tips.push({
           category: "Advanced",

@@ -12,10 +12,14 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     console.log('Starting style analysis...');
     const startTime = performance.now();
     
-    // Call the analyze-style Supabase function with timeout handling
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Analysis timed out')), 30000)
+    // Call the analyze-style Supabase function with improved timeout handling
+    // Reduced timeout from 30s to 20s for faster user feedback
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Analysis timed out')), 20000)
     );
+    
+    // Pre-upload the image to Supabase Storage in parallel with the analysis
+    const imageUploadPromise = uploadImageToSupabase(imageFile);
     
     const analysisPromise = supabase.functions.invoke('analyze-style', {
       body: { image: base64Image, style: "casual" }
@@ -23,24 +27,24 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     
     // Race between timeout and analysis completion
     const { data, error } = await Promise.race([analysisPromise, timeoutPromise]) as any;
-
+    
     if (error) {
       console.error('Supabase function error:', error);
       throw new Error('Failed to analyze image: ' + error.message);
     }
-
-    const endTime = performance.now();
-    console.log(`Analysis completed in ${Math.round(endTime - startTime)}ms`);
     
     if (!data || !data.feedback) {
       throw new Error('Invalid response format from AI service');
     }
     
-    // Parse the analysis results with optimized parser
+    const endTime = performance.now();
+    console.log(`Analysis completed in ${Math.round(endTime - startTime)}ms`);
+    
+    // Parse the analysis results
     const analysisData = parseAnalysis(data.feedback);
     
-    // Upload image to Supabase Storage with optimized approach
-    const imageUrl = await uploadImageToSupabase(imageFile);
+    // Wait for the image upload to complete
+    const imageUrl = await imageUploadPromise;
     console.log('Image uploaded to Supabase');
     
     // Get user info for database save
@@ -50,7 +54,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     if (userData && userData.user) {
       const dbAnalysisData = {
         user_id: userData.user.id,
-        total_score: analysisData.overallScore || 8,
+        total_score: analysisData.overallScore || 0,
         raw_analysis: data.feedback,
         feedback: analysisData.summary || data.feedback.substring(0, 200) + '...',
         breakdown: JSON.stringify(analysisData.breakdown || []),
@@ -73,7 +77,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     
     // Create the result object
     const result: StyleAnalysisResult = {
-      overallScore: analysisData.overallScore || 8,
+      overallScore: analysisData.overallScore || 0,
       rawAnalysis: data.feedback,
       imageUrl,
       breakdown: analysisData.breakdown || [],
@@ -92,21 +96,21 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
   }
 };
 
-// Optimized image upload with automatic retry
+// Optimized image upload with parallel processing
 const uploadImageToSupabase = async (imageFile: File): Promise<string> => {
   try {
     const timestamp = new Date().getTime();
     const filePath = `outfit_${timestamp}_${imageFile.name.replace(/\s+/g, '_')}`;
     
-    // Try upload with automatic retry
+    // Try upload with automatic retry and reduced wait time
     let retries = 0;
-    const maxRetries = 2;
+    const maxRetries = 1; // Reduced retries for faster response
     
     while (retries <= maxRetries) {
       try {
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('style_images')
-          .upload(filePath, imageFile, { cacheControl: '3600' });
+          .upload(filePath, imageFile, { cacheControl: '3600', upsert: true });
           
         if (!uploadError) {
           // Get public URL for the uploaded image
@@ -119,8 +123,8 @@ const uploadImageToSupabase = async (imageFile: File): Promise<string> => {
         
         retries++;
         if (retries <= maxRetries) {
-          // Short exponential backoff
-          await new Promise(resolve => setTimeout(resolve, retries * 200));
+          // Shorter exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 100));
         } else {
           throw uploadError;
         }
