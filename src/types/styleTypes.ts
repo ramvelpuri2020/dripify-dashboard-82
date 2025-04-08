@@ -46,5 +46,12 @@ export interface UserStats {
   improvedCategories: string[];
   streak: number;
   lastScan: string | null;
-  bestScore: number; // Added bestScore to the interface
+  bestScore: number;
+}
+
+export interface AnalysisLoadingState {
+  isAnalyzing: boolean;
+  analysisPhase?: string;
+  progress?: number;
+  error?: string | null;
 }

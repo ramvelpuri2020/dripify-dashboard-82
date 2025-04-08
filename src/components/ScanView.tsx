@@ -11,6 +11,7 @@ import { Sparkles, Camera, Share2, Save } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CategoryBreakdown } from "./analysis/CategoryBreakdown";
 import { StyleTips } from "./analysis/StyleTips";
+import { StyleLoadingOverlay } from "./StyleLoadingOverlay";
 import type { ScoreBreakdown, StyleTip } from "@/types/styleTypes";
 
 export const ScanView = () => {
@@ -30,31 +31,13 @@ export const ScanView = () => {
     summary?: string;
   } | null>(null);
 
-  const analysisPhrases = [
-    "Scanning outfit details...",
-    "Analyzing color coordination...",
-    "Evaluating fit and proportions...",
-    "Checking style coherence...",
-    "Assessing trend alignment...",
-    "Generating personalized tips...",
-    "Finalizing your style report..."
-  ];
-
-  const cycleAnalysisPhrases = () => {
-    let phraseIndex = 0;
-    
-    const interval = setInterval(() => {
-      setAnalysisPhase(analysisPhrases[phraseIndex]);
-      phraseIndex = (phraseIndex + 1) % analysisPhrases.length;
-    }, 1500);
-    
-    return interval;
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-green-400";
-    if (score >= 6) return "text-amber-400";
-    return "text-rose-400";
+  const handleAnalyzeTimeout = () => {
+    setAnalyzing(false);
+    toast({
+      title: "Analysis timed out",
+      description: "The style analysis is taking too long. Please try again.",
+      variant: "destructive",
+    });
   };
 
   const handleAnalyze = async () => {
@@ -68,8 +51,7 @@ export const ScanView = () => {
     }
 
     setAnalyzing(true);
-    setAnalysisPhase(analysisPhrases[0]);
-    const phraseCycleInterval = cycleAnalysisPhrases();
+    setAnalysisPhase("Starting analysis...");
     
     try {
       console.log('Starting analysis...');
@@ -79,8 +61,6 @@ export const ScanView = () => {
       console.log('Analysis completed successfully:', analysisResult);
       setResult(analysisResult);
       setLatestScan(analysisResult);
-      
-      clearInterval(phraseCycleInterval);
       
       toast({
         title: "Analysis Complete",
@@ -94,8 +74,6 @@ export const ScanView = () => {
       }, 800);
       
     } catch (error) {
-      clearInterval(phraseCycleInterval);
-      
       console.error("Analysis error:", error);
       toast({
         title: "Analysis failed",
@@ -135,6 +113,13 @@ export const ScanView = () => {
       transition={{ duration: 0.5 }}
       className="px-4 relative"
     >
+      {/* Style Loading Overlay */}
+      <StyleLoadingOverlay 
+        isAnalyzing={analyzing} 
+        onTimeout={handleAnalyzeTimeout}
+        timeoutDuration={90000} // 90 seconds timeout
+      />
+
       {!showResults ? (
         <Card className="backdrop-blur-xl bg-black/30 border-white/10">
           <CardContent className="space-y-8 p-8">
@@ -170,24 +155,9 @@ export const ScanView = () => {
                 className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium px-10 py-6 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:-translate-y-1"
               >
                 {analyzing ? (
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 animate-pulse text-yellow-300" />
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                      <Sparkles className="h-5 w-5 animate-pulse text-yellow-300" />
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <p className="text-sm font-medium">{analysisPhase}</p>
-                      <motion.div 
-                        className="h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full mt-1"
-                        initial={{ width: 0 }}
-                        animate={{ width: "100%" }}
-                        transition={{ 
-                          duration: 10,
-                          ease: "easeInOut",
-                        }}
-                      />
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 animate-pulse text-yellow-300" />
+                    <span>Analyzing Style...</span>
                   </div>
                 ) : (
                   <>
