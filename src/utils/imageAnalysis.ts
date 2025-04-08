@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 import type { StyleAnalysisResult } from '@/types/styleTypes';
@@ -9,7 +8,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     // Convert image to base64
     const base64Image = await fileToBase64(imageFile);
     
-    console.log('Starting style analysis with optimized performance...');
+    console.log('Starting style analysis...');
     const startTime = performance.now();
     
     // Call the analyze-style Supabase function
@@ -24,13 +23,21 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     const endTime = performance.now();
     console.log(`Analysis completed in ${Math.round(endTime - startTime)}ms`);
+    console.log('Analysis response:', data);
     
     if (!data || !data.feedback) {
       throw new Error('Invalid response format from AI service');
     }
     
-    // Parse the analysis results with our optimized parser
+    // Parse the analysis results
     const analysisData = parseAnalysis(data.feedback);
+    
+    // Make sure we have a valid overall score
+    if (analysisData.overallScore === undefined) {
+      console.error('Failed to extract a valid overall score from the analysis');
+      // Set a default score of 5 if no score could be extracted
+      analysisData.overallScore = 5;
+    }
     
     // Upload image to Supabase Storage
     const imageUrl = await uploadImageToSupabase(imageFile);
@@ -39,7 +46,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     // Get user info for database save
     const { data: userData } = await supabase.auth.getUser();
     
-    // Save analysis to database if user is logged in
+    // Save analysis to database if user is logged in and we have a valid score
     if (userData && userData.user && analysisData.overallScore !== undefined) {
       const dbAnalysisData = {
         user_id: userData.user.id,
@@ -70,12 +77,12 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     
     // Create the result object
     const result: StyleAnalysisResult = {
-      overallScore: analysisData.overallScore || 8,
+      overallScore: analysisData.overallScore,
       rawAnalysis: data.feedback,
       imageUrl,
       breakdown: analysisData.breakdown || [],
       tips: analysisData.tips || [],
-      summary: analysisData.summary || "Great outfit!"
+      summary: analysisData.summary
     };
     
     // Update the scan store with the new analysis
