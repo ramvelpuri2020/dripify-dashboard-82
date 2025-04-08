@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StyleSelector } from "@/components/StyleSelector";
@@ -28,6 +27,7 @@ export const ScanView = () => {
     imageUrl: string; 
     breakdown?: ScoreBreakdown[];
     tips?: StyleTip[];
+    summary?: string;
   } | null>(null);
 
   const analysisPhrases = [
@@ -232,20 +232,21 @@ export const ScanView = () => {
                 </div>
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg"
-              >
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-white mb-4">Overall Feedback</h3>
-                  <p className="text-white/80 leading-relaxed">
-                    {/* Extract a short summary from the first part of the analysis */}
-                    {result.rawAnalysis.split('\n').slice(0, 2).join(' ').replace(/\*\*/g, '')}
-                  </p>
-                </div>
-              </motion.div>
+              {result.summary && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-black/30 backdrop-blur-lg border-white/10 rounded-lg"
+                >
+                  <div className="p-6">
+                    <h3 className="text-xl font-semibold text-white mb-4">Overall Feedback</h3>
+                    <p className="text-white/80 leading-relaxed">
+                      {result.summary}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
               {result.breakdown && result.breakdown.length > 0 && (
                 <CategoryBreakdown categories={result.breakdown} />

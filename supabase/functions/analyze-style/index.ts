@@ -24,37 +24,33 @@ serve(async (req) => {
       throw new Error('API key not configured');
     }
     
-    // Call Nebius Qwen 2.5 API for analysis
-    console.log('Calling Nebius API with Qwen 2.5 for style analysis...');
-      
-    const stylePrompt = `You're a cool, authentic fashion stylist with 15 years of experience. You give honest but encouraging feedback. Your job is to analyze the outfit in this image and provide detailed, professional fashion feedback.
+    // Improved prompt for more human-like, varied feedback
+    const stylePrompt = `You're a friendly, authentic fashion stylist who gives honest but encouraging feedback. Analyze this outfit and provide detailed feedback.
 
-Be specific about what you see, mentioning garments, their fit, colors, and how they work together - be conversational and friendly.
+YOUR ANALYSIS MUST BE STRUCTURED IN THIS EXACT FORMAT:
 
-YOU MUST PROVIDE YOUR ANALYSIS IN THIS MARKDOWN FORMAT (do not deviate from this structure):
+**Overall Score:** [Give a score from 1-10 that realistically reflects the outfit quality]
 
-**Overall Score:** [1-10] (be realistic and fair, use a range of scores, not just 7s)
+**Color Coordination:** [Score 1-10]
+[3-4 sentences of specific, constructive feedback about color choices]
 
-**Color Coordination:** [1-10]
-[3-4 sentences of detailed but encouraging feedback about the color palette and how it works or could be improved]
+**Fit & Proportion:** [Score 1-10]
+[3-4 sentences about how the clothes fit and proportion]
 
-**Fit & Proportion:** [1-10]
-[3-4 sentences of detailed but constructive feedback about how the clothes fit, with specific improvements]
+**Style Coherence:** [Score 1-10]
+[3-4 sentences about overall style cohesion]
 
-**Style Coherence:** [1-10]
-[3-4 sentences of detailed feedback about the outfit's overall style direction, being positive about what works]
+**Accessories:** [Score 1-10]
+[3-4 sentences about accessory choices or suggestions]
 
-**Accessories:** [1-10]
-[3-4 sentences of detailed feedback about the accessories chosen or suggestions for what could work well]
+**Outfit Creativity:** [Score 1-10]
+[3-4 sentences about creative elements]
 
-**Outfit Creativity:** [1-10]
-[3-4 sentences of detailed feedback about creativity, highlighting unique elements and suggesting enhancements]
-
-**Trend Awareness:** [1-10]
-[3-4 sentences of detailed feedback about how the outfit aligns with current trends, being constructive rather than critical]
+**Trend Awareness:** [Score 1-10]
+[3-4 sentences about trend alignment]
 
 **Summary:**
-[5-6 sentences of overall feedback that balances constructive critique with genuine positives. Be honest but not harsh.]
+[5-6 sentences balancing constructive critique with genuine positives]
 
 **Color Coordination Tips:**
 * [Specific actionable tip]
@@ -87,16 +83,22 @@ YOU MUST PROVIDE YOUR ANALYSIS IN THIS MARKDOWN FORMAT (do not deviate from this
 * [Specific actionable tip]
 
 **Next Level Tips:**
-* [Advanced tip that's exciting and aspirational]
-* [Advanced tip that's exciting and aspirational]
-* [Advanced tip that's exciting and aspirational]
-* [Advanced tip that's exciting and aspirational]
+* [Advanced tip]
+* [Advanced tip]
+* [Advanced tip]
+* [Advanced tip]
 
-DO NOT explain the scoring system. DO NOT begin with "As a fashion stylist" or any other introduction. Start directly with the analysis.
+IMPORTANT SCORING GUIDELINES:
+- Use the FULL range from 1-10 based on outfit quality
+- Be varied and realistic in your scoring - DO NOT default to 7s
+- Low scores (1-4) for significant issues, mid scores (5-7) for average looks, high scores (8-10) for excellent outfits
+- Be honest but encouraging - point out positives even in lower-scored categories
 
-IMPORTANT: Be varied in your scoring - don't just give everything a 7/10. Use the full range from 1-10 based on the actual outfit quality. Be realistic but encouraging!`;
+DO NOT explain the scoring system. Start directly with the analysis.`;
 
-    // Make request to Nebius API
+    console.log('Calling Nebius API with Qwen 2.5 for style analysis...');
+    
+    // Make request to Nebius API with optimized parameters
     const response = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -106,7 +108,9 @@ IMPORTANT: Be varied in your scoring - don't just give everything a 7/10. Use th
       },
       body: JSON.stringify({
         model: "Qwen/Qwen2.5-VL-72B-Instruct", 
-        temperature: 0.85, // Slightly higher temperature for more variation
+        temperature: 0.7, // Reduced for more consistent output format
+        top_p: 0.95,
+        max_tokens: 1500, // Ensure we get a complete response
         messages: [
           {
             role: 'system',
@@ -117,7 +121,7 @@ IMPORTANT: Be varied in your scoring - don't just give everything a 7/10. Use th
             content: [
               {
                 type: 'text',
-                text: "Analyze this outfit and provide detailed style feedback following the exact format specified. Remember to be encouraging and honest, use a range of scores - not just 7s. The person is looking for genuine but constructive feedback."
+                text: "Analyze this outfit and provide detailed style feedback following the exact format specified. Use a range of scores, not just 7s. Be honest but encouraging."
               },
               {
                 type: 'image_url',
@@ -138,18 +142,18 @@ IMPORTANT: Be varied in your scoring - don't just give everything a 7/10. Use th
     }
 
     const data = await response.json();
-    console.log('Style analysis raw response:', data);
+    console.log('Style analysis completed');
       
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
       console.error('Invalid response format from Nebius API');
       throw new Error('Invalid response format from Nebius API');
     }
 
-    // Extract the markdown content - no longer trying to parse as JSON
+    // Extract the markdown content
     const markdownContent = data.choices[0].message.content;
-    console.log('Analysis content (first 300 chars):', markdownContent.substring(0, 300) + '...');
+    console.log('Analysis content sample:', markdownContent.substring(0, 100) + '...');
     
-    // Simply return the raw markdown feedback
+    // Return the raw markdown feedback
     return new Response(JSON.stringify({ feedback: markdownContent }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
@@ -157,10 +161,9 @@ IMPORTANT: Be varied in your scoring - don't just give everything a 7/10. Use th
   } catch (error) {
     console.error('Error in analyze-style function:', error);
     
-    // Return a fallback response with error details
     return new Response(JSON.stringify({ 
       error: error.message,
-      feedback: `# Style Analysis\n\nWe couldn't analyze your outfit at this time due to a technical issue. Please try again later.\n\n**Error:** ${error.message}`
+      feedback: `# Style Analysis Error\n\nWe couldn't analyze your outfit at this time due to a technical issue. Please try again later.\n\n**Error:** ${error.message}`
     }), { 
       status: 200, // Return 200 even for errors to make client handling easier
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
