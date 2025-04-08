@@ -33,12 +33,24 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     const breakdown: ScoreBreakdown[] = [];
     const tips: StyleTip[] = [];
     
-    // Get the overall score - no default value
-    const overallScoreMatch = rawAnalysis.match(/(?:Overall|Total) Score:?\s*(\d+(?:\.\d+)?)/i);
-    const overallScore = overallScoreMatch ? Math.round(parseFloat(overallScoreMatch[1])) : undefined;
+    // Get the overall score - explicitly look for "Overall Score:" pattern
+    const overallScoreMatch = rawAnalysis.match(/\*\*(?:Overall|Total)\s+Score:\*\*\s*(\d+(?:\.\d+)?)/i);
+    let overallScore: number | undefined = undefined;
     
-    if (!overallScore) {
-      console.warn('Could not find overall score in analysis');
+    if (overallScoreMatch && overallScoreMatch[1]) {
+      overallScore = Math.round(parseFloat(overallScoreMatch[1]));
+      console.log('Extracted overall score:', overallScore);
+    } else {
+      console.warn('Could not find overall score in analysis, looking for alternative patterns');
+      
+      // Try alternative pattern matching
+      const altScoreMatch = rawAnalysis.match(/(?:Overall|Total)\s+Score:\s*(\d+(?:\.\d+)?)/i);
+      if (altScoreMatch && altScoreMatch[1]) {
+        overallScore = Math.round(parseFloat(altScoreMatch[1]));
+        console.log('Extracted overall score (alt pattern):', overallScore);
+      } else {
+        console.warn('Could not find overall score with any pattern');
+      }
     }
     
     // Extract the summary section
@@ -70,6 +82,13 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
         emoji,
         details: details.trim()
       });
+    }
+    
+    // If we couldn't find an overall score but have category scores, calculate the average
+    if (overallScore === undefined && breakdown.length > 0) {
+      const sum = breakdown.reduce((total, item) => total + item.score, 0);
+      overallScore = Math.round(sum / breakdown.length);
+      console.log('Calculated overall score from categories:', overallScore);
     }
     
     // Extract tips from the analysis - both category-specific and advanced

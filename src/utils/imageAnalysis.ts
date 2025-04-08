@@ -49,7 +49,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     if (userData && userData.user) {
       const dbAnalysisData = {
         user_id: userData.user.id,
-        total_score: analysisData.overallScore,
+        total_score: analysisData.overallScore, // Use the correctly parsed score
         raw_analysis: data.feedback,
         feedback: analysisData.summary || data.feedback.substring(0, 200) + '...',
         breakdown: JSON.stringify(analysisData.breakdown),

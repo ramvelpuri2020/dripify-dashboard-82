@@ -24,12 +24,12 @@ serve(async (req) => {
       throw new Error('API key not configured');
     }
     
-    // Improved prompt for more human-like, varied feedback
+    // Improved prompt for more human-like, varied feedback with realistic scoring
     const stylePrompt = `You're a friendly, authentic fashion stylist who gives honest but encouraging feedback. Analyze this outfit and provide detailed feedback.
 
 YOUR ANALYSIS MUST BE STRUCTURED IN THIS EXACT FORMAT:
 
-**Overall Score:** [Give a score from 1-10 that realistically reflects the outfit quality]
+**Overall Score:** [Give a score from 1-10 that accurately reflects the outfit quality; do NOT default to 7]
 
 **Color Coordination:** [Score 1-10]
 [3-4 sentences of specific, constructive feedback about color choices]
@@ -91,14 +91,17 @@ YOUR ANALYSIS MUST BE STRUCTURED IN THIS EXACT FORMAT:
 IMPORTANT SCORING GUIDELINES:
 - Use the FULL range from 1-10 based on outfit quality
 - Be varied and realistic in your scoring - DO NOT default to 7s
+- Ensure the Overall Score matches the individual category scores
 - Low scores (1-4) for significant issues, mid scores (5-7) for average looks, high scores (8-10) for excellent outfits
+- Scores should be consistent with your text feedback
 - Be honest but encouraging - point out positives even in lower-scored categories
+- NEVER give a score that doesn't match your text evaluation
 
 DO NOT explain the scoring system. Start directly with the analysis.`;
 
     console.log('Calling Nebius API with Qwen 2.5 for style analysis...');
     
-    // Make request to Nebius API with optimized parameters
+    // Make request to Nebius API with optimized parameters for better performance
     const response = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -108,8 +111,8 @@ DO NOT explain the scoring system. Start directly with the analysis.`;
       },
       body: JSON.stringify({
         model: "Qwen/Qwen2.5-VL-72B-Instruct", 
-        temperature: 0.7, // Reduced for more consistent output format
-        top_p: 0.95,
+        temperature: 0.65, // Lower temperature for more consistent output
+        top_p: 0.9,
         max_tokens: 1500, // Ensure we get a complete response
         messages: [
           {
@@ -121,7 +124,7 @@ DO NOT explain the scoring system. Start directly with the analysis.`;
             content: [
               {
                 type: 'text',
-                text: "Analyze this outfit and provide detailed style feedback following the exact format specified. Use a range of scores, not just 7s. Be honest but encouraging."
+                text: "Analyze this outfit and provide detailed style feedback following the exact format specified. Use a range of scores (not defaulting to 7), and make sure your overall score is consistent with the category scores. Be honest but encouraging."
               },
               {
                 type: 'image_url',

@@ -10,6 +10,7 @@ interface UserStats {
   improvedCategories: string[];
   streak: number;
   lastScan: string | null;
+  bestScore: number;
 }
 
 interface ScanState {
@@ -21,7 +22,7 @@ interface ScanState {
   setLatestScan: (scan: StyleAnalysisResult) => void;
   setScanHistory: (scans: StyleAnalysisResult[]) => void;
   fetchUserScans: () => Promise<void>;
-  fetchUserStats: () => Promise<void>;
+  fetchUserStats: (userId?: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -31,7 +32,8 @@ const defaultStats: UserStats = {
   topCategory: '',
   improvedCategories: [],
   streak: 0,
-  lastScan: null
+  lastScan: null,
+  bestScore: 0
 };
 
 export const useScanStore = create<ScanState>((set, get) => ({
@@ -72,13 +74,13 @@ export const useScanStore = create<ScanState>((set, get) => ({
         let tips: StyleTip[] = [];
         
         try {
-          breakdown = scan.breakdown ? JSON.parse(scan.breakdown) : [];
+          breakdown = scan.breakdown ? JSON.parse(scan.breakdown.toString()) : [];
         } catch (e) {
           console.error('Error parsing breakdown:', e);
         }
         
         try {
-          tips = scan.tips ? JSON.parse(scan.tips) : [];
+          tips = scan.tips ? JSON.parse(scan.tips.toString()) : [];
         } catch (e) {
           console.error('Error parsing tips:', e);
         }
@@ -110,21 +112,25 @@ export const useScanStore = create<ScanState>((set, get) => ({
     }
   },
   
-  fetchUserStats: async () => {
+  fetchUserStats: async (userId) => {
     set({ isLoading: true, error: null });
     
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      let user_id = userId;
       
-      if (!userData?.user) {
-        set({ isLoading: false });
-        return;
+      if (!user_id) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData?.user) {
+          set({ isLoading: false });
+          return;
+        }
+        user_id = userData.user.id;
       }
       
       const { data, error } = await supabase
         .from('style_analyses')
         .select('*')
-        .eq('user_id', userData.user.id)
+        .eq('user_id', user_id)
         .order('scan_date', { ascending: false });
         
       if (error) {
@@ -141,10 +147,17 @@ export const useScanStore = create<ScanState>((set, get) => ({
       let totalScore = 0;
       const categoryScores: Record<string, number[]> = {};
       let maxStreak = 0;
+      let bestScore = 0;
       
       data.forEach(scan => {
         // Add to total score
-        totalScore += scan.total_score || 0;
+        const scanScore = scan.total_score || 0;
+        totalScore += scanScore;
+        
+        // Track best score
+        if (scanScore > bestScore) {
+          bestScore = scanScore;
+        }
         
         // Track max streak
         if (scan.streak_count && scan.streak_count > maxStreak) {
@@ -154,7 +167,11 @@ export const useScanStore = create<ScanState>((set, get) => ({
         // Parse breakdown for category stats
         try {
           if (scan.breakdown) {
-            const breakdown: ScoreBreakdown[] = JSON.parse(scan.breakdown);
+            const breakdownStr = typeof scan.breakdown === 'string' 
+              ? scan.breakdown 
+              : JSON.stringify(scan.breakdown);
+              
+            const breakdown: ScoreBreakdown[] = JSON.parse(breakdownStr);
             
             breakdown.forEach(item => {
               if (!categoryScores[item.category]) {
@@ -185,7 +202,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
         }
       }
       
-      // Find improved categories (categories where the most recent score is higher than the average)
+      // Find improved categories 
       const improvedCategories: string[] = [];
       
       for (const [category, scores] of Object.entries(categoryScores)) {
@@ -209,7 +226,8 @@ export const useScanStore = create<ScanState>((set, get) => ({
         topCategory,
         improvedCategories,
         streak: maxStreak,
-        lastScan
+        lastScan,
+        bestScore
       };
       
       set({ stats, isLoading: false });
