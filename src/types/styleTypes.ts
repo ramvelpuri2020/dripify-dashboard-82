@@ -33,9 +33,9 @@ export interface StyleAnalysis {
   scan_date?: string | null;
   streak_count?: number | null;
   last_scan_date?: string | null;
-  breakdown?: ScoreBreakdown[] | any;
+  breakdown?: ScoreBreakdown[] | string;  // Can be string when stored in DB
   raw_analysis?: string;
-  tips?: StyleTip[] | any;
+  tips?: StyleTip[] | string;  // Can be string when stored in DB
   user_id?: string | null;
 }
 
@@ -46,5 +46,5 @@ export interface UserStats {
   improvedCategories: string[];
   streak: number;
   lastScan: string | null;
-  bestScore: number; // Added bestScore to the interface
+  bestScore: number;
 }
