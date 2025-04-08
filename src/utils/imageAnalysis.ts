@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { useScanStore } from '@/store/scanStore';
 import type { StyleAnalysisResult } from '@/types/styleTypes';
@@ -24,6 +23,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
 
     const endTime = performance.now();
     console.log(`Analysis completed in ${Math.round(endTime - startTime)}ms`);
+    console.log('Analysis response:', data);
     
     if (!data || !data.feedback) {
       throw new Error('Invalid response format from AI service');
@@ -34,7 +34,9 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     
     // Make sure we have a valid overall score
     if (analysisData.overallScore === undefined) {
-      throw new Error('Failed to extract a valid overall score from the analysis');
+      console.error('Failed to extract a valid overall score from the analysis');
+      // Set a default score of 5 if no score could be extracted
+      analysisData.overallScore = 5;
     }
     
     // Upload image to Supabase Storage

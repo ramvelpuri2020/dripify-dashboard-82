@@ -1,16 +1,7 @@
 
 import { create } from 'zustand';
-import type { ScoreBreakdown, StyleAnalysisResult, StyleTip } from '@/types/styleTypes';
+import type { ScoreBreakdown, StyleAnalysisResult, StyleTip, UserStats } from '@/types/styleTypes';
 import { supabase } from '@/integrations/supabase/client';
-
-interface UserStats {
-  totalScans: number;
-  averageScore: number;
-  topCategory: string;
-  improvedCategories: string[];
-  streak: number;
-  lastScan: string | null;
-}
 
 interface ScanState {
   latestScan: StyleAnalysisResult | null;
@@ -21,7 +12,7 @@ interface ScanState {
   setLatestScan: (scan: StyleAnalysisResult) => void;
   setScanHistory: (scans: StyleAnalysisResult[]) => void;
   fetchUserScans: () => Promise<void>;
-  fetchUserStats: () => Promise<void>;
+  fetchUserStats: (userId?: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -31,7 +22,8 @@ const defaultStats: UserStats = {
   topCategory: '',
   improvedCategories: [],
   streak: 0,
-  lastScan: null
+  lastScan: null,
+  bestScore: 0 // Add bestScore with default 0
 };
 
 export const useScanStore = create<ScanState>((set, get) => ({
@@ -72,20 +64,28 @@ export const useScanStore = create<ScanState>((set, get) => ({
         let tips: StyleTip[] = [];
         
         try {
-          breakdown = scan.breakdown ? JSON.parse(scan.breakdown) : [];
+          if (scan.breakdown) {
+            breakdown = typeof scan.breakdown === 'string' 
+              ? JSON.parse(scan.breakdown) 
+              : scan.breakdown;
+          }
         } catch (e) {
           console.error('Error parsing breakdown:', e);
         }
         
         try {
-          tips = scan.tips ? JSON.parse(scan.tips) : [];
+          if (scan.tips) {
+            tips = typeof scan.tips === 'string'
+              ? JSON.parse(scan.tips)
+              : scan.tips;
+          }
         } catch (e) {
           console.error('Error parsing tips:', e);
         }
         
         return {
           overallScore: scan.total_score,
-          rawAnalysis: scan.raw_analysis,
+          rawAnalysis: scan.raw_analysis || '',
           imageUrl: scan.image_url,
           breakdown,
           tips,
@@ -110,13 +110,18 @@ export const useScanStore = create<ScanState>((set, get) => ({
     }
   },
   
-  fetchUserStats: async () => {
+  fetchUserStats: async (userId?: string) => {
     set({ isLoading: true, error: null });
     
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      let userIdToUse = userId;
       
-      if (!userData?.user) {
+      if (!userIdToUse) {
+        const { data: userData } = await supabase.auth.getUser();
+        userIdToUse = userData?.user?.id;
+      }
+      
+      if (!userIdToUse) {
         set({ isLoading: false });
         return;
       }
@@ -124,7 +129,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
       const { data, error } = await supabase
         .from('style_analyses')
         .select('*')
-        .eq('user_id', userData.user.id)
+        .eq('user_id', userIdToUse)
         .order('scan_date', { ascending: false });
         
       if (error) {
@@ -139,12 +144,19 @@ export const useScanStore = create<ScanState>((set, get) => ({
       // Calculate stats
       const totalScans = data.length;
       let totalScore = 0;
+      let bestScore = 0;
       const categoryScores: Record<string, number[]> = {};
       let maxStreak = 0;
       
       data.forEach(scan => {
         // Add to total score
-        totalScore += scan.total_score || 0;
+        const score = typeof scan.total_score === 'number' ? scan.total_score : 0;
+        totalScore += score;
+        
+        // Track best score
+        if (score > bestScore) {
+          bestScore = score;
+        }
         
         // Track max streak
         if (scan.streak_count && scan.streak_count > maxStreak) {
@@ -154,7 +166,13 @@ export const useScanStore = create<ScanState>((set, get) => ({
         // Parse breakdown for category stats
         try {
           if (scan.breakdown) {
-            const breakdown: ScoreBreakdown[] = JSON.parse(scan.breakdown);
+            let breakdown: ScoreBreakdown[];
+            
+            if (typeof scan.breakdown === 'string') {
+              breakdown = JSON.parse(scan.breakdown);
+            } else {
+              breakdown = scan.breakdown;
+            }
             
             breakdown.forEach(item => {
               if (!categoryScores[item.category]) {
@@ -209,7 +227,8 @@ export const useScanStore = create<ScanState>((set, get) => ({
         topCategory,
         improvedCategories,
         streak: maxStreak,
-        lastScan
+        lastScan,
+        bestScore
       };
       
       set({ stats, isLoading: false });

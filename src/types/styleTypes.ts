@@ -6,6 +6,8 @@ export interface StyleAnalysisResult {
   breakdown?: ScoreBreakdown[];
   tips?: StyleTip[];
   summary?: string;
+  id?: string;
+  scanDate?: string;
 }
 
 export interface ScoreBreakdown {
@@ -35,4 +37,14 @@ export interface StyleAnalysis {
   raw_analysis?: string;
   tips?: StyleTip[] | any;
   user_id?: string | null;
+}
+
+export interface UserStats {
+  totalScans: number;
+  averageScore: number;
+  topCategory: string;
+  improvedCategories: string[];
+  streak: number;
+  lastScan: string | null;
+  bestScore: number; // Added bestScore to the interface
 }

@@ -1,4 +1,3 @@
-
 import { ScoreBreakdown, StyleTip } from "@/types/styleTypes";
 
 interface AnalysisResult {
@@ -47,22 +46,26 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     const summaryMatch = rawAnalysis.match(/\*\*Summary:\*\*([\s\S]*?)(?:\*\*|$)/i);
     const summary = summaryMatch ? summaryMatch[1].trim() : undefined;
     
-    // Extract categories with strict numerical score extraction
-    const categoryMatches = [...rawAnalysis.matchAll(/\*\*([^*]+):\*\*\s*(\d+)[^\d]*([\s\S]*?)(?=\*\*|$)/g)];
+    // Fixed category regex to better extract numerical scores
+    // This now uses a more strict pattern to get only the numerical value after the category header
+    const categoryRegex = /\*\*([^*:]+):\*\*\s*(\d+)(?:\s*|\n)([\s\S]*?)(?=\*\*[^*]+:\*\*|$)/g;
+    let match;
     
-    for (const match of categoryMatches) {
+    while ((match = categoryRegex.exec(rawAnalysis)) !== null) {
       const category = match[1].trim();
-      const scoreText = match[2];
-      const details = match[3].trim();
+      const scoreText = match[2].trim();
+      let details = match[3].trim();
       
       // Skip overall score and summary which are handled separately
       if (category.toLowerCase() === 'overall score' || category.toLowerCase() === 'summary') {
         continue;
       }
       
+      // Clean up potential numerical prefixes in details (some responses include the score again)
+      details = details.replace(/^\d+\s*/, '');
+      
       const score = parseInt(scoreText, 10);
       
-      // Only add if we have a valid score
       if (!isNaN(score)) {
         const emoji = categoryEmojis[category] || "✅";
         
@@ -74,11 +77,26 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
         });
       } else {
         console.warn(`Invalid score "${scoreText}" for category: ${category}`);
+        
+        // Try to extract score from the first line of details
+        const detailsScoreMatch = details.match(/^(\d+)/);
+        if (detailsScoreMatch) {
+          const detailsScore = parseInt(detailsScoreMatch[1], 10);
+          if (!isNaN(detailsScore)) {
+            const emoji = categoryEmojis[category] || "✅";
+            breakdown.push({
+              category,
+              score: detailsScore,
+              emoji,
+              details: details.replace(/^\d+\s*/, '')
+            });
+          }
+        }
       }
     }
     
-    // If no categories were extracted, try a more flexible approach
-    if (breakdown.length === 0) {
+    // If we found fewer than 4 categories, try a more flexible approach
+    if (breakdown.length < 4) {
       extractCategoriesFlexible(rawAnalysis, breakdown);
     }
     
@@ -149,6 +167,11 @@ function extractCategoriesFlexible(text: string, breakdown: ScoreBreakdown[]): v
   ];
   
   for (const category of categories) {
+    // Skip categories we already have
+    if (breakdown.some(item => item.category === category)) {
+      continue;
+    }
+    
     // Look for category with different formatting patterns
     const patterns = [
       new RegExp(`\\*\\*${category}:\\*\\*\\s*(\\d+)[^\\d]*([\\s\\S]*?)(?=\\*\\*|$)`, 'i'),
