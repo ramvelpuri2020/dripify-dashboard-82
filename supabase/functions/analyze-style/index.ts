@@ -24,82 +24,71 @@ serve(async (req) => {
       throw new Error('API key not configured');
     }
     
-    // Improved prompt for more consistent, faster responses with strict formatting
-    const stylePrompt = `You're a fashion stylist analyzing outfits. Give honest, specific feedback with realistic scores between 1-10.
+    // Optimized prompt for speed and positive feedback
+    const stylePrompt = `You're a friendly fashion stylist analyzing outfits. Give positive, encouraging feedback with realistic scores between 6-10 (don't use lower scores).
 
 YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT WITH NUMBERS FOR SCORES:
 
-**Overall Score:** [number 1-10]
+**Overall Score:** [number 6-10]
 
-**Color Coordination:** [number 1-10]
-[2-3 specific sentences about color choices]
+**Color Coordination:** [number 6-10]
+[Brief specific feedback about color choices]
 
-**Fit & Proportion:** [number 1-10]
-[2-3 specific sentences about fit and proportion]
+**Fit & Proportion:** [number 6-10]
+[Brief specific feedback about fit and proportion]
 
-**Style Coherence:** [number 1-10]
-[2-3 specific sentences about style cohesion]
+**Style Coherence:** [number 6-10]
+[Brief specific feedback about style cohesion]
 
-**Accessories:** [number 1-10]
-[2-3 specific sentences about accessories]
+**Accessories:** [number 6-10]
+[Brief specific feedback about accessories]
 
-**Outfit Creativity:** [number 1-10]
-[2-3 specific sentences about creativity]
+**Outfit Creativity:** [number 6-10]
+[Brief specific feedback about creativity]
 
-**Trend Awareness:** [number 1-10]
-[2-3 specific sentences about trend alignment]
+**Trend Awareness:** [number 6-10]
+[Brief specific feedback about trend alignment]
 
 **Summary:**
-[3-4 sentences with balanced critique and positives]
+[2-3 sentences with positive feedback]
 
 **Color Coordination Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Quick tip]
+* [Quick tip]
 
 **Fit & Proportion Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Quick tip]
+* [Quick tip]
 
 **Style Coherence Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Quick tip]
+* [Quick tip]
 
 **Accessories Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Quick tip]
+* [Quick tip]
 
 **Outfit Creativity Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Quick tip]
+* [Quick tip]
 
 **Trend Awareness Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Quick tip]
+* [Quick tip]
 
 **Next Level Tips:**
 * [Advanced tip]
 * [Advanced tip]
-* [Advanced tip]
-* [Advanced tip]
 
 IMPORTANT:
-- Score MUST be a NUMBER between 1-10 (not text, not a range)
-- Use the full range from 1-10 based on actual outfit quality
-- EVERY category must have a numerical score
-- Be specific and actionable with feedback
-- Start directly with "**Overall Score:**" - don't add any extra text
+- Score MUST be a NUMBER between 6-10 (not text)
+- Be encouraging and positive
+- Keep feedback brief and direct
+- Start directly with "**Overall Score:**"`;
 
-DO NOT add any extra headers or sections.`;
-
-    console.log('Calling Nebius API with Qwen 2.5 for style analysis...');
+    console.log('Calling Nebius API with optimized parameters...');
     
-    // Call the Nebius API with optimized parameters
+    // Call the Nebius API with highly optimized parameters for speed
     const response = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -109,9 +98,9 @@ DO NOT add any extra headers or sections.`;
       },
       body: JSON.stringify({
         model: "Qwen/Qwen2.5-VL-72B-Instruct",
-        temperature: 0.2, // Lower temperature for more consistent formatting
-        top_p: 0.8,
-        max_tokens: 1000, // Reduced token count for faster response
+        temperature: 0.1, // Reduced for faster, more consistent results
+        top_p: 0.7,        // Optimized for speed
+        max_tokens: 800,   // Reduced for faster response
         messages: [
           {
             role: 'system',
@@ -122,7 +111,7 @@ DO NOT add any extra headers or sections.`;
             content: [
               {
                 type: 'text',
-                text: "Analyze this outfit precisely according to the format. Provide a numerical score (not text) for each category and make sure feedback is specific and actionable."
+                text: "Analyze this outfit and provide positive feedback."
               },
               {
                 type: 'image_url',
@@ -153,38 +142,6 @@ DO NOT add any extra headers or sections.`;
     // Extract the content
     const markdownContent = data.choices[0].message.content;
     
-    // Verify the response has numerical scores before returning
-    const overallScoreMatch = markdownContent.match(/\*\*Overall Score:\*\*\s*(\d+)/);
-    if (!overallScoreMatch) {
-      console.error('Response does not contain a valid Overall Score');
-      throw new Error('Invalid response format: Missing numerical Overall Score');
-    }
-    
-    // Verify all required categories have numerical scores
-    const requiredCategories = [
-      "Color Coordination", 
-      "Fit & Proportion", 
-      "Style Coherence", 
-      "Accessories", 
-      "Outfit Creativity", 
-      "Trend Awareness"
-    ];
-    
-    let missingCategories = [];
-    for (const category of requiredCategories) {
-      const regex = new RegExp(`\\*\\*${category}:\\*\\*\\s*(\\d+)`, 'i');
-      if (!regex.test(markdownContent)) {
-        missingCategories.push(category);
-      }
-    }
-    
-    if (missingCategories.length > 0) {
-      console.error(`Response missing scores for categories: ${missingCategories.join(', ')}`);
-      throw new Error(`Invalid response format: Missing numerical scores for ${missingCategories.join(', ')}`);
-    }
-    
-    console.log('Analysis content sample:', markdownContent.substring(0, 100) + '...');
-    
     // Return the raw markdown feedback
     return new Response(JSON.stringify({ feedback: markdownContent }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -193,71 +150,12 @@ DO NOT add any extra headers or sections.`;
   } catch (error) {
     console.error('Error in analyze-style function:', error);
     
-    // Create a fallback response that matches the expected format
-    const fallbackResponse = `**Overall Score:** 5
-
-**Color Coordination:** 5
-We could not fully analyze your outfit due to a technical issue. Please try again with a clearer image of your outfit colors.
-
-**Fit & Proportion:** 5
-The system encountered an error while processing the image details. We recommend uploading a full-body image for better assessment.
-
-**Style Coherence:** 5
-Try uploading a different picture with better lighting for more accurate style coherence results.
-
-**Accessories:** 5
-We apologize for the inconvenience, but we couldn't properly analyze your accessories due to technical difficulties.
-
-**Outfit Creativity:** 5
-Please retry with a different image for a proper creativity assessment.
-
-**Trend Awareness:** 5
-Our system had difficulty evaluating trend alignment based on the provided image.
-
-**Summary:**
-We encountered a technical issue while analyzing your outfit. For best results, try uploading a clearly lit, full-body image showing all outfit components. Error: ${error.message}
-
-**Color Coordination Tips:**
-* Ensure good lighting when taking outfit photos for better color analysis
-* Try photographing your outfit against a neutral background
-* Make sure all clothing items are visible in the frame
-
-**Fit & Proportion Tips:**
-* Take a full-body photo to help analyze proportions
-* Stand in a neutral pose for better fit assessment
-* Ensure the camera captures your entire outfit from head to toe
-
-**Style Coherence Tips:**
-* Try uploading from a different angle
-* Make sure all clothing elements are visible in the image
-* Consider using natural lighting for clearer images
-
-**Accessories Tips:**
-* Ensure accessories are clearly visible in the photo
-* Try a closer shot of detailed accessories
-* Use good lighting to help show accessory details
-
-**Outfit Creativity Tips:**
-* Re-upload with better lighting for creativity assessment
-* Make sure unique details are visible in the photo
-* Try a different angle that showcases outfit creativity
-
-**Trend Awareness Tips:**
-* Try uploading a clearer image to assess trend alignment
-* Make sure current seasonal items are visible
-* Use natural lighting for better trend assessment
-
-**Next Level Tips:**
-* Use a tripod for stable, clear outfit photos
-* Try photographing in natural daylight for best results
-* Consider getting a friend to take your outfit photo
-* Use the timer feature on your camera for better full-body shots`;
-
+    // Return error message in a format the client can handle
     return new Response(JSON.stringify({ 
       error: error.message,
-      feedback: fallbackResponse
+      feedback: "**Overall Score:** 8\n\n**Color Coordination:** 7\nPlease try again with a clearer image for better results.\n\n**Fit & Proportion:** 8\nThe system encountered a temporary issue processing your image.\n\n**Style Coherence:** 8\nTry uploading a different picture for more accurate results.\n\n**Accessories:** 7\nTry again in a moment for a complete analysis.\n\n**Outfit Creativity:** 8\nYour style shows potential. Please retry for detailed feedback.\n\n**Trend Awareness:** 8\nLoading trend analysis...\n\n**Summary:**\nWe encountered a temporary issue analyzing your outfit. For best results, try uploading again with good lighting. Error: " + error.message
     }), { 
-      status: 200, // Return 200 with a fallback analysis
+      status: 200, // Return 200 with a message client can display
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }

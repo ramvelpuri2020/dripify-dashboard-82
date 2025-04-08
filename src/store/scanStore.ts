@@ -23,7 +23,7 @@ const defaultStats: UserStats = {
   improvedCategories: [],
   streak: 0,
   lastScan: null,
-  bestScore: 0 // Add bestScore with default 0
+  bestScore: 0
 };
 
 export const useScanStore = create<ScanState>((set, get) => ({
@@ -67,7 +67,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
           if (scan.breakdown) {
             breakdown = typeof scan.breakdown === 'string' 
               ? JSON.parse(scan.breakdown) 
-              : scan.breakdown;
+              : (Array.isArray(scan.breakdown) ? scan.breakdown : []);
           }
         } catch (e) {
           console.error('Error parsing breakdown:', e);
@@ -77,7 +77,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
           if (scan.tips) {
             tips = typeof scan.tips === 'string'
               ? JSON.parse(scan.tips)
-              : scan.tips;
+              : (Array.isArray(scan.tips) ? scan.tips : []);
           }
         } catch (e) {
           console.error('Error parsing tips:', e);
@@ -170,8 +170,10 @@ export const useScanStore = create<ScanState>((set, get) => ({
             
             if (typeof scan.breakdown === 'string') {
               breakdown = JSON.parse(scan.breakdown);
-            } else {
+            } else if (Array.isArray(scan.breakdown)) {
               breakdown = scan.breakdown;
+            } else {
+              breakdown = [];
             }
             
             breakdown.forEach(item => {
@@ -203,7 +205,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
         }
       }
       
-      // Find improved categories (categories where the most recent score is higher than the average)
+      // Find improved categories
       const improvedCategories: string[] = [];
       
       for (const [category, scores] of Object.entries(categoryScores)) {
