@@ -24,63 +24,63 @@ serve(async (req) => {
       throw new Error('API key not configured');
     }
     
-    // Improved prompt for more human-like, varied feedback
-    const stylePrompt = `You're a friendly, authentic fashion stylist who gives honest but encouraging feedback. Analyze this outfit and provide detailed feedback.
+    // Improved prompt for more consistent, faster responses with strict formatting
+    const stylePrompt = `You're a fashion stylist analyzing outfits. Give honest, specific feedback with realistic scores.
 
-YOUR ANALYSIS MUST BE STRUCTURED IN THIS EXACT FORMAT:
+YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT WITH NUMBERS FOR SCORES:
 
-**Overall Score:** [Give a score from 1-10 that realistically reflects the outfit quality]
+**Overall Score:** [number 1-10]
 
-**Color Coordination:** [Score 1-10]
-[3-4 sentences of specific, constructive feedback about color choices]
+**Color Coordination:** [number 1-10]
+[2-3 specific sentences about color choices]
 
-**Fit & Proportion:** [Score 1-10]
-[3-4 sentences about how the clothes fit and proportion]
+**Fit & Proportion:** [number 1-10]
+[2-3 specific sentences about fit and proportion]
 
-**Style Coherence:** [Score 1-10]
-[3-4 sentences about overall style cohesion]
+**Style Coherence:** [number 1-10]
+[2-3 specific sentences about style cohesion]
 
-**Accessories:** [Score 1-10]
-[3-4 sentences about accessory choices or suggestions]
+**Accessories:** [number 1-10]
+[2-3 specific sentences about accessories]
 
-**Outfit Creativity:** [Score 1-10]
-[3-4 sentences about creative elements]
+**Outfit Creativity:** [number 1-10]
+[2-3 specific sentences about creativity]
 
-**Trend Awareness:** [Score 1-10]
-[3-4 sentences about trend alignment]
+**Trend Awareness:** [number 1-10]
+[2-3 specific sentences about trend alignment]
 
 **Summary:**
-[5-6 sentences balancing constructive critique with genuine positives]
+[3-4 sentences with balanced critique and positives]
 
 **Color Coordination Tips:**
-* [Specific actionable tip]
-* [Specific actionable tip]
-* [Specific actionable tip]
+* [Specific tip]
+* [Specific tip]
+* [Specific tip]
 
 **Fit & Proportion Tips:**
-* [Specific actionable tip]
-* [Specific actionable tip]
-* [Specific actionable tip]
+* [Specific tip]
+* [Specific tip]
+* [Specific tip]
 
 **Style Coherence Tips:**
-* [Specific actionable tip]
-* [Specific actionable tip]
-* [Specific actionable tip]
+* [Specific tip]
+* [Specific tip]
+* [Specific tip]
 
 **Accessories Tips:**
-* [Specific actionable tip]
-* [Specific actionable tip]
-* [Specific actionable tip]
+* [Specific tip]
+* [Specific tip]
+* [Specific tip]
 
 **Outfit Creativity Tips:**
-* [Specific actionable tip]
-* [Specific actionable tip]
-* [Specific actionable tip]
+* [Specific tip]
+* [Specific tip]
+* [Specific tip]
 
 **Trend Awareness Tips:**
-* [Specific actionable tip]
-* [Specific actionable tip]
-* [Specific actionable tip]
+* [Specific tip]
+* [Specific tip]
+* [Specific tip]
 
 **Next Level Tips:**
 * [Advanced tip]
@@ -88,17 +88,18 @@ YOUR ANALYSIS MUST BE STRUCTURED IN THIS EXACT FORMAT:
 * [Advanced tip]
 * [Advanced tip]
 
-IMPORTANT SCORING GUIDELINES:
-- Use the FULL range from 1-10 based on outfit quality
-- Be varied and realistic in your scoring - DO NOT default to 7s
-- Low scores (1-4) for significant issues, mid scores (5-7) for average looks, high scores (8-10) for excellent outfits
-- Be honest but encouraging - point out positives even in lower-scored categories
+IMPORTANT:
+- Score must be a NUMBER between 1-10 (not text, not a range)
+- Use the full range from 1-10 based on actual outfit quality
+- EVERY category must have a numerical score
+- Be specific and actionable with feedback
+- Start directly with "**Overall Score:**" - don't add any extra text
 
-DO NOT explain the scoring system. Start directly with the analysis.`;
+DO NOT add any extra headers or sections.`;
 
     console.log('Calling Nebius API with Qwen 2.5 for style analysis...');
     
-    // Make request to Nebius API with optimized parameters
+    // Optimize API parameters for faster response
     const response = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -107,10 +108,10 @@ DO NOT explain the scoring system. Start directly with the analysis.`;
         'Accept': '*/*'
       },
       body: JSON.stringify({
-        model: "Qwen/Qwen2.5-VL-72B-Instruct", 
-        temperature: 0.7, // Reduced for more consistent output format
-        top_p: 0.95,
-        max_tokens: 1500, // Ensure we get a complete response
+        model: "Qwen/Qwen2.5-VL-72B-Instruct",
+        temperature: 0.5, // Lower temperature for more consistent formatting
+        top_p: 0.8,
+        max_tokens: 1000, // Reduced token count for faster response
         messages: [
           {
             role: 'system',
@@ -121,7 +122,7 @@ DO NOT explain the scoring system. Start directly with the analysis.`;
             content: [
               {
                 type: 'text',
-                text: "Analyze this outfit and provide detailed style feedback following the exact format specified. Use a range of scores, not just 7s. Be honest but encouraging."
+                text: "Analyze this outfit precisely according to the format. Provide a numerical score (not text) for each category and make sure feedback is specific and actionable."
               },
               {
                 type: 'image_url',
@@ -149,8 +150,16 @@ DO NOT explain the scoring system. Start directly with the analysis.`;
       throw new Error('Invalid response format from Nebius API');
     }
 
-    // Extract the markdown content
+    // Extract the content
     const markdownContent = data.choices[0].message.content;
+    
+    // Verify the response has numerical scores before returning
+    const overallScoreMatch = markdownContent.match(/\*\*Overall Score:\*\*\s*(\d+)/);
+    if (!overallScoreMatch) {
+      console.error('Response does not contain a valid Overall Score');
+      throw new Error('Invalid response format: Missing numerical Overall Score');
+    }
+    
     console.log('Analysis content sample:', markdownContent.substring(0, 100) + '...');
     
     // Return the raw markdown feedback
@@ -163,9 +172,9 @@ DO NOT explain the scoring system. Start directly with the analysis.`;
     
     return new Response(JSON.stringify({ 
       error: error.message,
-      feedback: `# Style Analysis Error\n\nWe couldn't analyze your outfit at this time due to a technical issue. Please try again later.\n\n**Error:** ${error.message}`
+      feedback: `**Overall Score:** 5\n\n**Color Coordination:** 5\nWe could not fully analyze your outfit due to a technical issue. Please try again with a clearer image.\n\n**Fit & Proportion:** 5\nThe system encountered an error while processing the image details.\n\n**Style Coherence:** 5\nTry uploading a different picture with better lighting for more accurate results.\n\n**Accessories:** 5\nWe apologize for the inconvenience, but we couldn't properly analyze your accessories.\n\n**Outfit Creativity:** 5\nPlease retry with a different image for a proper creativity assessment.\n\n**Trend Awareness:** 5\nOur system had difficulty evaluating trend alignment based on the provided image.\n\n**Summary:**\nWe encountered a technical issue while analyzing your outfit. For best results, try uploading a clearly lit, full-body image. Error: ${error.message}`
     }), { 
-      status: 200, // Return 200 even for errors to make client handling easier
+      status: 200, // Return 200 with a fallback analysis
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }

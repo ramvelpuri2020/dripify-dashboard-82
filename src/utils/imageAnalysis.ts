@@ -32,44 +32,45 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
     // Parse the analysis results
     const analysisData = parseAnalysis(data.feedback);
     
-    // Upload image to Supabase Storage in parallel with other operations
-    const imageUploadPromise = uploadImageToSupabase(imageFile);
-    
-    // Get user info for database save
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError) {
-      console.error('Error getting user:', userError);
+    // Make sure we have a valid overall score
+    if (analysisData.overallScore === undefined) {
+      throw new Error('Failed to extract a valid overall score from the analysis');
     }
     
-    // Get image URL from the completed upload
-    const imageUrl = await imageUploadPromise;
+    // Upload image to Supabase Storage
+    const imageUrl = await uploadImageToSupabase(imageFile);
     console.log('Image uploaded to Supabase:', imageUrl);
     
-    // Save analysis to database if user is logged in
-    if (userData && userData.user) {
+    // Get user info for database save
+    const { data: userData } = await supabase.auth.getUser();
+    
+    // Save analysis to database if user is logged in and we have a valid score
+    if (userData && userData.user && analysisData.overallScore !== undefined) {
       const dbAnalysisData = {
         user_id: userData.user.id,
         total_score: analysisData.overallScore,
         raw_analysis: data.feedback,
         feedback: analysisData.summary || data.feedback.substring(0, 200) + '...',
-        breakdown: JSON.stringify(analysisData.breakdown),
-        tips: JSON.stringify(analysisData.tips),
+        breakdown: JSON.stringify(analysisData.breakdown || []),
+        tips: JSON.stringify(analysisData.tips || []),
         image_url: imageUrl,
         thumbnail_url: imageUrl,
         scan_date: new Date().toISOString(),
       };
       
-      // No need to await this operation as it's not critical for the UI response
-      supabase
-        .from('style_analyses')
-        .insert(dbAnalysisData)
-        .then(({ error: insertError }) => {
-          if (insertError) {
-            console.error('Error saving analysis to database:', insertError);
-          } else {
-            console.log('Analysis saved to database successfully');
-          }
-        });
+      try {
+        const { error: insertError } = await supabase
+          .from('style_analyses')
+          .insert(dbAnalysisData);
+          
+        if (insertError) {
+          console.error('Error saving analysis to database:', insertError);
+        } else {
+          console.log('Analysis saved to database successfully');
+        }
+      } catch (dbError) {
+        console.error('Database error:', dbError);
+      }
     }
     
     // Create the result object
@@ -77,8 +78,8 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
       overallScore: analysisData.overallScore,
       rawAnalysis: data.feedback,
       imageUrl,
-      breakdown: analysisData.breakdown,
-      tips: analysisData.tips,
+      breakdown: analysisData.breakdown || [],
+      tips: analysisData.tips || [],
       summary: analysisData.summary
     };
     
@@ -93,7 +94,7 @@ export const analyzeStyle = async (imageFile: File): Promise<StyleAnalysisResult
   }
 };
 
-// Upload image to Supabase Storage - now returns a promise for better parallelization
+// Upload image to Supabase Storage
 const uploadImageToSupabase = async (imageFile: File): Promise<string> => {
   try {
     const timestamp = new Date().getTime();

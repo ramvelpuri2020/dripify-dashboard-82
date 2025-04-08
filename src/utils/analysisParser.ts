@@ -33,11 +33,13 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     const breakdown: ScoreBreakdown[] = [];
     const tips: StyleTip[] = [];
     
-    // Get the overall score - no default value
-    const overallScoreMatch = rawAnalysis.match(/(?:Overall|Total) Score:?\s*(\d+(?:\.\d+)?)/i);
-    const overallScore = overallScoreMatch ? Math.round(parseFloat(overallScoreMatch[1])) : undefined;
+    // Extract the overall score - strict numerical extraction
+    const overallScoreMatch = rawAnalysis.match(/\*\*Overall Score:\*\*\s*(\d+)/i);
+    const overallScore = overallScoreMatch 
+      ? parseInt(overallScoreMatch[1], 10) 
+      : extractFallbackScore(rawAnalysis);
     
-    if (!overallScore) {
+    if (overallScore === undefined) {
       console.warn('Could not find overall score in analysis');
     }
     
@@ -45,146 +47,139 @@ export const parseAnalysis = (rawAnalysis: string): AnalysisResult => {
     const summaryMatch = rawAnalysis.match(/\*\*Summary:\*\*([\s\S]*?)(?:\*\*|$)/i);
     const summary = summaryMatch ? summaryMatch[1].trim() : undefined;
     
-    // Extract categories, their scores, and detailed descriptions
-    const categoryScores = extractCategoryScores(rawAnalysis);
-    const categoryBlocks = extractCategoryBlocks(rawAnalysis);
+    // Extract categories with strict numerical score extraction
+    const categoryMatches = [...rawAnalysis.matchAll(/\*\*([^*]+):\*\*\s*(\d+)[^\d]*([\s\S]*?)(?=\*\*|$)/g)];
     
-    // Combine the extracted information into breakdown items
-    for (const [category, details] of Object.entries(categoryBlocks)) {
-      // Find the score for this category
-      const score = categoryScores[category];
+    for (const match of categoryMatches) {
+      const category = match[1].trim();
+      const scoreText = match[2];
+      const details = match[3].trim();
       
-      // Skip categories where we couldn't extract a score
-      if (score === undefined) {
-        console.warn(`Could not find score for category: ${category}`);
+      // Skip overall score and summary which are handled separately
+      if (category.toLowerCase() === 'overall score' || category.toLowerCase() === 'summary') {
         continue;
       }
-        
-      // Get emoji for the category
-      const emoji = categoryEmojis[category] || "✅";
       
-      // Add to breakdown
-      breakdown.push({
-        category,
-        score,
-        emoji,
-        details: details.trim()
-      });
+      const score = parseInt(scoreText, 10);
+      
+      // Only add if we have a valid score
+      if (!isNaN(score)) {
+        const emoji = categoryEmojis[category] || "✅";
+        
+        breakdown.push({
+          category,
+          score,
+          emoji,
+          details
+        });
+      } else {
+        console.warn(`Invalid score "${scoreText}" for category: ${category}`);
+      }
     }
     
-    // Extract tips from the analysis - both category-specific and advanced
+    // If no categories were extracted, try a more flexible approach
+    if (breakdown.length === 0) {
+      extractCategoriesFlexible(rawAnalysis, breakdown);
+    }
+    
+    // Extract tips from the analysis
     extractAllTips(rawAnalysis, tips);
     
     // Sort categories by score (highest first)
     breakdown.sort((a, b) => b.score - a.score);
     
+    // Make sure we have a valid overall score
+    const validOverallScore = (overallScore !== undefined && !isNaN(overallScore)) 
+      ? overallScore 
+      : breakdown.length > 0 
+        ? Math.round(breakdown.reduce((sum, item) => sum + item.score, 0) / breakdown.length) 
+        : 5; // Use 5 only as absolute fallback
+    
     return { 
       breakdown, 
       tips, 
-      overallScore,
+      overallScore: validOverallScore,
       summary 
     };
     
   } catch (error) {
     console.error('Error parsing analysis:', error);
-    throw new Error('Failed to parse style analysis: ' + (error instanceof Error ? error.message : String(error)));
+    // Return minimal valid data in case of error
+    return {
+      breakdown: [],
+      tips: [],
+      overallScore: 5, // Fallback score
+      summary: "We encountered an error analyzing your outfit. Please try again with a different image."
+    };
   }
 };
 
-// Helper function to extract category blocks from the analysis
-function extractCategoryBlocks(text: string): Record<string, string> {
-  const blocks: Record<string, string> = {};
-  const lines = text.split('\n');
+// Fallback score extraction for when the standard regex fails
+function extractFallbackScore(text: string): number | undefined {
+  // Try different formats that might appear in the text
+  const patterns = [
+    /overall score.*?(\d+)/i,
+    /total score.*?(\d+)/i,
+    /score.*?(\d+).*?10/i,
+    /rating.*?(\d+)/i
+  ];
   
-  let currentCategory = '';
-  let currentBlock = '';
-  let inTipsSection = false;
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    
-    // Skip empty lines
-    if (!line) continue;
-    
-    // Check if we're entering a tips section
-    if (line.toLowerCase().includes('tips:') || 
-        line.toLowerCase().match(/tips\s+section/i) ||
-        line.toLowerCase().match(/^[a-z\s&]+\s+tips:?$/i)) {
-      inTipsSection = true;
-      if (currentCategory && currentBlock) {
-        blocks[currentCategory] = currentBlock.trim();
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      const score = parseInt(match[1], 10);
+      if (!isNaN(score) && score >= 0 && score <= 10) {
+        return score;
       }
-      currentCategory = '';
-      continue;
-    }
-    
-    // Skip processing if we're in the tips section
-    if (inTipsSection) continue;
-    
-    // Look for category headers (bold text, numbered items, etc.)
-    const categoryMatch = line.match(/(?:\*\*|\d+\.\s*)([A-Za-z\s&]+)(?:\*\*)?(?:\s*:\s*|(?:\s*-\s*))(?:(\d+(?:\.\d+)?)\s*\/\s*10)?/);
-    
-    if (categoryMatch) {
-      // If we were processing a previous category, save its block
-      if (currentCategory && currentBlock) {
-        blocks[currentCategory] = currentBlock.trim();
-      }
-      
-      // Start a new category
-      currentCategory = categoryMatch[1].trim();
-      currentBlock = '';
-      
-      // Skip if this appears to be the overall score or summary
-      if (currentCategory.toLowerCase().includes('overall') || 
-          currentCategory.toLowerCase().includes('total score') || 
-          currentCategory.toLowerCase() === 'summary') {
-        currentCategory = '';
-      }
-      
-      continue;
-    }
-    
-    // If we have a current category, add this line to its block
-    if (currentCategory) {
-      currentBlock += line + '\n';
     }
   }
   
-  // Add the last category if there is one
-  if (currentCategory && currentBlock) {
-    blocks[currentCategory] = currentBlock.trim();
-  }
-  
-  return blocks;
+  return undefined;
 }
 
-// Helper function to extract category scores from the analysis
-function extractCategoryScores(text: string): Record<string, number> {
-  const scores: Record<string, number> = {};
-  const scorePattern = /(?:\*\*|\d+\.\s*)([A-Za-z\s&]+)(?:\*\*)?(?:\s*:\s*|(?:\s*-\s*))(?:(\d+(?:\.\d+)?)\s*\/\s*10)/g;
+// More flexible category extraction for different AI response formats
+function extractCategoriesFlexible(text: string, breakdown: ScoreBreakdown[]): void {
+  const categories = [
+    "Color Coordination", 
+    "Fit & Proportion", 
+    "Style Coherence", 
+    "Accessories", 
+    "Outfit Creativity", 
+    "Trend Awareness"
+  ];
   
-  let match;
-  while ((match = scorePattern.exec(text)) !== null) {
-    const category = match[1].trim();
-    const score = parseFloat(match[2]);
+  for (const category of categories) {
+    // Look for category with different formatting patterns
+    const patterns = [
+      new RegExp(`\\*\\*${category}:\\*\\*\\s*(\\d+)[^\\d]*([\\s\\S]*?)(?=\\*\\*|$)`, 'i'),
+      new RegExp(`\\*\\*${category}\\*\\*\\s*-?\\s*(\\d+)[^\\d]*([\\s\\S]*?)(?=\\*\\*|$)`, 'i'),
+      new RegExp(`${category}:\\s*(\\d+)[^\\d]*([\\s\\S]*?)(?=\\*\\*|$)`, 'i'),
+      new RegExp(`${category}\\s*-?\\s*(\\d+)\\s*\\/\\s*10([\\s\\S]*?)(?=\\*\\*|$)`, 'i')
+    ];
     
-    // Skip if this appears to be the overall score or summary
-    if (category.toLowerCase().includes('overall') || 
-        category.toLowerCase().includes('total score') || 
-        category.toLowerCase() === 'summary') {
-      continue;
-    }
-    
-    // Add the score if it's valid
-    if (!isNaN(score) && score >= 0 && score <= 10) {
-      scores[category] = Math.round(score);
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        const score = parseInt(match[1], 10);
+        if (!isNaN(score)) {
+          const emoji = categoryEmojis[category] || "✅";
+          const details = match[2] ? match[2].trim() : "";
+          
+          breakdown.push({
+            category,
+            score,
+            emoji,
+            details
+          });
+          
+          break; // Found a match for this category, move to next one
+        }
+      }
     }
   }
-  
-  return scores;
 }
 
-// Extract all tips from analysis - both category-specific and "Next Level" tips
+// Extract all tips from analysis
 function extractAllTips(text: string, tips: StyleTip[]): void {
   const lines = text.split('\n');
   
