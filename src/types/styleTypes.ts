@@ -5,9 +5,6 @@ export interface StyleAnalysisResult {
   imageUrl: string;
   breakdown?: ScoreBreakdown[];
   tips?: StyleTip[];
-  summary?: string;
-  id?: string;
-  scanDate?: string;
 }
 
 export interface ScoreBreakdown {

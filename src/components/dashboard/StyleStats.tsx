@@ -24,7 +24,7 @@ export const StyleStats = ({ hasScans, stats }: StyleStatsProps) => {
     const fetchStats = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        fetchUserStats();
+        fetchUserStats(user.id);
       }
     };
     
