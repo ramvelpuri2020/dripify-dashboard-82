@@ -67,7 +67,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
           if (scan.breakdown) {
             breakdown = typeof scan.breakdown === 'string' 
               ? JSON.parse(scan.breakdown) 
-              : (scan.breakdown as unknown as ScoreBreakdown[]);
+              : scan.breakdown;
           }
         } catch (e) {
           console.error('Error parsing breakdown:', e);
@@ -77,7 +77,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
           if (scan.tips) {
             tips = typeof scan.tips === 'string'
               ? JSON.parse(scan.tips)
-              : (scan.tips as unknown as StyleTip[]);
+              : scan.tips;
           }
         } catch (e) {
           console.error('Error parsing tips:', e);
@@ -171,7 +171,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
             if (typeof scan.breakdown === 'string') {
               breakdown = JSON.parse(scan.breakdown);
             } else {
-              breakdown = scan.breakdown as unknown as ScoreBreakdown[];
+              breakdown = scan.breakdown;
             }
             
             breakdown.forEach(item => {
