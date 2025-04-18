@@ -97,9 +97,9 @@ IMPORTANT:
 
 DO NOT add any extra headers or sections.`;
 
-    console.log('Calling Nebius API with Qwen 2.5 for style analysis...');
+    console.log('Calling Nebius API with Gemma for style analysis...');
     
-    // Call the Nebius API with optimized parameters
+    // Call the Nebius API with Gemma model instead of Qwen
     const response = await fetch('https://api.studio.nebius.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -108,10 +108,11 @@ DO NOT add any extra headers or sections.`;
         'Accept': '*/*'
       },
       body: JSON.stringify({
-        model: "Qwen/Qwen2.5-VL-72B-Instruct",
-        temperature: 0.2, // Lower temperature for more consistent formatting
-        top_p: 0.8,
-        max_tokens: 1000, // Reduced token count for faster response
+        model: "google/gemma-3-27b-it",
+        temperature: 0.7,
+        top_p: 0.9,
+        top_k: 50,
+        max_tokens: 1000,
         messages: [
           {
             role: 'system',
