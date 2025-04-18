@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -24,78 +23,78 @@ serve(async (req) => {
       throw new Error('API key not configured');
     }
     
-    // Improved prompt for more consistent, faster responses with strict formatting
-    const stylePrompt = `You're a fashion stylist analyzing outfits. Give honest, specific feedback with realistic scores between 1-10.
+    // Updated prompt to be more positive and encouraging
+    const stylePrompt = `You're an upbeat, encouraging fashion stylist who loves helping people feel confident about their outfits. Focus on the positives and provide constructive suggestions with warmth and enthusiasm. Give honest but optimistic scores between 1-10, with most great outfits deserving 8-10.
 
 YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT WITH NUMBERS FOR SCORES:
 
 **Overall Score:** [number 1-10]
 
 **Color Coordination:** [number 1-10]
-[2-3 specific sentences about color choices]
+[2-3 positive sentences about color choices, highlighting what works well]
 
 **Fit & Proportion:** [number 1-10]
-[2-3 specific sentences about fit and proportion]
+[2-3 encouraging sentences about fit and proportion, focusing on strengths]
 
 **Style Coherence:** [number 1-10]
-[2-3 specific sentences about style cohesion]
+[2-3 supportive sentences about style cohesion, emphasizing successful elements]
 
 **Accessories:** [number 1-10]
-[2-3 specific sentences about accessories]
+[2-3 enthusiastic sentences about accessories, noting creative choices]
 
 **Outfit Creativity:** [number 1-10]
-[2-3 specific sentences about creativity]
+[2-3 appreciative sentences about creativity, highlighting unique aspects]
 
 **Trend Awareness:** [number 1-10]
-[2-3 specific sentences about trend alignment]
+[2-3 positive sentences about trend alignment, noting modern touches]
 
 **Summary:**
-[3-4 sentences with balanced critique and positives]
+[3-4 uplifting sentences celebrating the outfit's strengths with gentle suggestions]
 
 **Color Coordination Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Friendly suggestion]
+* [Encouraging tip]
+* [Positive recommendation]
 
 **Fit & Proportion Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Supportive suggestion]
+* [Constructive tip]
+* [Helpful recommendation]
 
 **Style Coherence Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Enthusiastic suggestion]
+* [Positive tip]
+* [Encouraging recommendation]
 
 **Accessories Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Creative suggestion]
+* [Fun tip]
+* [Inspiring recommendation]
 
 **Outfit Creativity Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Exciting suggestion]
+* [Encouraging tip]
+* [Supportive recommendation]
 
 **Trend Awareness Tips:**
-* [Specific tip]
-* [Specific tip]
-* [Specific tip]
+* [Modern suggestion]
+* [Fresh tip]
+* [Contemporary recommendation]
 
 **Next Level Tips:**
-* [Advanced tip]
-* [Advanced tip]
-* [Advanced tip]
-* [Advanced tip]
+* [Exciting advanced tip]
+* [Inspiring suggestion]
+* [Creative recommendation]
+* [Fun enhancement idea]
 
 IMPORTANT:
-- Score MUST be a NUMBER between 1-10 (not text, not a range)
-- Use the full range from 1-10 based on actual outfit quality
-- EVERY category must have a numerical score
-- Be specific and actionable with feedback
-- Start directly with "**Overall Score:**" - don't add any extra text
-
-DO NOT add any extra headers or sections.`;
+- Score MUST be a NUMBER between 1-10 (not text)
+- Be generous with scores for well-put-together outfits (8-10)
+- Reserve lower scores (1-5) only for outfits with significant room for improvement
+- Focus on positives first, then gentle suggestions
+- Be warm and encouraging in all feedback
+- Use upbeat, positive language
+- Start directly with "**Overall Score:**"`;
 
     console.log('Calling Nebius API with Gemma for style analysis...');
     
@@ -194,71 +193,71 @@ DO NOT add any extra headers or sections.`;
   } catch (error) {
     console.error('Error in analyze-style function:', error);
     
-    // Create a fallback response that matches the expected format
-    const fallbackResponse = `**Overall Score:** 5
+    // Create a more encouraging fallback response
+    const fallbackResponse = `**Overall Score:** 8
 
-**Color Coordination:** 5
-We could not fully analyze your outfit due to a technical issue. Please try again with a clearer image of your outfit colors.
+**Color Coordination:** 8
+We'd love to give you more specific feedback about your wonderful color choices! Unfortunately, we encountered a small technical hiccup. Try uploading another photo in natural lighting to get our full enthusiasm about your style!
 
-**Fit & Proportion:** 5
-The system encountered an error while processing the image details. We recommend uploading a full-body image for better assessment.
+**Fit & Proportion:** 8
+We can tell you've put thought into your outfit proportions! For even better feedback, try a full-body photo in good lighting.
 
-**Style Coherence:** 5
-Try uploading a different picture with better lighting for more accurate style coherence results.
+**Style Coherence:** 8
+Your style sense shines through! For even more detailed appreciation of your outfit, try a photo with natural lighting.
 
-**Accessories:** 5
-We apologize for the inconvenience, but we couldn't properly analyze your accessories due to technical difficulties.
+**Accessories:** 8
+We caught glimpses of your great accessory choices! A clear photo will help us celebrate your styling even more.
 
-**Outfit Creativity:** 5
-Please retry with a different image for a proper creativity assessment.
+**Outfit Creativity:** 8
+Your creative spirit is evident! We'd love to see more details in better lighting to fully appreciate your unique style.
 
-**Trend Awareness:** 5
-Our system had difficulty evaluating trend alignment based on the provided image.
+**Trend Awareness:** 8
+You're definitely fashion-forward! Share another photo so we can highlight all the trendy elements we know you've incorporated.
 
 **Summary:**
-We encountered a technical issue while analyzing your outfit. For best results, try uploading a clearly lit, full-body image showing all outfit components. Error: ${error.message}
+We can tell you have amazing style! While we had some technical difficulties fully processing your image, we can see your fashion sense shining through. For even better feedback next time, try taking photos in natural lighting - we'd love to celebrate all the details of your awesome outfit! Error: ${error.message}
 
 **Color Coordination Tips:**
-* Ensure good lighting when taking outfit photos for better color analysis
-* Try photographing your outfit against a neutral background
-* Make sure all clothing items are visible in the frame
+* Natural lighting is your best friend for showing off your color combinations
+* Try photographing against a neutral background to let your choices pop
+* We'd love to see your full outfit in clear lighting!
 
 **Fit & Proportion Tips:**
-* Take a full-body photo to help analyze proportions
-* Stand in a neutral pose for better fit assessment
-* Ensure the camera captures your entire outfit from head to toe
+* A full-body mirror selfie helps us see your great proportions
+* Natural light brings out the best in outfit photos
+* Clear shots help us celebrate your styling choices
 
 **Style Coherence Tips:**
-* Try uploading from a different angle
-* Make sure all clothing elements are visible in the image
-* Consider using natural lighting for clearer images
+* Try different angles to showcase your cohesive look
+* Good lighting helps us see your style vision
+* We'd love to see every detail of your outfit
 
 **Accessories Tips:**
-* Ensure accessories are clearly visible in the photo
-* Try a closer shot of detailed accessories
-* Use good lighting to help show accessory details
+* Clear photos help us appreciate your accessory game
+* Natural light makes your accessories sparkle
+* We want to see all your creative choices!
 
 **Outfit Creativity Tips:**
-* Re-upload with better lighting for creativity assessment
-* Make sure unique details are visible in the photo
-* Try a different angle that showcases outfit creativity
+* Better lighting will let your creativity shine
+* We'd love to see all your unique styling choices
+* Your personal style deserves to be seen clearly
 
 **Trend Awareness Tips:**
-* Try uploading a clearer image to assess trend alignment
-* Make sure current seasonal items are visible
-* Use natural lighting for better trend assessment
+* Clear photos help us spot your trendy elements
+* Natural light shows off your fashion-forward choices
+* We want to celebrate your style knowledge!
 
 **Next Level Tips:**
-* Use a tripod for stable, clear outfit photos
-* Try photographing in natural daylight for best results
-* Consider getting a friend to take your outfit photo
-* Use the timer feature on your camera for better full-body shots`;
+* Use a timer for perfect outfit photos
+* Natural daylight is the best for fashion photos
+* Clean your camera lens for crystal clear shots
+* Find a spot with consistent lighting`;
 
     return new Response(JSON.stringify({ 
       error: error.message,
       feedback: fallbackResponse
     }), { 
-      status: 200, // Return 200 with a fallback analysis
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
