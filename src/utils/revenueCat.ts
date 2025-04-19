@@ -1,15 +1,10 @@
-import { Purchases, CustomerInfo, PurchasesPackage, PurchasesOfferings } from '@revenuecat/purchases-capacitor';
+import { Purchases, PurchasesPackage, PurchasesOfferings } from '@revenuecat/purchases-capacitor';
 
-const REVENUECAT_API_KEY = import.meta.env.VITE_REVENUECAT_API_KEY;
-
-if (!REVENUECAT_API_KEY) {
-  throw new Error('RevenueCat API key is not configured. Please set VITE_REVENUECAT_API_KEY in your environment variables.');
-}
-
-export const initializePurchases = async (userId?: string): Promise<void> => {
+// Initialize RevenueCat with your API key
+export const initializePurchases = async (userId: string) => {
   try {
     await Purchases.configure({
-      apiKey: REVENUECAT_API_KEY,
+      apiKey: import.meta.env.VITE_REVENUECAT_API_KEY,
       appUserID: userId,
     });
     console.log('RevenueCat initialized successfully');
@@ -19,6 +14,7 @@ export const initializePurchases = async (userId?: string): Promise<void> => {
   }
 };
 
+// Get available offerings
 export const getOfferings = async (): Promise<PurchasesOfferings> => {
   try {
     const offerings = await Purchases.getOfferings();
@@ -29,7 +25,8 @@ export const getOfferings = async (): Promise<PurchasesOfferings> => {
   }
 };
 
-export const purchasePackage = async (pkg: PurchasesPackage): Promise<CustomerInfo> => {
+// Purchase a package
+export const purchasePackage = async (pkg: PurchasesPackage) => {
   try {
     const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
     return customerInfo;
@@ -39,7 +36,8 @@ export const purchasePackage = async (pkg: PurchasesPackage): Promise<CustomerIn
   }
 };
 
-export const restorePurchases = async (): Promise<CustomerInfo> => {
+// Restore purchases
+export const restorePurchases = async () => {
   try {
     const { customerInfo } = await Purchases.restorePurchases();
     return customerInfo;
@@ -49,7 +47,8 @@ export const restorePurchases = async (): Promise<CustomerInfo> => {
   }
 };
 
-export const getCustomerInfo = async (): Promise<CustomerInfo> => {
+// Get customer info
+export const getCustomerInfo = async () => {
   try {
     const { customerInfo } = await Purchases.getCustomerInfo();
     return customerInfo;
@@ -59,15 +58,13 @@ export const getCustomerInfo = async (): Promise<CustomerInfo> => {
   }
 };
 
-export const isSubscribed = (customerInfo: CustomerInfo): boolean => {
-  return customerInfo.entitlements.active['premium'] !== undefined;
-};
-
-export const logout = async (): Promise<void> => {
+// Check if user has active subscription
+export const hasActiveSubscription = async (): Promise<boolean> => {
   try {
-    await Purchases.logOut();
+    const { customerInfo } = await Purchases.getCustomerInfo();
+    return Object.keys(customerInfo.entitlements.active).length > 0;
   } catch (error) {
-    console.error('Failed to logout from RevenueCat:', error);
-    throw error;
+    console.error('Failed to check subscription status:', error);
+    return false;
   }
 };

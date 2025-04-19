@@ -1,11 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { CustomerInfo } from '@revenuecat/purchases-capacitor';
-import { 
-  initializePurchases, 
-  getCustomerInfo, 
-  isSubscribed,
-  logout as revenueCatLogout
-} from '@/utils/revenueCat';
+import { getCustomerInfo, hasActiveSubscription } from '@/utils/revenueCat';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SubscriptionContextType {
@@ -19,7 +14,8 @@ interface SubscriptionContextType {
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
-export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,11 +23,16 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const refreshSubscription = async () => {
     try {
       setIsLoading(true);
-      const info = await getCustomerInfo();
-      setCustomerInfo(info);
       setError(null);
+      const [hasSubscription, info] = await Promise.all([
+        hasActiveSubscription(),
+        getCustomerInfo(),
+      ]);
+      setIsSubscribed(hasSubscription);
+      setCustomerInfo(info);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh subscription');
+      console.error('Error refreshing subscription:', err);
     } finally {
       setIsLoading(false);
     }
@@ -39,53 +40,29 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const logout = async () => {
     try {
-      await revenueCatLogout();
+      await supabase.auth.signOut();
       setCustomerInfo(null);
+      setIsSubscribed(false);
     } catch (err) {
-      console.error('Failed to logout from RevenueCat:', err);
+      console.error('Error during logout:', err);
     }
   };
 
   useEffect(() => {
-    const setupSubscription = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          await initializePurchases(session.user.id);
-          await refreshSubscription();
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to setup subscription');
-      }
-    };
-
-    setupSubscription();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await initializePurchases(session.user.id);
-        await refreshSubscription();
-      } else if (event === 'SIGNED_OUT') {
-        await logout();
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    refreshSubscription();
   }, []);
 
-  const value = {
-    isSubscribed: customerInfo ? isSubscribed(customerInfo) : false,
-    customerInfo,
-    isLoading,
-    error,
-    refreshSubscription,
-    logout
-  };
-
   return (
-    <SubscriptionContext.Provider value={value}>
+    <SubscriptionContext.Provider
+      value={{
+        isSubscribed,
+        customerInfo,
+        isLoading,
+        error,
+        refreshSubscription,
+        logout,
+      }}
+    >
       {children}
     </SubscriptionContext.Provider>
   );

@@ -6,15 +6,18 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { initializePurchases } from "@/utils/revenueCat";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
+import { Session } from "@supabase/supabase-js";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [session, setSession] = useState<boolean | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     console.log('App component mounted');
@@ -24,7 +27,7 @@ const App = () => {
         console.log('Checking session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         console.log('Session check result:', { session: !!session, error });
-        setSession(!!session);
+        setSession(session);
         if (error) {
           console.error('Session check error:', error);
           setError(error.message);
@@ -35,13 +38,29 @@ const App = () => {
       }
     };
 
-    checkSession();
+    const initializeApp = async () => {
+      try {
+        await checkSession();
+        if (session?.user) {
+          await initializePurchases(session.user.id);
+        }
+        setIsInitialized(true);
+      } catch (err) {
+        console.error('Failed to initialize app:', err);
+        setError('Failed to initialize app');
+      }
+    };
+
+    initializeApp();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', { event, session: !!session });
-      setSession(!!session);
+      setSession(session);
+      if (event === 'SIGNED_IN' && session?.user) {
+        await initializePurchases(session.user.id);
+      }
     });
 
     return () => {
@@ -50,9 +69,9 @@ const App = () => {
     };
   }, []);
 
-  console.log('Current render state:', { session, error });
+  console.log('Current render state:', { session: !!session, error, isInitialized });
 
-  if (session === null) {
+  if (!isInitialized) {
     console.log('Showing loading state');
     return (
       <div className="flex items-center justify-center min-h-screen">
