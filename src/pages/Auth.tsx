@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,10 +9,38 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChevronRight, Check } from "lucide-react";
-import { getOfferings, purchasePackage, initializePurchases, PurchasesPackage } from "@/utils/revenueCat";
+import { ChevronRight, Check, AlertCircle } from "lucide-react";
+import { getOfferings, purchasePackage, initializePurchases, PurchasesPackage, isRevenueCatAvailable } from "@/utils/revenueCat";
 
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth" | "paywall";
+
+// Demo packages for web browser view
+const demoWebPackages: PurchasesPackage[] = [
+  {
+    identifier: 'monthly',
+    packageType: 'MONTHLY',
+    product: {
+      identifier: 'premium_monthly',
+      title: 'Monthly Premium',
+      description: 'Unlimited style scans and personalized tips',
+      price: 4.99,
+      priceString: '$4.99/month',
+    },
+    offering: 'default',
+  },
+  {
+    identifier: 'yearly',
+    packageType: 'ANNUAL',
+    product: {
+      identifier: 'premium_yearly',
+      title: 'Annual Premium',
+      description: 'Our best value plan with additional perks',
+      price: 39.99,
+      priceString: '$39.99/year',
+    },
+    offering: 'default',
+  }
+];
 
 export const Auth = () => {
   const [email, setEmail] = useState("");
@@ -26,6 +55,7 @@ export const Auth = () => {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [offerings, setOfferings] = useState<PurchasesPackage[]>([]);
   const [isLoadingOfferings, setIsLoadingOfferings] = useState(false);
+  const [isWebEnvironment, setIsWebEnvironment] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -43,9 +73,32 @@ export const Auth = () => {
       
       setIsLoadingOfferings(true);
       try {
+        // Check if we're in a mobile environment with RevenueCat available
         await initializePurchases('anonymous');
-        const packages = await getOfferings();
-        setOfferings(packages);
+        
+        // Set flag to indicate if we're in web environment where RevenueCat isn't available
+        const rcAvailable = isRevenueCatAvailable();
+        setIsWebEnvironment(!rcAvailable);
+        
+        // Get packages from RevenueCat if available, otherwise use demo packages
+        let packages: PurchasesPackage[] = [];
+        if (rcAvailable) {
+          packages = await getOfferings();
+        } else {
+          // Use demo packages in web environment for testing UI
+          packages = demoWebPackages;
+          console.log("Using demo packages for web environment:", packages);
+        }
+        
+        if (packages.length > 0) {
+          setOfferings(packages);
+        } else {
+          toast({
+            title: "No Packages Available",
+            description: "No subscription packages were found. Please try again later.",
+            variant: "destructive",
+          });
+        }
       } catch (error) {
         console.error('Failed to load offerings:', error);
         toast({
@@ -161,12 +214,29 @@ export const Auth = () => {
   const handlePurchase = async (pkg: PurchasesPackage) => {
     setIsSubscribing(true);
     try {
-      await purchasePackage(pkg);
-      toast({
-        title: "Success",
-        description: "Subscription purchased successfully!",
-      });
-      setCurrentStep("auth");
+      if (isWebEnvironment) {
+        // Simulate purchase for web environment
+        setTimeout(() => {
+          toast({
+            title: "Success",
+            description: "Demo subscription activated. In the real app, this would process through the App Store or Google Play.",
+            variant: "success",
+          });
+          setCurrentStep("auth");
+        }, 1500);
+        return;
+      }
+      
+      // Real purchase for mobile environments
+      const customerInfo = await purchasePackage(pkg);
+      if (customerInfo) {
+        toast({
+          title: "Success",
+          description: "Subscription purchased successfully!",
+          variant: "success",
+        });
+        setCurrentStep("auth");
+      }
     } catch (error) {
       console.error('Failed to purchase:', error);
       toast({
@@ -430,6 +500,17 @@ export const Auth = () => {
       className="flex flex-col space-y-6"
     >
       <h2 className="text-2xl font-bold text-white text-center mb-4">Choose Your Subscription</h2>
+      
+      {isWebEnvironment && (
+        <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-md p-3 mb-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
+            <p className="text-sm text-white/80">
+              This is a demo of the subscription flow. In the actual mobile app, you would be redirected to the App Store or Google Play for payment processing.
+            </p>
+          </div>
+        </div>
+      )}
       
       {isLoadingOfferings ? (
         <div className="flex justify-center py-10">

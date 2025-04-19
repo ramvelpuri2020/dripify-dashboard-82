@@ -14,6 +14,10 @@ serve(async (req) => {
 
   try {
     const publicKey = Deno.env.get('REVENUECAT_PUBLIC_KEY');
+    
+    // For debugging
+    console.log("RevenueCat public key retrieved:", publicKey ? "Found key" : "Key not found");
+    
     if (!publicKey) {
       throw new Error('RevenueCat public key not configured');
     }
@@ -28,6 +32,8 @@ serve(async (req) => {
       },
     );
   } catch (error) {
+    console.error("Error in revenuecat-config function:", error.message);
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
