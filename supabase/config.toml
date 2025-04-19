@@ -1,1 +1,5 @@
+
 project_id = "jjqwhxamjxsiotnhhqco"
+
+[functions.revenuecat-config]
+verify_jwt = false

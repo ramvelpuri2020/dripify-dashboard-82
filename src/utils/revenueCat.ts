@@ -1,13 +1,22 @@
-import { Purchases, PurchasesPackage, PurchasesOfferings, CustomerInfo } from '@revenuecat/purchases-capacitor';
 
-// Placeholder file for RevenueCat functionality
-// This is a stub file that provides the necessary exports to prevent build errors
-// Browser-only implementation without actual Capacitor functionality
+import { Purchases, PurchasesPackage, PurchasesOfferings, CustomerInfo } from '@revenuecat/purchases-capacitor';
+import { supabase } from "@/integrations/supabase/client";
 
 let isInitialized = false;
 
 /**
- * Initializes the purchases module
+ * Gets the RevenueCat public key from Supabase edge function
+ */
+async function getRevenueCatKey(): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('revenuecat-config');
+  if (error || !data?.publicKey) {
+    throw new Error('Unable to fetch RevenueCat key');
+  }
+  return data.publicKey;
+}
+
+/**
+ * Initializes the purchases module with the RevenueCat key from Supabase
  */
 export const initializePurchases = async (userId: string): Promise<void> => {
   if (isInitialized) {
@@ -15,13 +24,10 @@ export const initializePurchases = async (userId: string): Promise<void> => {
     return;
   }
 
-  if (!import.meta.env.VITE_REVENUECAT_API_KEY) {
-    throw new Error('RevenueCat API key not found in environment variables');
-  }
-
   try {
+    const publicKey = await getRevenueCatKey();
     await Purchases.configure({
-      apiKey: import.meta.env.VITE_REVENUECAT_API_KEY,
+      apiKey: publicKey,
       appUserID: userId,
     });
     isInitialized = true;
@@ -42,32 +48,10 @@ export const checkInitialization = () => {
 };
 
 /**
- * Stub implementation for purchasing a product
+ * Get available offerings
  */
-export const purchaseProduct = async (productId: string): Promise<boolean> => {
-  console.log(`Purchase of product ${productId} skipped - browser environment detected`);
-  return Promise.resolve(false);
-};
-
-/**
- * Stub implementation for restoring purchases
- */
-export const restorePurchases = async () => {
-  try {
-    const { customerInfo } = await Purchases.restorePurchases();
-    return customerInfo;
-  } catch (error) {
-    console.error('Failed to restore purchases:', error);
-    throw error;
-  }
-};
-
-// Get available offerings
 export const getOfferings = async (): Promise<PurchasesOfferings> => {
-  if (!isInitialized) {
-    throw new Error('RevenueCat not initialized');
-  }
-
+  checkInitialization();
   try {
     const offerings = await Purchases.getOfferings();
     return offerings;
@@ -77,12 +61,11 @@ export const getOfferings = async (): Promise<PurchasesOfferings> => {
   }
 };
 
-// Purchase a package
+/**
+ * Purchase a package
+ */
 export const purchasePackage = async (pkg: PurchasesPackage): Promise<CustomerInfo> => {
-  if (!isInitialized) {
-    throw new Error('RevenueCat not initialized');
-  }
-
+  checkInitialization();
   try {
     const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
     return customerInfo;
@@ -92,12 +75,11 @@ export const purchasePackage = async (pkg: PurchasesPackage): Promise<CustomerIn
   }
 };
 
-// Get customer info
+/**
+ * Get customer info
+ */
 export const getCustomerInfo = async (): Promise<CustomerInfo> => {
-  if (!isInitialized) {
-    throw new Error('RevenueCat not initialized');
-  }
-
+  checkInitialization();
   try {
     const { customerInfo } = await Purchases.getCustomerInfo();
     return customerInfo;
@@ -107,17 +89,30 @@ export const getCustomerInfo = async (): Promise<CustomerInfo> => {
   }
 };
 
-// Check if user has active subscription
+/**
+ * Check if user has active subscription
+ */
 export const hasActiveSubscription = async (): Promise<boolean> => {
-  if (!isInitialized) {
-    throw new Error('RevenueCat not initialized');
-  }
-
+  checkInitialization();
   try {
     const { customerInfo } = await Purchases.getCustomerInfo();
     return Object.keys(customerInfo.entitlements.active).length > 0;
   } catch (error) {
     console.error('Failed to check subscription status:', error);
     return false;
+  }
+};
+
+/**
+ * Restore purchases
+ */
+export const restorePurchases = async (): Promise<CustomerInfo> => {
+  checkInitialization();
+  try {
+    const { customerInfo } = await Purchases.restorePurchases();
+    return customerInfo;
+  } catch (error) {
+    console.error('Failed to restore purchases:', error);
+    throw error;
   }
 };
