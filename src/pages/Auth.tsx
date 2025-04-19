@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
@@ -9,6 +9,8 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronRight, Check, Star, Shirt } from "lucide-react";
+import { getOfferings, purchasePackage } from "@/utils/revenueCat";
+import { PurchasesPackage } from "@revenuecat/purchases-capacitor";
 
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth" | "paywall";
 
@@ -23,6 +25,8 @@ export const Auth = () => {
   const [referralSource, setReferralSource] = useState<string>("");
   const [selectedPlan, setSelectedPlan] = useState<string>("free");
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [offerings, setOfferings] = useState<PurchasesPackage[]>([]);
+  const [isLoadingOfferings, setIsLoadingOfferings] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -33,6 +37,31 @@ export const Auth = () => {
       }
     });
   }, [navigate]);
+
+  useEffect(() => {
+    const loadOfferings = async () => {
+      if (currentStep !== "paywall") return;
+      
+      setIsLoadingOfferings(true);
+      try {
+        const offeringsData = await getOfferings();
+        if (offeringsData.current) {
+          setOfferings(offeringsData.current.availablePackages);
+        }
+      } catch (error) {
+        console.error('Failed to load offerings:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load subscription options. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingOfferings(false);
+      }
+    };
+
+    loadOfferings();
+  }, [currentStep, toast]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -362,116 +391,21 @@ export const Auth = () => {
     </motion.div>
   );
 
-  const renderPaywallScreen = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-    >
-      <h2 className="text-xl font-semibold text-white mb-6 text-center">Choose your subscription</h2>
-      
-      <div className="space-y-6">
-        <div 
-          className="relative rounded-lg border p-6 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-purple-500"
-          onClick={() => handleSelectSubscription('free_trial')}
-        >
-          <div className="absolute -top-3 left-3 bg-gradient-to-r from-green-400 to-green-600 text-black text-xs px-3 py-1 rounded-full font-medium">
-            RECOMMENDED
-          </div>
-          
-          <h3 className="font-bold text-xl text-white mb-2">7-Day Free Trial</h3>
-          <p className="text-white/70 mb-4">Experience all premium features free for 7 days</p>
-          
-          <ul className="space-y-2 mb-4">
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Unlimited style scans
-            </li>
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Detailed fashion reports
-            </li>
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Personalized recommendations
-            </li>
-          </ul>
-          
-          <div className="text-sm text-white/50 mb-4">
-            $4.99/month after trial. Cancel anytime.
-          </div>
-          
-          <Button 
-            onClick={() => handleSelectSubscription('free_trial')}
-            disabled={isSubscribing}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-          >
-            {isSubscribing ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                Processing...
-              </div>
-            ) : (
-              <>Start Free Trial</>
-            )}
-          </Button>
-        </div>
-        
-        <div 
-          className="relative rounded-lg border p-6 border-white/20"
-          onClick={() => handleSelectSubscription('monthly')}
-        >
-          <h3 className="font-bold text-xl text-white mb-2">Monthly Subscription</h3>
-          <p className="text-white/70 mb-4">Full access to all premium features</p>
-          
-          <ul className="space-y-2 mb-4">
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Unlimited style scans
-            </li>
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Detailed fashion reports
-            </li>
-            <li className="flex items-center text-white">
-              <Check className="mr-2 h-4 w-4 text-green-500" /> Personalized recommendations
-            </li>
-          </ul>
-          
-          <div className="text-center mb-4">
-            <span className="text-2xl font-bold text-white">$4.99</span>
-            <span className="text-white/60">/month</span>
-          </div>
-          
-          <Button 
-            onClick={() => handleSelectSubscription('monthly')}
-            disabled={isSubscribing}
-            variant="outline" 
-            className="w-full"
-          >
-            {isSubscribing ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                Processing...
-              </div>
-            ) : (
-              <>Subscribe Monthly</>
-            )}
-          </Button>
-        </div>
-        
-        <div className="pt-4 flex justify-between items-center">
-          <Button variant="ghost" onClick={prevStep} size="sm">
-            Go back
-          </Button>
-          <Button variant="ghost" onClick={() => setCurrentStep("auth")} size="sm">
-            Skip for now
-          </Button>
-        </div>
-      </div>
-    </motion.div>
-  );
-
   const handleSelectSubscription = async (planType: 'free_trial' | 'monthly') => {
     setIsSubscribing(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const selectedPackage = offerings.find(pkg => 
+        planType === 'free_trial' 
+          ? pkg.identifier.includes('trial') 
+          : pkg.identifier.includes('monthly')
+      );
+
+      if (!selectedPackage) {
+        throw new Error('Selected subscription package not found');
+      }
+
+      const customerInfo = await purchasePackage(selectedPackage);
       
       setSelectedPlan(planType === 'free_trial' ? 'premium_trial' : 'premium');
       
@@ -495,6 +429,112 @@ export const Auth = () => {
       setIsSubscribing(false);
     }
   };
+
+  const renderPaywallScreen = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+    >
+      <h2 className="text-xl font-semibold text-white mb-6 text-center">Choose your subscription</h2>
+      
+      {isLoadingOfferings ? (
+        <div className="text-center py-8">
+          <div className="w-12 h-12 border-4 border-t-purple-500 border-purple-200 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white/70">Loading subscription options...</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div 
+            className="relative rounded-lg border p-6 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-purple-500"
+            onClick={() => handleSelectSubscription('free_trial')}
+          >
+            <div className="absolute -top-3 left-3 bg-gradient-to-r from-green-400 to-green-600 text-black text-xs px-3 py-1 rounded-full font-medium">
+              RECOMMENDED
+            </div>
+            
+            <h3 className="font-bold text-xl text-white mb-2">7-Day Free Trial</h3>
+            <p className="text-white/70 mb-4">Experience all premium features free for 7 days</p>
+            
+            <ul className="space-y-2 mb-4">
+              <li className="flex items-center text-white">
+                <Check className="mr-2 h-4 w-4 text-green-500" /> Unlimited style scans
+              </li>
+              <li className="flex items-center text-white">
+                <Check className="mr-2 h-4 w-4 text-green-500" /> Detailed fashion reports
+              </li>
+              <li className="flex items-center text-white">
+                <Check className="mr-2 h-4 w-4 text-green-500" /> Personalized recommendations
+              </li>
+            </ul>
+            
+            <div className="text-sm text-white/60 mb-4">$4.99/month after trial. Cancel anytime.</div>
+            
+            <Button 
+              onClick={() => handleSelectSubscription('free_trial')}
+              disabled={isSubscribing}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            >
+              {isSubscribing ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  Processing...
+                </div>
+              ) : (
+                <>Start Free Trial</>
+              )}
+            </Button>
+          </div>
+          
+          <div 
+            className="rounded-lg border p-6 border-white/10"
+            onClick={() => handleSelectSubscription('monthly')}
+          >
+            <h3 className="font-bold text-xl text-white mb-2">Monthly Subscription</h3>
+            <p className="text-white/70 mb-4">Full access to all premium features</p>
+            
+            <ul className="space-y-2 mb-4">
+              <li className="flex items-center text-white">
+                <Check className="mr-2 h-4 w-4 text-purple-500" /> Unlimited style scans
+              </li>
+              <li className="flex items-center text-white">
+                <Check className="mr-2 h-4 w-4 text-purple-500" /> Detailed fashion reports
+              </li>
+              <li className="flex items-center text-white">
+                <Check className="mr-2 h-4 w-4 text-purple-500" /> Personalized recommendations
+              </li>
+            </ul>
+            
+            <div className="text-sm text-white/60 mb-4">$4.99/month</div>
+            
+            <Button 
+              onClick={() => handleSelectSubscription('monthly')}
+              disabled={isSubscribing}
+              className="w-full bg-white/10 hover:bg-white/20"
+            >
+              {isSubscribing ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  Processing...
+                </div>
+              ) : (
+                <>Subscribe Monthly</>
+              )}
+            </Button>
+          </div>
+          
+          <div className="pt-4 flex justify-between items-center">
+            <Button onClick={prevStep} className="text-white/60 hover:text-white">
+              Go back
+            </Button>
+            <Button onClick={() => setCurrentStep("auth")} className="text-white/60 hover:text-white">
+              Skip for now
+            </Button>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
 
   const renderAuthScreen = () => (
     <motion.div
