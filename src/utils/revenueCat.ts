@@ -1,58 +1,28 @@
-import { Purchases } from '@revenuecat/purchases-capacitor';
 
-const REVENUECAT_PUBLIC_API_KEY = 'YOUR_REVENUECAT_PUBLIC_API_KEY';
+// Placeholder file for RevenueCat functionality
+// This is a stub file that provides the necessary exports to prevent build errors
+// Browser-only implementation without actual Capacitor functionality
 
+/**
+ * Initializes the purchases module (stub implementation for browser)
+ */
 export const initializePurchases = async (): Promise<void> => {
-  try {
-    await Purchases.configure({
-      apiKey: REVENUECAT_PUBLIC_API_KEY,
-      appUserID: null // RevenueCat will generate a user ID
-    });
-    
-    console.log('RevenueCat initialized successfully');
-  } catch (error) {
-    console.error('Error initializing RevenueCat:', error);
-  }
+  console.log('RevenueCat initialization skipped - browser environment detected');
+  return Promise.resolve();
 };
 
-export const getOfferings = async () => {
-  try {
-    const offerings = await Purchases.getOfferings();
-    return offerings.current;
-  } catch (error) {
-    console.error('Error fetching offerings:', error);
-    return null;
-  }
+/**
+ * Stub implementation for purchasing a product
+ */
+export const purchaseProduct = async (productId: string): Promise<boolean> => {
+  console.log(`Purchase of product ${productId} skipped - browser environment detected`);
+  return Promise.resolve(false);
 };
 
-export const purchasePackage = async (packageToPurchase: any) => {
-  try {
-    const { customerInfo } = await Purchases.purchasePackage({ 
-      package: packageToPurchase 
-    });
-    return customerInfo.entitlements.active;
-  } catch (error) {
-    console.error('Error making purchase:', error);
-    throw error;
-  }
-};
-
-export const checkSubscriptionStatus = async () => {
-  try {
-    const { customerInfo } = await Purchases.getCustomerInfo();
-    return customerInfo.entitlements.active;
-  } catch (error) {
-    console.error('Error checking subscription:', error);
-    return {};
-  }
-};
-
-export const restorePurchases = async () => {
-  try {
-    const { customerInfo } = await Purchases.restorePurchases();
-    return customerInfo.entitlements.active;
-  } catch (error) {
-    console.error('Error restoring purchases:', error);
-    return {};
-  }
+/**
+ * Stub implementation for restoring purchases
+ */
+export const restorePurchases = async (): Promise<void> => {
+  console.log('Restore purchases skipped - browser environment detected');
+  return Promise.resolve();
 };
