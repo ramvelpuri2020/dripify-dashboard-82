@@ -1,17 +1,11 @@
-
 import { Purchases } from '@revenuecat/purchases-capacitor';
-import { Platform } from '@capacitor/core';
 
-const APPLE_API_KEY = 'YOUR_REVENUECAT_APPLE_API_KEY';
-const GOOGLE_API_KEY = 'YOUR_REVENUECAT_GOOGLE_API_KEY';
+const REVENUECAT_PUBLIC_API_KEY = 'YOUR_REVENUECAT_PUBLIC_API_KEY';
 
 export const initializePurchases = async (): Promise<void> => {
   try {
-    const platform = Platform.is('ios') ? 'ios' : 'android';
-    const apiKey = platform === 'ios' ? APPLE_API_KEY : GOOGLE_API_KEY;
-    
     await Purchases.configure({
-      apiKey,
+      apiKey: REVENUECAT_PUBLIC_API_KEY,
       appUserID: null // RevenueCat will generate a user ID
     });
     
@@ -31,9 +25,11 @@ export const getOfferings = async () => {
   }
 };
 
-export const purchasePackage = async (packageId: string) => {
+export const purchasePackage = async (packageToPurchase: any) => {
   try {
-    const { customerInfo } = await Purchases.purchasePackage({ identifier: packageId });
+    const { customerInfo } = await Purchases.purchasePackage({ 
+      package: packageToPurchase 
+    });
     return customerInfo.entitlements.active;
   } catch (error) {
     console.error('Error making purchase:', error);

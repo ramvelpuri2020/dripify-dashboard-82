@@ -29,10 +29,10 @@ const PaywallScreen = () => {
     }
   };
 
-  const handlePurchase = async (packageId: string) => {
+  const handlePurchase = async (packageToPurchase: any) => {
     try {
       setLoading(true);
-      await purchasePackage(packageId);
+      await purchasePackage(packageToPurchase);
       toast({
         title: "Success!",
         description: "Thank you for your purchase!",
@@ -96,7 +96,7 @@ const PaywallScreen = () => {
               <p className="font-bold mt-2">{pkg.product.priceString}</p>
               <Button
                 className="w-full mt-2"
-                onClick={() => handlePurchase(pkg.identifier)}
+                onClick={() => handlePurchase(pkg)}
                 disabled={loading}
               >
                 Select
