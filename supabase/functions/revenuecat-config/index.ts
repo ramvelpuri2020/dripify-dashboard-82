@@ -1,5 +1,5 @@
 
-import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
