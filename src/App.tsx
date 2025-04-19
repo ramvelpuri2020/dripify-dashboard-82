@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
@@ -66,23 +67,25 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/*" element={session ? <Index /> : <Navigate to="/auth" />} />
-            <Route
-              path="/profile"
-              element={session ? <Profile /> : <Navigate to="/auth" />}
-            />
-            <Route
-              path="/auth"
-              element={!session ? <Auth /> : <Navigate to="/" />}
-            />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <SubscriptionProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/*" element={session ? <Index /> : <Navigate to="/auth" />} />
+              <Route
+                path="/profile"
+                element={session ? <Profile /> : <Navigate to="/auth" />}
+              />
+              <Route
+                path="/auth"
+                element={!session ? <Auth /> : <Navigate to="/" />}
+              />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </SubscriptionProvider>
     </QueryClientProvider>
   );
 };

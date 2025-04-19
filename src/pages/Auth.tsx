@@ -14,9 +14,28 @@ export const Auth: React.FC = () => {
   const [offerings, setOfferings] = useState<PurchasesPackage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSubscriptions, setShowSubscriptions] = useState(false);
+
+  const handleSignIn = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      
+      if (error) throw error;
+      setShowSubscriptions(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in');
+    }
+  };
 
   useEffect(() => {
     const loadOfferings = async () => {
+      if (!showSubscriptions) return;
+      
       try {
         const offerings = await getOfferings();
         if (offerings.current?.availablePackages) {
@@ -29,14 +48,14 @@ export const Auth: React.FC = () => {
     };
 
     loadOfferings();
-  }, []);
+  }, [showSubscriptions]);
 
   const handlePurchase = async (packageToPurchase: PurchasesPackage) => {
     try {
       setIsLoading(true);
       setError(null);
       await purchasePackage(packageToPurchase);
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       setError('Failed to complete purchase. Please try again.');
       console.error(err);
@@ -54,8 +73,40 @@ export const Auth: React.FC = () => {
   }
 
   if (isSubscribed) {
-    navigate('/dashboard');
+    navigate('/');
     return null;
+  }
+
+  if (!showSubscriptions) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+              Sign in to your account
+            </h2>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+
+          <Button
+            onClick={handleSignIn}
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              'Sign in with Google'
+            )}
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
