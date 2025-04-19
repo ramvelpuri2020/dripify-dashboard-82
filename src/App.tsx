@@ -1,36 +1,74 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
+import { initializePurchases } from '@/utils/revenueCat';
+import { useSession } from '@/hooks/useSession';
+import { Spinner } from '@/components/ui/spinner';
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [session, setSession] = useState<boolean | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
+  const { session, isLoading: isSessionLoading } = useSession();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(!!session);
-    });
+    const initializeApp = async () => {
+      try {
+        if (session?.user?.id) {
+          await initializePurchases(session.user.id);
+          setIsInitialized(true);
+        } else if (!isSessionLoading) {
+          // If no session and not loading, redirect to auth
+          navigate('/auth');
+        }
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+        setInitError(error instanceof Error ? error.message : 'Failed to initialize app');
+      }
+    };
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(!!session);
-    });
+    initializeApp();
+  }, [session, isSessionLoading, navigate]);
 
-    return () => subscription.unsubscribe();
-  }, []);
+  if (isSessionLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
-  if (session === null) {
-    return null; // Loading state
+  if (initError) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500">Error: {initError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isInitialized && session?.user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
   }
 
   return (

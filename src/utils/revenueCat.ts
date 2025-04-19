@@ -1,22 +1,43 @@
-import { Purchases, PurchasesPackage, PurchasesOfferings } from '@revenuecat/purchases-capacitor';
+import { Purchases, PurchasesPackage, PurchasesOfferings, CustomerInfo } from '@revenuecat/purchases-capacitor';
 
 // Placeholder file for RevenueCat functionality
 // This is a stub file that provides the necessary exports to prevent build errors
 // Browser-only implementation without actual Capacitor functionality
 
+let isInitialized = false;
+
 /**
- * Initializes the purchases module (stub implementation for browser)
+ * Initializes the purchases module
  */
-export const initializePurchases = async (userId: string) => {
+export const initializePurchases = async (userId: string): Promise<void> => {
+  if (isInitialized) {
+    console.log('RevenueCat already initialized');
+    return;
+  }
+
+  if (!import.meta.env.VITE_REVENUECAT_API_KEY) {
+    throw new Error('RevenueCat API key not found in environment variables');
+  }
+
   try {
     await Purchases.configure({
       apiKey: import.meta.env.VITE_REVENUECAT_API_KEY,
       appUserID: userId,
     });
+    isInitialized = true;
     console.log('RevenueCat initialized successfully');
   } catch (error) {
     console.error('Failed to initialize RevenueCat:', error);
     throw error;
+  }
+};
+
+/**
+ * Checks if RevenueCat is initialized
+ */
+export const checkInitialization = () => {
+  if (!isInitialized) {
+    throw new Error('RevenueCat not initialized. Call initializePurchases first.');
   }
 };
 
@@ -43,6 +64,7 @@ export const restorePurchases = async () => {
 
 // Get available offerings
 export const getOfferings = async (): Promise<PurchasesOfferings> => {
+  checkInitialization();
   try {
     const offerings = await Purchases.getOfferings();
     return offerings;
@@ -53,7 +75,8 @@ export const getOfferings = async (): Promise<PurchasesOfferings> => {
 };
 
 // Purchase a package
-export const purchasePackage = async (pkg: PurchasesPackage) => {
+export const purchasePackage = async (pkg: PurchasesPackage): Promise<CustomerInfo> => {
+  checkInitialization();
   try {
     const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
     return customerInfo;
@@ -64,7 +87,8 @@ export const purchasePackage = async (pkg: PurchasesPackage) => {
 };
 
 // Get customer info
-export const getCustomerInfo = async () => {
+export const getCustomerInfo = async (): Promise<CustomerInfo> => {
+  checkInitialization();
   try {
     const { customerInfo } = await Purchases.getCustomerInfo();
     return customerInfo;
@@ -76,6 +100,7 @@ export const getCustomerInfo = async () => {
 
 // Check if user has active subscription
 export const hasActiveSubscription = async (): Promise<boolean> => {
+  checkInitialization();
   try {
     const { customerInfo } = await Purchases.getCustomerInfo();
     return Object.keys(customerInfo.entitlements.active).length > 0;
