@@ -64,7 +64,10 @@ export const restorePurchases = async () => {
 
 // Get available offerings
 export const getOfferings = async (): Promise<PurchasesOfferings> => {
-  checkInitialization();
+  if (!isInitialized) {
+    throw new Error('RevenueCat not initialized');
+  }
+
   try {
     const offerings = await Purchases.getOfferings();
     return offerings;
@@ -76,7 +79,10 @@ export const getOfferings = async (): Promise<PurchasesOfferings> => {
 
 // Purchase a package
 export const purchasePackage = async (pkg: PurchasesPackage): Promise<CustomerInfo> => {
-  checkInitialization();
+  if (!isInitialized) {
+    throw new Error('RevenueCat not initialized');
+  }
+
   try {
     const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
     return customerInfo;
@@ -88,7 +94,10 @@ export const purchasePackage = async (pkg: PurchasesPackage): Promise<CustomerIn
 
 // Get customer info
 export const getCustomerInfo = async (): Promise<CustomerInfo> => {
-  checkInitialization();
+  if (!isInitialized) {
+    throw new Error('RevenueCat not initialized');
+  }
+
   try {
     const { customerInfo } = await Purchases.getCustomerInfo();
     return customerInfo;
@@ -100,7 +109,10 @@ export const getCustomerInfo = async (): Promise<CustomerInfo> => {
 
 // Check if user has active subscription
 export const hasActiveSubscription = async (): Promise<boolean> => {
-  checkInitialization();
+  if (!isInitialized) {
+    throw new Error('RevenueCat not initialized');
+  }
+
   try {
     const { customerInfo } = await Purchases.getCustomerInfo();
     return Object.keys(customerInfo.entitlements.active).length > 0;
