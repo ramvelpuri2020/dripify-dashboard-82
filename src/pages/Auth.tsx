@@ -9,58 +9,9 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronRight, Check, AlertCircle } from "lucide-react";
-import { getOfferings, purchasePackage, initializePurchases, PurchasesPackage, isRevenueCatAvailable } from "@/utils/revenueCat";
+import { getOfferings, purchasePackage, initializePurchases, PurchasesPackage } from "@/utils/revenueCat";
 
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth" | "paywall";
-
-// Create a separate mock package type for web demo purposes only
-// This avoids TypeScript errors while keeping the UI functional
-interface MockPackage {
-  identifier: string;
-  packageType: string;
-  product: {
-    identifier: string;
-    title: string;
-    description: string;
-    price: number;
-    priceString: string;
-    currencyCode: string;
-    subscriptionPeriod: string;
-  };
-  offering: string;
-}
-
-// Demo packages for web browser view
-const demoWebPackages: MockPackage[] = [
-  {
-    identifier: 'monthly',
-    packageType: 'MONTHLY',
-    product: {
-      identifier: 'premium_monthly',
-      title: 'Monthly Premium',
-      description: 'Unlimited style scans and personalized tips',
-      price: 4.99,
-      priceString: '$4.99/month',
-      currencyCode: 'USD',
-      subscriptionPeriod: 'P1M'
-    },
-    offering: 'default',
-  },
-  {
-    identifier: 'yearly',
-    packageType: 'ANNUAL',
-    product: {
-      identifier: 'premium_yearly',
-      title: 'Annual Premium',
-      description: 'Our best value plan with additional perks',
-      price: 39.99,
-      priceString: '$39.99/year',
-      currencyCode: 'USD',
-      subscriptionPeriod: 'P1Y'
-    },
-    offering: 'default',
-  }
-];
 
 export const Auth = () => {
   const [email, setEmail] = useState("");
@@ -93,32 +44,17 @@ export const Auth = () => {
       
       setIsLoadingOfferings(true);
       try {
-        // Initialize RevenueCat without showing errors on web
-        try {
-          await initializePurchases('anonymous');
-        } catch (error) {
-          console.log('RevenueCat initialization in Auth failed (expected on web):', error);
-        }
+        await initializePurchases('anonymous');
         
-        // Set flag to indicate if we're in web environment where RevenueCat isn't available
-        const rcAvailable = isRevenueCatAvailable();
-        setIsWebEnvironment(!rcAvailable);
+        setIsWebEnvironment(typeof Purchases === 'undefined');
         
-        // Get packages from RevenueCat if available, otherwise use demo packages
-        let packages: PurchasesPackage[] = [];
-        if (rcAvailable) {
-          packages = await getOfferings();
-        } else {
-          // Use demo packages in web environment for testing UI
-          // Cast the mock packages to PurchasesPackage with unknown as intermediary
-          // This is safe because we're only using these properties in the UI
-          packages = demoWebPackages as unknown as PurchasesPackage[];
-          console.log("Using demo packages for web environment:", packages);
-        }
+        const packages = await getOfferings();
         
         if (packages.length > 0) {
           setOfferings(packages);
+          console.log("Loaded packages:", packages);
         } else {
+          console.warn("No packages returned from getOfferings");
           toast({
             title: "No Packages Available",
             description: "No subscription packages were found. Please try again later.",
@@ -241,7 +177,6 @@ export const Auth = () => {
     setIsSubscribing(true);
     try {
       if (isWebEnvironment) {
-        // Simulate purchase for web environment
         setTimeout(() => {
           toast({
             title: "Success",
@@ -253,7 +188,6 @@ export const Auth = () => {
         return;
       }
       
-      // Real purchase for mobile environments
       const customerInfo = await purchasePackage(pkg);
       if (customerInfo) {
         toast({

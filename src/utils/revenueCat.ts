@@ -64,8 +64,8 @@ export const initializePurchases = async (userId?: string): Promise<void> => {
     // Mark as initialized anyway to prevent further initialization attempts
     isInitialized = true;
     
-    // Don't show the error toast on web environments where this is expected to fail
-    if (typeof window !== 'undefined' && 'capacitor' in window) {
+    // Only show the error toast in Capacitor environments where RevenueCat is expected to work
+    if (isCapacitorAvailable) {
       toast({
         title: "Error",
         description: "Failed to initialize payment system. Please try again later.",
@@ -84,11 +84,57 @@ export const isRevenueCatAvailable = (): boolean => {
 
 /**
  * Get available offerings
+ * Returns demo packages in web environment
  */
 export const getOfferings = async (): Promise<PurchasesPackage[]> => {
-  if (!isRevenueCatAvailable()) {
-    console.log('RevenueCat not available or not initialized');
-    return [];
+  // In web environment, return demo packages
+  if (!isCapacitorAvailable) {
+    console.log('Web environment detected, returning demo packages');
+    
+    // Demo packages for web environment
+    // Using type casting to make TypeScript happy while providing test data
+    const demoPackages = [
+      {
+        identifier: 'monthly',
+        packageType: 'MONTHLY',
+        product: {
+          identifier: 'premium_monthly',
+          title: 'Monthly Premium',
+          description: 'Unlimited style scans and personalized tips',
+          price: 4.99,
+          priceString: '$4.99/month',
+          currencyCode: 'USD',
+          subscriptionPeriod: 'P1M'
+        },
+        offering: 'default',
+        offeringIdentifier: 'default',
+        presentedOfferingContext: {},
+      },
+      {
+        identifier: 'yearly',
+        packageType: 'ANNUAL',
+        product: {
+          identifier: 'premium_yearly',
+          title: 'Annual Premium',
+          description: 'Our best value plan with additional perks',
+          price: 39.99,
+          priceString: '$39.99/year',
+          currencyCode: 'USD',
+          subscriptionPeriod: 'P1Y'
+        },
+        offering: 'default',
+        offeringIdentifier: 'default',
+        presentedOfferingContext: {},
+      }
+    ] as unknown as PurchasesPackage[];
+    
+    return demoPackages;
+  }
+  
+  // For mobile environments, use the actual RevenueCat SDK
+  if (!isInitialized) {
+    console.log('RevenueCat not initialized, initializing now...');
+    await initializePurchases();
   }
   
   try {
