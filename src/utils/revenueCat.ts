@@ -1,3 +1,4 @@
+
 import { Purchases, PurchasesPackage, PurchasesOfferings, CustomerInfo, PurchasesConfiguration } from '@revenuecat/purchases-capacitor';
 import { supabase } from "@/integrations/supabase/client";
 

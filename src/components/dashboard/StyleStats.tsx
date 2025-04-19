@@ -1,9 +1,11 @@
+
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Trophy, TrendingUp, Flame } from "lucide-react";
 import { useStatsStore } from "@/store/statsStore";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StyleStatsProps {
   hasScans: boolean;

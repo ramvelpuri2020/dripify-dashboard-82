@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,9 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChevronRight, Check, Star, Shirt } from "lucide-react";
-import { getOfferings, purchasePackage, initializePurchases } from "@/utils/revenueCat";
-import { PurchasesPackage } from "@revenuecat/purchases-capacitor";
+import { ChevronRight, Check } from "lucide-react";
+import { getOfferings, purchasePackage, initializePurchases, PurchasesPackage } from "@/utils/revenueCat";
 
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth" | "paywall";
 
@@ -45,10 +44,8 @@ export const Auth = () => {
       setIsLoadingOfferings(true);
       try {
         await initializePurchases('anonymous');
-        const offeringsData = await getOfferings();
-        if (offeringsData.current) {
-          setOfferings(offeringsData.current.availablePackages);
-        }
+        const packages = await getOfferings();
+        setOfferings(packages);
       } catch (error) {
         console.error('Failed to load offerings:', error);
         toast({
@@ -186,7 +183,13 @@ export const Auth = () => {
     if (currentStep === "welcome") setCurrentStep("gender");
     else if (currentStep === "gender" && gender) setCurrentStep("referral");
     else if (currentStep === "referral" && referralSource) setCurrentStep("pricing");
-    else if (currentStep === "pricing") setCurrentStep("paywall");
+    else if (currentStep === "pricing") {
+      if (selectedPlan === "premium") {
+        setCurrentStep("paywall");
+      } else {
+        setCurrentStep("auth");
+      }
+    }
     else if (currentStep === "paywall") setCurrentStep("auth");
   };
 
@@ -195,7 +198,13 @@ export const Auth = () => {
     else if (currentStep === "referral") setCurrentStep("gender");
     else if (currentStep === "pricing") setCurrentStep("referral");
     else if (currentStep === "paywall") setCurrentStep("pricing");
-    else if (currentStep === "auth") setCurrentStep("paywall");
+    else if (currentStep === "auth") {
+      if (selectedPlan === "premium") {
+        setCurrentStep("paywall");
+      } else {
+        setCurrentStep("pricing");
+      }
+    }
   };
 
   const renderWelcomeScreen = () => (
@@ -420,36 +429,48 @@ export const Auth = () => {
       exit={{ opacity: 0 }}
       className="flex flex-col space-y-6"
     >
-      <h2 className="text-2xl font-bold">Choose Your Subscription</h2>
+      <h2 className="text-2xl font-bold text-white text-center mb-4">Choose Your Subscription</h2>
+      
       {isLoadingOfferings ? (
-        <div className="flex justify-center">
+        <div className="flex justify-center py-10">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
-      ) : (
-        <div className="grid gap-4">
+      ) : offerings.length > 0 ? (
+        <div className="space-y-4">
           {offerings.map((pkg) => (
-            <Card key={pkg.identifier}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">{pkg.product.title}</h3>
-                    <p className="text-muted-foreground">{pkg.product.description}</p>
-                  </div>
-                  <Button
-                    onClick={() => handlePurchase(pkg)}
-                    disabled={isSubscribing}
-                  >
-                    {isSubscribing ? "Processing..." : "Subscribe"}
-                  </Button>
+            <div 
+              key={pkg.identifier}
+              className="border border-purple-400/30 rounded-lg p-5 bg-purple-500/5 hover:bg-purple-500/10 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-white font-medium">{pkg.product.title}</h3>
+                  <p className="text-gray-400 text-sm">{pkg.product.description}</p>
+                  <p className="text-purple-300 font-bold mt-2">{pkg.product.priceString}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <Button
+                  onClick={() => handlePurchase(pkg)}
+                  disabled={isSubscribing}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                >
+                  {isSubscribing ? "Processing..." : "Subscribe"}
+                </Button>
+              </div>
+            </div>
           ))}
         </div>
+      ) : (
+        <div className="text-center py-8 text-white">
+          <p>No subscription packages available at this time.</p>
+          <p className="text-sm text-gray-400 mt-2">Please try again later or contact support.</p>
+        </div>
       )}
-      <Button variant="outline" onClick={prevStep}>
-        Back
-      </Button>
+      
+      <div className="flex justify-center mt-4">
+        <Button variant="outline" onClick={prevStep}>
+          Back to Plans
+        </Button>
+      </div>
     </motion.div>
   );
 
