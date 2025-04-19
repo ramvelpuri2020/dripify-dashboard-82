@@ -37,7 +37,7 @@ const demoWebPackages: PurchasesPackage[] = [
       localizedTitle: 'Monthly Premium',
       localizedDescription: 'Unlimited style scans and personalized tips',
       localizedPriceString: '$4.99/month',
-      defaultOption: true,
+      defaultOption: null as any, // Using null instead of boolean to match type
       introPrice: null,
       discounts: [],
       presentedOfferingIdentifier: 'default',
@@ -65,7 +65,7 @@ const demoWebPackages: PurchasesPackage[] = [
       localizedTitle: 'Annual Premium',
       localizedDescription: 'Our best value plan with additional perks',
       localizedPriceString: '$39.99/year',
-      defaultOption: false,
+      defaultOption: null as any, // Using null instead of boolean to match type
       introPrice: null,
       discounts: [],
       presentedOfferingIdentifier: 'default',
@@ -105,8 +105,12 @@ export const Auth = () => {
       
       setIsLoadingOfferings(true);
       try {
-        // Check if we're in a mobile environment with RevenueCat available
-        await initializePurchases('anonymous');
+        // Initialize RevenueCat without showing errors on web
+        try {
+          await initializePurchases('anonymous');
+        } catch (error) {
+          console.log('RevenueCat initialization in Auth failed (expected on web):', error);
+        }
         
         // Set flag to indicate if we're in web environment where RevenueCat isn't available
         const rcAvailable = isRevenueCatAvailable();

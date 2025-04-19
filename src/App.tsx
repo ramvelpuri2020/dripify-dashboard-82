@@ -14,8 +14,10 @@ const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
+    // Initialize RevenueCat silently - we'll handle errors within the function
     initializePurchases().catch(err => {
-      console.error('RevenueCat initialization failed:', err);
+      // Error is already handled in the function, just log for debugging
+      console.log('Silent RevenueCat initialization in App failed:', err);
     });
   }, []);
 

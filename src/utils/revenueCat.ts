@@ -34,6 +34,7 @@ async function getRevenueCatKey(): Promise<string> {
 
 /**
  * Initializes the purchases module with the RevenueCat key from Supabase
+ * In web environments, this will not throw an error but will mark as initialized with a warning log
  */
 export const initializePurchases = async (userId?: string): Promise<void> => {
   if (isInitialized) {
@@ -41,9 +42,9 @@ export const initializePurchases = async (userId?: string): Promise<void> => {
     return;
   }
 
+  // For web environment, just mark as initialized and return
   if (!isCapacitorAvailable) {
-    console.log('RevenueCat Capacitor plugin not available in this environment');
-    // Mark as initialized to prevent further attempts in web environment
+    console.log('RevenueCat Capacitor plugin not available in this environment - web mode enabled');
     isInitialized = true;
     return;
   }
@@ -60,12 +61,17 @@ export const initializePurchases = async (userId?: string): Promise<void> => {
     console.log('RevenueCat initialized successfully');
   } catch (error) {
     console.error('Failed to initialize RevenueCat:', error);
-    // Don't throw here, just log the error to prevent app crashes
-    toast({
-      title: "Error",
-      description: "Failed to initialize payment system. Please try again later.",
-      variant: "destructive",
-    });
+    // Mark as initialized anyway to prevent further initialization attempts
+    isInitialized = true;
+    
+    // Don't show the error toast on web environments where this is expected to fail
+    if (typeof window !== 'undefined' && 'capacitor' in window) {
+      toast({
+        title: "Error",
+        description: "Failed to initialize payment system. Please try again later.",
+        variant: "destructive",
+      });
+    }
   }
 };
 
