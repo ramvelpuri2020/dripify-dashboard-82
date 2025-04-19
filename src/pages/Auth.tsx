@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronRight, Check, AlertCircle } from "lucide-react";
-import { getOfferings, purchasePackage, initializePurchases, PurchasesPackage } from "@/utils/revenueCat";
+import { getOfferings, purchasePackage, initializePurchases, PurchasesPackage, isRevenueCatAvailable } from "@/utils/revenueCat";
 
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth" | "paywall";
 
@@ -46,7 +46,7 @@ export const Auth = () => {
       try {
         await initializePurchases('anonymous');
         
-        setIsWebEnvironment(typeof Purchases === 'undefined');
+        setIsWebEnvironment(!isRevenueCatAvailable());
         
         const packages = await getOfferings();
         
