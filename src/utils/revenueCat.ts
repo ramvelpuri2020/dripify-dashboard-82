@@ -1,5 +1,5 @@
 
-import { Purchases, PurchasesPackage, PurchasesOfferings, CustomerInfo } from '@revenuecat/purchases-capacitor';
+import { Purchases, PurchasesPackage, PurchasesOfferings, CustomerInfo, PurchasesConfiguration } from '@revenuecat/purchases-capacitor';
 import { supabase } from "@/integrations/supabase/client";
 
 let isInitialized = false;
@@ -18,7 +18,7 @@ async function getRevenueCatKey(): Promise<string> {
 /**
  * Initializes the purchases module with the RevenueCat key from Supabase
  */
-export const initializePurchases = async (userId: string): Promise<void> => {
+export const initializePurchases = async (userId?: string): Promise<void> => {
   if (isInitialized) {
     console.log('RevenueCat already initialized');
     return;
@@ -26,10 +26,12 @@ export const initializePurchases = async (userId: string): Promise<void> => {
 
   try {
     const publicKey = await getRevenueCatKey();
-    await Purchases.configure({
+    const config: PurchasesConfiguration = {
       apiKey: publicKey,
-      appUserID: userId,
-    });
+      ...(userId && { appUserID: userId })
+    };
+
+    await Purchases.configure(config);
     isInitialized = true;
     console.log('RevenueCat initialized successfully');
   } catch (error) {
@@ -50,11 +52,11 @@ export const checkInitialization = () => {
 /**
  * Get available offerings
  */
-export const getOfferings = async (): Promise<PurchasesOfferings> => {
+export const getOfferings = async (): Promise<PurchasesPackage[]> => {
   checkInitialization();
   try {
-    const offerings = await Purchases.getOfferings();
-    return offerings;
+    const { offerings } = await Purchases.getOfferings();
+    return offerings.current?.availablePackages || [];
   } catch (error) {
     console.error('Failed to get offerings:', error);
     throw error;
@@ -103,16 +105,4 @@ export const hasActiveSubscription = async (): Promise<boolean> => {
   }
 };
 
-/**
- * Restore purchases
- */
-export const restorePurchases = async (): Promise<CustomerInfo> => {
-  checkInitialization();
-  try {
-    const { customerInfo } = await Purchases.restorePurchases();
-    return customerInfo;
-  } catch (error) {
-    console.error('Failed to restore purchases:', error);
-    throw error;
-  }
-};
+export { PurchasesPackage };
