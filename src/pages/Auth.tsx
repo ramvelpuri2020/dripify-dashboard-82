@@ -13,8 +13,10 @@ import { getOfferings, purchasePackage, initializePurchases, PurchasesPackage, i
 
 type OnboardingStep = "welcome" | "gender" | "referral" | "pricing" | "auth" | "paywall";
 
-// Define a type that uses only the properties we actually need for the demo
-type DemoPackage = PurchasesPackage & {
+// Create a separate mock package type for web demo purposes only
+// This avoids TypeScript errors while keeping the UI functional
+interface MockPackage {
+  identifier: string;
   packageType: string;
   product: {
     identifier: string;
@@ -25,10 +27,11 @@ type DemoPackage = PurchasesPackage & {
     currencyCode: string;
     subscriptionPeriod: string;
   };
-};
+  offering: string;
+}
 
-// Simplified demo packages for web browser view
-const demoWebPackages: DemoPackage[] = [
+// Demo packages for web browser view
+const demoWebPackages: MockPackage[] = [
   {
     identifier: 'monthly',
     packageType: 'MONTHLY',
@@ -42,7 +45,7 @@ const demoWebPackages: DemoPackage[] = [
       subscriptionPeriod: 'P1M'
     },
     offering: 'default',
-  } as DemoPackage,
+  },
   {
     identifier: 'yearly',
     packageType: 'ANNUAL',
@@ -56,7 +59,7 @@ const demoWebPackages: DemoPackage[] = [
       subscriptionPeriod: 'P1Y'
     },
     offering: 'default',
-  } as DemoPackage
+  }
 ];
 
 export const Auth = () => {
@@ -107,6 +110,8 @@ export const Auth = () => {
           packages = await getOfferings();
         } else {
           // Use demo packages in web environment for testing UI
+          // Cast the mock packages to PurchasesPackage with unknown as intermediary
+          // This is safe because we're only using these properties in the UI
           packages = demoWebPackages as unknown as PurchasesPackage[];
           console.log("Using demo packages for web environment:", packages);
         }
