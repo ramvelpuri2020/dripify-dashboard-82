@@ -1,11 +1,9 @@
-
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Trophy, TrendingUp, Flame } from "lucide-react";
-import { useScanStore } from "@/store/scanStore";
-import { supabase } from "@/integrations/supabase/client";
+import { useStatsStore } from "@/store/statsStore";
 
 interface StyleStatsProps {
   hasScans: boolean;
@@ -18,7 +16,7 @@ interface StyleStatsProps {
 }
 
 export const StyleStats = ({ hasScans, stats }: StyleStatsProps) => {
-  const { stats: storeStats, fetchUserStats } = useScanStore();
+  const { stats: storeStats, fetchUserStats } = useStatsStore();
   
   useEffect(() => {
     const fetchStats = async () => {

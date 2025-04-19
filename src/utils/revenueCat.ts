@@ -1,4 +1,3 @@
-
 import { Purchases, PurchasesPackage, PurchasesOfferings, CustomerInfo, PurchasesConfiguration } from '@revenuecat/purchases-capacitor';
 import { supabase } from "@/integrations/supabase/client";
 
@@ -55,7 +54,7 @@ export const checkInitialization = () => {
 export const getOfferings = async (): Promise<PurchasesPackage[]> => {
   checkInitialization();
   try {
-    const { offerings } = await Purchases.getOfferings();
+    const offerings = await Purchases.getOfferings();
     return offerings.current?.availablePackages || [];
   } catch (error) {
     console.error('Failed to get offerings:', error);
@@ -105,4 +104,4 @@ export const hasActiveSubscription = async (): Promise<boolean> => {
   }
 };
 
-export { PurchasesPackage };
+export type { PurchasesPackage };

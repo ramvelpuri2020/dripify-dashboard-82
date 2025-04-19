@@ -1,21 +1,22 @@
+
 import { create } from 'zustand';
-import type { ScoreBreakdown } from '@/types/styleTypes';
+import type { ScoreBreakdown, StyleTip } from '@/types/styleTypes';
 
 type ScanState = {
   latestScan: {
     overallScore: number;
     rawAnalysis: string;
     imageUrl: string;
-    breakdown: ScoreBreakdown[];
-    tips?: string[];
+    breakdown?: ScoreBreakdown[];
+    tips?: StyleTip[];
     summary?: string;
   } | null;
   setLatestScan: (scan: {
     overallScore: number;
     rawAnalysis: string;
     imageUrl: string;
-    breakdown: ScoreBreakdown[];
-    tips?: string[];
+    breakdown?: ScoreBreakdown[];
+    tips?: StyleTip[];
     summary?: string;
   }) => void;
 };
